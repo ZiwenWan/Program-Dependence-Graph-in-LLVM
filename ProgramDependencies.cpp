@@ -1,4 +1,3 @@
-  
 #include "ProgramDependencies.h"
 
 using namespace llvm;
@@ -73,10 +72,6 @@ void ProgramDependencyGraph::connectAllPossibleFunctions(
       funcMap.end();
 
   for (; FI != FE; ++FI) {
-    // if ((*FI).first->getFunctionType() == funcTy &&
-    //     (*FI).first->getName() != "main") {
-    //   errs() << (*FI).first->getName() << " function pointer! \n";
-
     if ((*FI).first->getFunctionType() == funcTy &&
         (*FI).first->getName() != "main") {
       errs() << (*FI).first->getName() << " function pointer! \n";
@@ -84,22 +79,23 @@ void ProgramDependencyGraph::connectAllPossibleFunctions(
       // color a ret node in callee(func ptr)randomly as long as we can combine
       // them together with caller
     }
-
+    errs() << "Hit this hotpoint!!" << "\n";
     for (list<ArgumentWrapper *>::iterator
              argI = funcMap[(*FI).first]->getArgWList().begin(),
              argE = funcMap[(*FI).first]->getArgWList().end();
          argI != argE; ++argI) {
 
-      InstructionWrapper *formal_inW =
-          *(*argI)->getTree(FORMAL_IN_TREE).begin();
-      InstructionWrapper *formal_outW =
-          *(*argI)->getTree(FORMAL_OUT_TREE).begin();
-
+      InstructionWrapper *formal_inW = *(*argI)->getTree(FORMAL_IN_TREE).begin();
+      InstructionWrapper *formal_outW = *(*argI)->getTree(FORMAL_OUT_TREE).begin();
+      errs() << "Validating formal nodes:" << "\n";
+      errs() << *instnodes.find(formal_inW) << "\n";
+      errs() << *instnodes.find(formal_outW) << "\n";
+      if(instnodes.find(formal_inW) == instnodes.end() || instnodes.find(formal_outW) == instnodes.end()) {
+        continue;
+      }
       // connect Function's EntryNode with formal in/out tree roots
-      PDG->addDependency(funcMap[(*FI).first]->getEntry(),
-                         *instnodes.find(formal_inW), PARAMETER);
-      PDG->addDependency(funcMap[(*FI).first]->getEntry(),
-                         *instnodes.find(formal_outW), PARAMETER);
+      PDG->addDependency(funcMap[(*FI).first]->getEntry(), *instnodes.find(formal_inW), PARAMETER);
+      PDG->addDependency(funcMap[(*FI).first]->getEntry(), *instnodes.find(formal_outW), PARAMETER);
     }
   }
 }
@@ -562,7 +558,7 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
 
           FunctionType *funcTy =
               cast<FunctionType>(cast<PointerType>(t)->getElementType());
-          errs() << "afte cast<FunctionType>, ft = " << *funcTy << "\n";
+          errs() << "after cast<FunctionType>, ft = " << *funcTy << "\n";
 
           connectAllPossibleFunctions(InstW, funcTy);
 

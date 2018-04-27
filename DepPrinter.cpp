@@ -14,10 +14,14 @@ namespace llvm {
             const InstructionWrapper *instW = Node->getData();
 
             //TODO: why nullptr for Node->getData()?
-            if(instW == nullptr){
+            if(instW == nullptr || instW == NULL){
                 errs() <<"instW " << instW << "\n";
                 return "null instW";
             }
+            if (instW->getInstruction()) {
+              instW->getInstruction()->print(errs());
+            }
+            errs() << "\n";
 
             std::string Str;
             raw_string_ostream OS(Str);
@@ -62,7 +66,9 @@ namespace llvm {
                     return ("POINTER READ/WRITE : *" + OS.str());
                 }
 
+                default: {
                     break;
+                }
             }
 
             const Instruction *inst = Node->getData()->getInstruction();
@@ -160,7 +166,10 @@ namespace llvm {
       getEdgeAttributes(DepGraphNode *Node,
                         DependencyLinkIterator<InstructionWrapper> &IW,
                         ProgramDependencyGraph *PD) {
+
         switch (IW.getDependencyType()) {
+        errs() << "Instruction Type: " << IW.getDependencyType() << "\n";
+
         case CONTROL:
           return "";
         case DATA_GENERAL:
@@ -190,8 +199,10 @@ namespace llvm {
                    << "\n";
           return ret_str;
         }
+        default:
+            return "style=dotted,label=\"{UNDEFINED}\"";
         }          // end switch
-        return ""; // default ret statement
+        //return ""; // default ret statement
       }            // end getEdgeAttr...
     };
 
@@ -256,7 +267,8 @@ namespace llvm {
     //     : public DOTGraphTraitsViewer<ProgramDependencyGraph, false> {
     //   static char ID;
     //   ProgramDependencyViewer()
-    //       : DOTGraphTraitsViewer<ProgramDependencyGraph, false>("pdgraph", ID) {
+    //       : DOTGraphTraitsViewer<ProgramDependencyGraph, false>("pdgraph",
+    //       ID) {
     //   }
     // };
 

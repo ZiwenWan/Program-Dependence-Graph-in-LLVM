@@ -7,7 +7,7 @@ char *ciphertext;
 unsigned int i;
 
 void greeter (char *str) {
-	printf(str); 
+	printf("%s\n",str); 
 	printf(", welcome!\n"); 
 }
 
@@ -23,7 +23,7 @@ void encrypt (char *plaintext, int sz) {
 		ciphertext[i]=plaintext[i] ^ key[i];
 }
 
-void main (){
+int main (){
 	char username[20], text[1024];
 	printf("Enter username: ");
 	scanf("%19s",username);
@@ -36,4 +36,5 @@ void main (){
 	printf("Cipher text: ");
 	for (i=0; i<strlen(text); i++)
 		printf("%x ",ciphertext[i]);
+    return 0;
 }
