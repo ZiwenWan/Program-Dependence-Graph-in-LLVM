@@ -184,7 +184,6 @@ extern std::map<const llvm::Function *, std::set<InstructionWrapper *>>
     funcInstWList;
 
 static void constructInstMap(llvm::Function &F) {
-
   for (llvm::inst_iterator I = inst_begin(F), IE = inst_end(F); I != IE; ++I) {
 
     // llvm::errs() << "Current InstMap Size: " << instMap.size() << "\n";

@@ -1,4 +1,3 @@
-
 if(WIN32 OR CYGWIN)
     set(LLVM_LINK_COMPONENTS Core Support)
 endif()

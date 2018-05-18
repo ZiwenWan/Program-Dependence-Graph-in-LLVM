@@ -60,7 +60,6 @@ public:
 
 namespace llvm
 {
-
     template <> struct GraphTraits<SystemControlDependenceGraph *>
             : public GraphTraits<DepGraph*> {
         static NodeRef getEntryNode(SystemControlDependenceGraph *sg) {

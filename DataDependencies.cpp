@@ -8,35 +8,43 @@ char DataDependencyGraph::ID = 0;
 bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
   errs() << "++++++++++++++++++++++++++++++ DataDependency::runOnFunction "
-            "+++++++++++++++++++++++++++++"
+          "+++++++++++++++++++++++++++++"
          << '\n';
   errs() << "Function name:" << F.getName().str() << '\n';
 
-  // if (instMap.size() == 0) {
-  constructInstMap(F);
-  //}
-  // FlowDependenceAnalysis &MDA = getAnalysis<FlowDependenceAnalysis>(F);
-  // MemoryDependenceAnalysis *MDA =
-  // &getAnalysis<MemoryDependenceWrapperPass>(F);
-  //DominatorTree *DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+  if (instMap.empty() == false) {
+    constructInstMap(F);
+  }
   AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
   MemoryDependenceResults *MD =
-      &getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
-  //const TargetLibraryInfo *TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+          &getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
 
   errs() << "After getAnalysis<MemoryDependenceAnalysis>()" << '\n';
 
   for (inst_iterator instIt = inst_begin(F), E = inst_end(F); instIt != E;
        ++instIt) {
-
     DDG->getNodeByData(instMap[&*instIt]);
 
     Instruction *pInstruction = dyn_cast<Instruction>(&*instIt);
 
+    // check for def-use dependencies
+    for (Instruction::const_op_iterator cuit = pInstruction->op_begin();
+         cuit != pInstruction->op_end(); ++cuit) {
+      if (Instruction *pInst = dyn_cast<Instruction>(*cuit)) {
+        //Value *tempV = dyn_cast<Value>(*cuit);
+        DDG->addDependency(instMap[pInst], instMap[&*instIt],
+                           DATA_DEF_USE);
+      }
+    }
+
+    if(isa<CallInst>(pInstruction)) {
+      errs() << "This is a call Inst (DDG)" << "\n";
+    }
+
     if (isa<LoadInst>(pInstruction)) {
       // dealing with dependencies in a function
       std::vector<Instruction *> flowdep_set =
-          getDependencyInFunction(F, pInstruction);
+              getDependencyInFunction(F, pInstruction);
 
       for (int i = 0; i < flowdep_set.size(); i++) {
         DDG->addDependency(instMap[flowdep_set[i]], instMap[pInstruction],
@@ -53,7 +61,7 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
       MD->getNonLocalPointerDependency(pInstruction, result);
       // now result stores all possible
       for (SmallVector<NonLocalDepResult, 20>::iterator II = result.begin(),
-                                                        EE = result.end();
+                   EE = result.end();
            II != EE; ++II) {
         errs() << "SmallVecter size = " << result.size() << '\n';
         const MemDepResult nonLocal_res = II->getResult();
@@ -69,17 +77,6 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
         }
       }
 
-      // check for def-use dependencies
-      //std::vector<Instruction *> flowdep_set;
-
-      for (Instruction::const_op_iterator cuit = instIt->op_begin();
-           cuit != instIt->op_end(); ++cuit) {
-        if (Instruction *pInstruction = dyn_cast<Instruction>(*cuit)) {
-          Value *tempV = dyn_cast<Value>(*cuit);
-          DDG->addDependency(instMap[pInstruction], instMap[&*instIt],
-                             DATA_DEF_USE);
-        }
-      }
     }
   }
   return false;
@@ -96,7 +93,7 @@ void DataDependencyGraph::print(raw_ostream &OS, const Module *) const {
 }
 
 static RegisterPass<DataDependencyGraph>
-    DDG("ddg", "Data Dependency Graph Construction", false, true);
+        DDG("ddg", "Data Dependency Graph Construction", false, true);
 
 DataDependencyGraph *CreateDataDependencyGraphPass() {
   return new DataDependencyGraph();
