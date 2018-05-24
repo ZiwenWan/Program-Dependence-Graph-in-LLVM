@@ -1,0 +1,31 @@
+digraph "Data dependency graph for 'main' function" {
+	label="Data dependency graph for 'main' function";
+
+	Node0xbef4c0 [shape=record,label="{  %2 = alloca i32, align 4}"];
+	Node0xbef4c0 -> Node0xbef5a0;
+	Node0xbef530 [shape=record,label="{  store i32 %0, i32* %2, align 4}"];
+	Node0xbef530 -> Node0xbef5a0;
+	Node0xbef5a0 [shape=record,label="{  %3 = load i32, i32* %2, align 4}"];
+	Node0xbf0890 [shape=record,label="{  %4 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([8 x i8], [8 x i8]* @.str, i32 0, i32 0), i32 %3)}"];
+	Node0xbf0900 [shape=record,label="{  ret i32 0}"];
+	Node0xbf0350 [shape=record,label="{  %2 = alloca i32, align 4}"];
+	Node0xbf0350 -> Node0xbf0430;
+	Node0xbf03c0 [shape=record,label="{  store i32 %0, i32* %2, align 4}"];
+	Node0xbf03c0 -> Node0xbf0430;
+	Node0xbf0430 [shape=record,label="{  %3 = load i32, i32* %2, align 4}"];
+	Node0xbf04a0 [shape=record,label="{  %4 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([8 x i8], [8 x i8]* @.str.1, i32 0, i32 0), i32 %3)}"];
+	Node0xbf05a0 [shape=record,label="{  ret i32 0}"];
+	Node0xbf1660 [shape=record,label="{  %1 = alloca i32, align 4}"];
+	Node0xbf16d0 [shape=record,label="{  %2 = alloca i32, align 4}"];
+	Node0xbf16d0 -> Node0xbf1820;
+	Node0xbf16d0 -> Node0xbf2b50;
+	Node0xbf1740 [shape=record,label="{  store i32 0, i32* %1, align 4}"];
+	Node0xbf17b0 [shape=record,label="{  store i32 4, i32* %2, align 4}"];
+	Node0xbf17b0 -> Node0xbf1820;
+	Node0xbf17b0 -> Node0xbf2b50;
+	Node0xbf1820 [shape=record,label="{  %3 = load i32, i32* %2, align 4}"];
+	Node0xbf2ae0 [shape=record,label="{  %4 = call i32 @_Z2f1i(i32 %3)}"];
+	Node0xbf2b50 [shape=record,label="{  %5 = load i32, i32* %2, align 4}"];
+	Node0xbf2cd0 [shape=record,label="{  %6 = call i32 @_Z2f2i(i32 %5)}"];
+	Node0xbf2d40 [shape=record,label="{  ret i32 0}"];
+}

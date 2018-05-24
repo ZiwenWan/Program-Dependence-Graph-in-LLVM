@@ -1,0 +1,22 @@
+digraph "Data dependency graph for 'main' function" {
+	label="Data dependency graph for 'main' function";
+
+	Node0x173a750 [shape=record,label="{  %1 = alloca i32, align 4}"];
+	Node0x173a750 -> Node0x173a8a0;
+	Node0x173a7c0 [shape=record,label="{  %2 = alloca i32*, align 8}"];
+	Node0x173a7c0 -> Node0x173bd70;
+	Node0x173a830 [shape=record,label="{  %3 = alloca i32, align 4}"];
+	Node0x173a8d0 [shape=record,label="{  store i32 0, i32* %1, align 4}"];
+	Node0x173a8d0 -> Node0x173a8a0;
+	Node0x173a8d0 -> Node0x173be70;
+	Node0x173a940 [shape=record,label="{  store i32* %1, i32** %2, align 8}"];
+	Node0x173a940 -> Node0x173bd70;
+	Node0x173a8a0 [shape=record,label="{  %4 = load i32, i32* %1, align 4}"];
+	Node0x173bc90 [shape=record,label="{  %5 = add nsw i32 %4, 3}"];
+	Node0x173bd00 [shape=record,label="{  store i32 %5, i32* %3, align 4}"];
+	Node0x173bd70 [shape=record,label="{  %6 = load i32*, i32** %2, align 8}"];
+	Node0x173bd70 -> Node0x173be70;
+	Node0x173be70 [shape=record,label="{  %7 = load i32, i32* %6, align 4}"];
+	Node0x173bef0 [shape=record,label="{  %8 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %7)}"];
+	Node0x173bf60 [shape=record,label="{  ret i32 0}"];
+}

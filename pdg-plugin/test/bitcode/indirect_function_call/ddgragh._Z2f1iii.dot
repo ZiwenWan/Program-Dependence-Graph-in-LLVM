@@ -1,0 +1,11 @@
+digraph "Data dependency graph for '_Z2f1iii' function" {
+	label="Data dependency graph for '_Z2f1iii' function";
+
+	Node0x1186310 [shape=record,label="{  %4 = alloca i32, align 4}"];
+	Node0x1186380 [shape=record,label="{  %5 = alloca i32, align 4}"];
+	Node0x11863f0 [shape=record,label="{  %6 = alloca i32, align 4}"];
+	Node0x1186490 [shape=record,label="{  store i32 %0, i32* %4, align 4}"];
+	Node0x1186500 [shape=record,label="{  store i32 %1, i32* %5, align 4}"];
+	Node0x1186460 [shape=record,label="{  store i32 %2, i32* %6, align 4}"];
+	Node0x1186600 [shape=record,label="{  ret void}"];
+}
