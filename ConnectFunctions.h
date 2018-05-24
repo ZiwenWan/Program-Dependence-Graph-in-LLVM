@@ -8,7 +8,6 @@
 #include "SystemDataDependencies.h"
 #include "SystemControlDependenceGraph.h"
 
-//#include "AllPasses.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"

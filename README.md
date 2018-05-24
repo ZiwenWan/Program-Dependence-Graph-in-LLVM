@@ -16,17 +16,11 @@ Currently, the flow dependency analysis module has not been upgraded.
 
 ## How to use
 This project is built accord to llvm 5.0 build system. 
-Just copy all the files in the repository to the lib/Analysis/CDG 
+ - make
 
-The directory CDG is created by yourself and can be renamed to whatever names.
-
-Then, modify the Cmakelist file in the lib/Analysis directory and add add_subdirecoty("CDG")
-
-This should get the llvm to build the pass.
-
-Then, one can print control dependency graph or data dependency graph by following command (should be ran ):
-
-> opt -load path_to_your_so/LLVMCDG.so -dot-cdg path_to_test/test_file.bc 
+## load pass for optimization
+> opt-5.0  -load ../../build/libpdg.so -dot-ddg test.bc
+> opt-5.0  -load ../../build/libpdg.so -dot-pdg test.bc
 
 ## How to generate bc file?
 Just write a valid C program and then use. (test.c in this example)

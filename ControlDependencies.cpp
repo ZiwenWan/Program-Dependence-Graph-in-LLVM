@@ -72,9 +72,7 @@ void ControlDependencyGraph::computeDependencies(llvm::Function &F,
 
     // capture loop dependence
     if (L == Edge.first) {
-      //	errs() << "\t find A == L: " << L->getName() << "\n";
       addDependency(Edge.first, L, type);
-      //     errs() << "DepType: " << type << "\n";
     }
     //      DomTreeNode *domNode = PDT[Edge.second];
     DomTreeNode *domNode = PDT->getNode(Edge.second);

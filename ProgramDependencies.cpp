@@ -29,12 +29,6 @@ std::map<const llvm::Function *, std::set<InstructionWrapper *>>
 static IRBuilder<> Builder();
 
 char ProgramDependencyGraph::ID = 0;
-// std::map<const llvm::BasicBlock *,BasicBlockWrapper *>
-// BasicBlockWrapper::bbMap;
-//AliasAnalysis *ProgramDependencyGraph::Global_AA = nullptr;
-
-// std::map<const llvm::Function *,FunctionWrapper *> FunctionWrapper::funcMap;
-// std::map<const llvm::CallInst *,CallWrapper * > CallWrapper::callMap;
 
 void ProgramDependencyGraph::connectAllPossibleFunctions(
         InstructionWrapper *CInstW, FunctionType *funcTy) {
@@ -158,8 +152,7 @@ int ProgramDependencyGraph::connectCallerAndCallee(InstructionWrapper *InstW,
                     PDG->addDependency(*instnodes.find(*nodeIt), InstW, DATA_GENERAL);
                     // TODO: indirect call, function name??
                 else
-                    ; // errs() << "void ReturnInst: " << *(*nodeIt)->getInstruction()
-                // << " Function: " << callee_func->getName();
+                    ; 
             }
         }
     }
@@ -272,25 +265,14 @@ int ProgramDependencyGraph::connectCallerAndCallee(InstructionWrapper *InstW,
 void ProgramDependencyGraph::connectFunctionAndFormalTrees(
         llvm::Function *callee) {
 
-    //  errs() << "DEBUG 152: In connectFunctionAndFormalTrees,
-    //  callee->getName() : " << callee->getName() << "\n";
-
     for (list<ArgumentWrapper *>::iterator
                  argI = funcMap[callee]->getArgWList().begin(),
                  argE = funcMap[callee]->getArgWList().end();
          argI != argE; ++argI) {
 
-        //    errs() << "arg : " << *(*argI)->getArg() << " " << (*argI)->getArg()
-        //    << "\n";
-
         InstructionWrapper *formal_inW = *(*argI)->getTree(FORMAL_IN_TREE).begin();
         InstructionWrapper *formal_outW =
                 *(*argI)->getTree(FORMAL_OUT_TREE).begin();
-
-        //   errs() << "formal_in_tree.size = " <<
-        //   (*argI)->getTree(FORMAL_IN_TREE).size() << "\n";
-        // errs() << "formal_out_tree.size = " <<
-        // (*argI)->getTree(FORMAL_OUT_TREE).size() << "\n";
 
         // connect Function's EntryNode with formal in/out tree roots
         PDG->addDependency(funcMap[callee]->getEntry(), *instnodes.find(formal_inW),
@@ -323,10 +305,6 @@ void ProgramDependencyGraph::connectFunctionAndFormalTrees(
             // connect formal-in-tree type nodes with storeinst in call_func,
             // approximation used here
             if (nullptr != (*formal_in_TI)->getFieldType()) {
-
-                //	errs() << "formal_in_TI = " << *(*formal_in_TI)->getFieldType()
-                //<< " " << (*formal_in_TI)->getFieldType() << "\n";
-
                 std::list<StoreInst *>::iterator SI =
                         funcMap[callee]->getStoreInstList().begin();
                 std::list<StoreInst *>::iterator SE =
@@ -348,9 +326,6 @@ void ProgramDependencyGraph::connectFunctionAndFormalTrees(
                 } // end for(;SI != SE; ++SI)
             }   // end if nullptr == (*formal_in_TI)->getFieldType()
 
-            // errs() << "DEBUG 207: (*formal_out_TI)->getFieldType() = " <<
-            // *(*formal_out_TI)->getFieldType() << " " <<
-            // (*formal_out_TI)->getFieldType() << "\n";
             // 2. Callee's LoadInsts --> FORMAL_OUT in Callee function
             // must handle nullptr case first
             if (nullptr == (*formal_out_TI)->getFieldType()) {
@@ -359,7 +334,6 @@ void ProgramDependencyGraph::connectFunctionAndFormalTrees(
                 break;
             }
 
-            //      errs() << "DEBUG 214\n";
             if (nullptr != (*formal_out_TI)->getFieldType()) {
 
                 std::list<LoadInst *>::iterator LI =
@@ -368,10 +342,6 @@ void ProgramDependencyGraph::connectFunctionAndFormalTrees(
                         funcMap[callee]->getLoadInstList().end();
 
                 for (; LI != LE; ++LI) {
-                    //	  errs() << "LI " << *(*LI) << "\n";
-                    // errs() << "LI ptr type" <<
-                    // *(*LI)->getPointerOperand()->getType()->getContainedType(0) <<
-                    // "\n";
 
                     if ((*formal_out_TI)->getFieldType() ==
                         (*LI)->getPointerOperand()->getType()->getContainedType(0)) {
@@ -388,20 +358,11 @@ void ProgramDependencyGraph::connectFunctionAndFormalTrees(
                     }
                 } // end for(; LI != LE; ++LI)
             }   // end if(nullptr != (*formal_out_TI)->...)
-
-            //      errs() << "DEBUG 236\n";
         } // end for (tree formal_in_TI...)
-
-        //    errs() << "DEBUG 240 arg: END\n";
-
     } // end for arg iteration...
-
-    //  errs() << "DEBUG 243 connectFunctionAndFormalTrees END\n";
 }
 
 bool ProgramDependencyGraph::runOnModule(Module &M) {
-
-    //Global_AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
 
     errs() << "ProgramDependencyGraph::runOnModule" << '\n';
 
@@ -415,8 +376,6 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
     // Get the Module's list of global variable and function identifiers
 
     errs() << "======Global List: ======\n";
-
-    //    M.getGlobalList().dump();
     for (llvm::Module::global_iterator globalIt = M.global_begin();
          globalIt != M.global_end(); ++globalIt) {
 
@@ -427,8 +386,6 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
 
         // find all global pointer values and insert them into a list
         if (globalW->getValue()->getType()->getContainedType(0)->isPointerTy()) {
-            // errs() << " Pointer global value found! : " << *(globalW->getValue())
-            // << "\n";
             gp_list.push_back(globalW);
         }
     }
@@ -509,7 +466,6 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
                         funcMap.find(InstW->getFunction());
 
                 if (FI != funcMap.end()) {
-                    //   errs() << "find successful!" << "\n";
                     funcMap[InstW->getFunction()]->setEntry(InstW);
                 }
             }
@@ -541,14 +497,9 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
 
                     LoadInst *LI2 = dyn_cast<LoadInst>(InstW2->getInstruction());
 
-                    for (std::set<InstructionWrapper *>::const_iterator gi =
-                            globalList.begin();
+                    for (std::set<InstructionWrapper *>::const_iterator gi = globalList.begin();
                          gi != globalList.end(); ++gi) {
-                        //		errs() << "global v = " << *(*gi)->getValue() <<
-                        //"\n";
                         if (LI2->getPointerOperand() == (*gi)->getValue()) {
-                            //	  errs() << *(*gi)->getValue() << " used in " << *LI2 <<
-                            //"\n";
                             PDG->addDependency(*gi, InstW2, GLOBAL_VALUE);
                         }
                     } // end searching globalList
@@ -615,11 +566,8 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
 
                                 for (llvm::Use &U : tempI->operands()) {
                                     Value *v_for_cast = U.get();
-                                    //sensitive_values.push_back(v_for_cast);
                                 }
                             }
-//              else
-//                sensitive_values.push_back(v);
                         }
                         continue;
                     }
@@ -636,8 +584,6 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
                     if (!callee->arg_empty()) {
 
                         if (true != funcMap[callee]->hasTrees()) {
-                            //	  errs() << "DEBUG 456 New call for tree construction: "
-                            //<< *InstW->getInstruction() << "\n";  build formal trees in memory
                             buildFormalParameterTrees(callee);
                             // add tree edges in PDG
                             drawFormalParameterTree(callee, FORMAL_IN_TREE);

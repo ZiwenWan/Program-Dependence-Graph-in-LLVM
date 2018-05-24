@@ -186,9 +186,6 @@ extern std::map<const llvm::Function *, std::set<InstructionWrapper *>>
 static void constructInstMap(llvm::Function &F) {
   for (llvm::inst_iterator I = inst_begin(F), IE = inst_end(F); I != IE; ++I) {
 
-    // llvm::errs() << "Current InstMap Size: " << instMap.size() << "\n";
-    // temp testing, remove soon later...
-    //	llvm::errs() << &*I << " " << *I << "\n";
     // if not in instMap yet, insert
     if (instMap.find(&*I) == instMap.end()) {
       InstructionWrapper *iw = new InstructionWrapper(&*I, &F, INST);
@@ -206,8 +203,6 @@ template <class NodeT> class DependencyLinkIterator;
 
 template <class NodeT> class DependencyNode {
 public:
-  //    typedef std::pair<DependencyNode<NodeT> *, DependencyType>
-  //    DependencyLink;
 
   typedef std::pair<DependencyNode<NodeT> *, int> DependencyLink;
   typedef std::vector<DependencyLink> DependencyLinkList;
@@ -231,9 +226,6 @@ public:
   DependencyNode(const NodeT *pData) : mpData(pData) {}
 
   void addDependencyTo(DependencyNode<NodeT> *pNode, int type) {
-    // Avoid self-loops.
-    //	if (pNode == this)
-    // return;
     DependencyLink link = DependencyLink(pNode, type);
     // Avoid double links.
     if (std::find(mDependencies.begin(), mDependencies.end(), link) ==
@@ -355,13 +347,6 @@ public:
     return it->second;
   }
 
-  // const DependencyNode<NodeT> *getNodeByData(const NodeT *pData) const {
-  //   typename DataToNodeMap::const_iterator it = mDataToNode.find(pData);
-  //   if (it == mDataToNode.end()) {
-  //     return 0;
-  //   }
-  //   return it->second;
-  // }
 
   void addDependency(const NodeT *pDependent, const NodeT *pDepency, int type) {
     DependencyNode<NodeT> *pFrom = getNodeByData(pDependent);
@@ -373,8 +358,6 @@ public:
     DependencyNode<NodeT> *pFrom = getNodeByData(pNode1);
     DependencyNode<NodeT> *pTo = getNodeByData(pNode2);
 
-    //      if(pFrom == nullptr)
-    //	llvm::errs() << "pFrom == nullptr!\n";
     if (pFrom != nullptr && pTo != nullptr) {
       return pFrom->dependsFrom(pTo);
     } else
@@ -399,7 +382,6 @@ public:
     return const_nodes_iterator(mNodes.end());
   }
 
-  //    void print(llvm::raw_ostream &OS, const char *PN) const
   void print(llvm::raw_ostream &OS, const char *PN) const {
     OS << "=============================--------------------------------\n";
     OS << PN << ": \n";
@@ -422,7 +404,6 @@ private:
   DataToNodeMap mDataToNode;
 };
 
-//  typedef DependencyGraph<BasicBlockWrapper> DepGraph;
 typedef DependencyGraph<InstructionWrapper> DepGraph;
 
 /*!
@@ -433,7 +414,6 @@ static llvm::raw_ostream &operator<<(llvm::raw_ostream &o,
                                      const DependencyNode<NodeT> *N) {
   const NodeT *block = N->getData();
   if (block) {
-    //      WriteAsOperand(o, block, false);
   } else {
     o << "<<EntryNode>>";
   }
@@ -441,7 +421,6 @@ static llvm::raw_ostream &operator<<(llvm::raw_ostream &o,
   typename DependencyNode<NodeT>::const_iterator I = N->begin();
   typename DependencyNode<NodeT>::const_iterator E = N->end();
   for (; I != E; ++I) {
-    //      WriteAsOperand(o, (*I)->getData(), false);
     o << ":" << I.getDependencyType() << " ";
   }
   o << "}";
@@ -465,10 +444,8 @@ static void PrintDependencyTree(llvm::raw_ostream &o,
 
 namespace llvm {
 template <> struct GraphTraits<DepGraphNode *> {
-  // typedef DepGraphNode NodeRef;
   using NodeRef = DepGraphNode *;
   using ChildIteratorType = DepGraphNode::iterator;
-  // typedef NodeRef::iterator  ChildIteratorType;
 
   static NodeRef getEntryNode(DepGraphNode *N) { return N; }
   static inline ChildIteratorType child_begin(DepGraphNode *N) {

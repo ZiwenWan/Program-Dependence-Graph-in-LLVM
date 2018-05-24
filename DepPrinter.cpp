@@ -18,10 +18,6 @@ namespace llvm {
                 errs() <<"instW " << instW << "\n";
                 return "null instW";
             }
-//            if (instW->getInstruction()) {
-//                instW->getInstruction()->print(errs());
-//            }
-//            errs() << "\n";
 
             std::string Str;
             raw_string_ostream OS(Str);
@@ -133,8 +129,6 @@ namespace llvm {
         static std::string
         getEdgeSourceLabel(DepGraphNode *Node,
                            DependencyLinkIterator<InstructionWrapper> EI) {
-            //    errs() << "getEdgeSourceLabel(): type = " <<
-            //    EI.getDependencyType() << "\n";
             switch (EI.getDependencyType()) {
 
                 default:
@@ -158,8 +152,6 @@ namespace llvm {
             return DOTGraphTraits<DepGraph *>::getNodeLabel(Node, Graph->PDG);
         }
 
-        // return IW.getDependencyType() == DATA ?
-        //"style=dotted" : "";
 
         // take care of the probable display error here
         std::string
@@ -258,21 +250,6 @@ static RegisterPass<DataDependencyPrinter>
         DdGPrinter("dot-ddg",
                    "Print data dependency graph of function to 'dot' file",
                    false, false);
-
-// Program Printer
-// struct ProgramDependencyViewer
-//     : public DOTGraphTraitsViewer<ProgramDependencyGraph, false> {
-//   static char ID;
-//   ProgramDependencyViewer()
-//       : DOTGraphTraitsViewer<ProgramDependencyGraph, false>("pdgraph",
-//       ID) {
-//   }
-// };
-
-// char ProgramDependencyViewer::ID = 0;
-// static RegisterPass<ProgramDependencyViewer>
-//     PdgViewer("view-pdg", "View program dependency graph of function",
-//               false, false);
 
 struct ProgramDependencyPrinter
         : public DOTGraphTraitsPrinter<ProgramDependencyGraph, false> {

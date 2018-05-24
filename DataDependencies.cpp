@@ -1,5 +1,4 @@
 #include "DataDependencies.h"
-//#include "FlowDependenceAnalysis.h"
 
 using namespace llvm;
 
@@ -31,7 +30,6 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
     for (Instruction::const_op_iterator cuit = pInstruction->op_begin();
          cuit != pInstruction->op_end(); ++cuit) {
       if (Instruction *pInst = dyn_cast<Instruction>(*cuit)) {
-        //Value *tempV = dyn_cast<Value>(*cuit);
         DDG->addDependency(instMap[pInst], instMap[&*instIt],
                            DATA_DEF_USE);
       }

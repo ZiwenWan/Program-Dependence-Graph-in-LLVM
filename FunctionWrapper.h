@@ -26,20 +26,15 @@ private:
     llvm::Type *ty;
     int id;
     //this flag is true means this type contains a field(or grandfield) that is function pointer or FILE*
-    // bool flag;
-
+    
 public:
     TypeWrapper(llvm::Type* ty, int id){
         this->ty = ty;
         this->id = id;
-        // this->flag = false;
     }
 
     llvm::Type* getType(){ return ty;}
     int getId(){return id;}
-    // bool getUnseparatedFlag(){return flag;}
-    //void setUnseparatedFlag(){this->flag = true;}
-
 };
 
 class ArgumentWrapper{
@@ -54,13 +49,10 @@ private:
     tree<InstructionWrapper*> actualInTree;
     tree<InstructionWrapper*> actualOutTree;
 
-    //  tree<InstructionWrapper*> testTree;
-
 public:
 
     ArgumentWrapper(Argument* arg){
         this->arg = arg;
-        //    this->recursive_types = {};
     }
 
     Argument* getArg(){
@@ -112,11 +104,9 @@ public:
                 break;
         }
 
-        //    formalOutTree = formalInTree;
         tree<InstructionWrapper*>::iterator SI = srcTree.begin(), SE = srcTree.end();
         tree<InstructionWrapper*>::iterator TI = this->getTree(treeTy).begin(), TE = this->getTree(treeTy).end();
 
-        //    InstructionWrapper(Function *Func, Argument *arg, Type* field_type, int field_id, InstWrapperType type) ;
         for(;SI != SE && TI != TE; ++SI, ++TI){
             InstructionWrapper * typeFieldW = new InstructionWrapper((*SI)->getFunction(), (*SI)->getArgument(),
                                                                      (*SI)->getFieldType(), id++, instWTy);
@@ -142,7 +132,6 @@ public:
     CallWrapper(CallInst *CI) {
 
         this->CI = CI;
-        //  Function::ArgumentListType& callee_args = Func->getArgumentList();
         for(Function::arg_iterator argIt = CI->getCalledFunction()->arg_begin(),
                     argE = CI->getCalledFunction()->arg_end(); argIt != argE; ++argIt){
 
@@ -181,7 +170,6 @@ public:
   FunctionWrapper(Function *Func) {
 
     this->Func = Func;
-    //  Function::ArgumentListType& callee_args = Func->getArgumentList();
     for (Function::arg_iterator argIt = Func->arg_begin(),
                                 argE = Func->arg_end();
          argIt != argE; ++argIt) {
@@ -202,7 +190,6 @@ public:
   Function *getFunction() { return Func; }
 
   void setEntry(InstructionWrapper *entry) {
-    //errs() << "Hello \n";
     this->entryW = entry;
   }
 
@@ -225,7 +212,6 @@ public:
     for (Function::arg_iterator argi = Func->arg_begin(),
                                 arge = Func->arg_end();
          argi != arge; ++argi) {
-      // params.push_back(argi->getType());
       // function ptr, put func into insensitive_set, not sensitive
       if (argi->getType()->isPointerTy()) {
 

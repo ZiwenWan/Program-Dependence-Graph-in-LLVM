@@ -51,8 +51,6 @@ public:
 
   void drawActualParameterTree(CallInst *CI, TreeType treeTy);
 
-  //    void drawParameterTree(llvm::Function* call_func, TreeType treeTy);
-
   void connectAllPossibleFunctions(InstructionWrapper *CInstW,
                                    FunctionType *funcTy);
 
@@ -60,7 +58,6 @@ public:
 
   int connectCallerAndCallee(InstructionWrapper *CInstW,
                              llvm::Function *callee);
-  //    int connectCallerAndCallee(CallInst *CI, llvm::Function *callee);
 
   bool runOnModule(llvm::Module &M);
 

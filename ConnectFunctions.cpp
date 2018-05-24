@@ -44,11 +44,6 @@ int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy){
             if(pArgW->getArg() == arg){
 
                 //TODO: find a better way to do optimization, this way sucks, check historic record of recursive types to avoid redundant processing tree node
-                /*
-                if(recursive_types.find(tyW->getType()) != recursive_types.end() ){
-                  //	  errs() << *tyW->getType() << " is a recursive type found in historic record!\n ";
-                  return RECURSIVE_TYPE;
-                  }*/
 
                 for(tree<InstructionWrapper*>::iterator treeIt = pArgW->getTree(treeTy).begin(),
                             treeE = pArgW->getTree(treeTy).end(); treeIt != treeE; ++treeIt){
@@ -81,7 +76,6 @@ int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy){
 
                             if((*insert_loc)->getFieldType() == (*backTreeIt)->getFieldType()){
                                 recursion_flag = true;
-                                //		recursive_types.insert((*insert_loc)->getFieldType());
                                 break;
                             }
                         }
@@ -129,7 +123,6 @@ int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy){
 
     else{
         if(arg != nullptr)
-            // errs() << *tyW->getType() << " is a Non-pointer type. arg = " << *arg << "\n";
             ;
         else
             errs() << "arg is nullptr!\n";
@@ -160,8 +153,6 @@ void buildFormalTree(Argument *arg, TreeType treeTy){
     }
 
     tree<InstructionWrapper*>::iterator treeRoot = (*argWLoc)->getTree(treeTy).set_head(treeTyW);
-
-    //  errs() << "treeRoot = " << *(*treeRoot)->getFieldType() << "\n";
 
     TypeWrapper *tyW = new TypeWrapper(arg->getType(),id++);
 
@@ -197,8 +188,6 @@ void buildFormalParameterTrees(Function* callee){
 
         buildFormalTree((*argI)->getArg(), FORMAL_IN_TREE);
 
-        //    errs() << " F formalInTree size = " << (*argI)->getTree(FORMAL_IN_TREE).size() << "&&\n";
-
         //we use this copy way just for saving time for the tree construction
         (*argI)->copyTree((*argI)->getTree(FORMAL_IN_TREE), FORMAL_OUT_TREE);
 
@@ -225,13 +214,11 @@ void buildActualParameterTrees(CallInst *CI){
             argFE = funcMap[callee]->getArgWList().end();
 
     errs() << callee->getName() << "\n";
-    //  errs() << "argFI FORMAL_IN_TREE size " << (*argFI)->getTree(FORMAL_IN_TREE).size() << "\n";
 
     //copy FormalInTree in callee to ActualIn/OutTree in callMap
     for(; argI != argE && argFI != argFE; ++argI,++argFI){
 
         (*argI)->copyTree((*argFI)->getTree(FORMAL_IN_TREE), ACTUAL_IN_TREE);
         (*argI)->copyTree((*argFI)->getTree(FORMAL_IN_TREE), ACTUAL_OUT_TREE);
-        //    errs() << "argIcopyTree size " << (*argI)->getTree(ACTUAL_IN_TREE).size() << " " << (*argI)->getTree(ACTUAL_OUT_TREE).size();
     }
 }

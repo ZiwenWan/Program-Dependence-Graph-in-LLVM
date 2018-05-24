@@ -15,8 +15,6 @@ class ProgramDependencyGraph;
 class SystemDataDependencyGraph;
 class FlowDependenceAnalysis;
 
-//static RegisterPass<FlowDependenceAnalysis> FDA("fda", "FlowDependenceAnalysis calling", false, false);
-
 // Analysis.
 DataDependencyGraph *CreateDataDependencyGraphPass();
 ControlDependencyGraph *CreateControlDependencyGraphPass();
@@ -33,7 +31,6 @@ void initializeSystemDataDependencyGraphPass(PassRegistry &Registry);
 void initializeFlowDependenceAnalysisPass(PassRegistry &Registry);
 
 
-//void initializeHelloPass(PassRegistry &Registry);
 void initializeProgramDependencyGraphPass(PassRegistry &Registry);
 void initializePostDominanceFrontierPass(PassRegistry &Registry);
 
