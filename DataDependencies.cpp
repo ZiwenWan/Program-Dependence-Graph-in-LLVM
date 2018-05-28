@@ -1,4 +1,5 @@
 #include "DataDependencies.h"
+//#include "FlowDependenceAnalysis.h"
 
 using namespace llvm;
 
@@ -11,9 +12,8 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
          << '\n';
   errs() << "Function name:" << F.getName().str() << '\n';
 
-  if (instMap.empty() == false) {
-    constructInstMap(F);
-  }
+  constructInstMap(F);
+
   AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
   MemoryDependenceResults *MD =
           &getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
@@ -26,13 +26,57 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
 
     Instruction *pInstruction = dyn_cast<Instruction>(&*instIt);
 
+    if (auto allocainst = dyn_cast<AllocaInst>(pInstruction)) {
+        // mark processed struct
+      if (seen_structs[allocainst] == 0) {
+        std::vector<Type *> fields = alloca_struct_map[allocainst].second;
+        int k = 0;
+        for (Type *field : fields) {
+          // construct new InstructionWrapper with position info stored in field_id field.
+          errs() << "Extracting fields ... " << "\n";
+          InstructionWrapper *typeFieldW = new InstructionWrapper(pInstruction, &F, k, STRUCT_FIELD, field);
+          instnodes.insert(typeFieldW);
+          funcInstWList[&F].insert(typeFieldW);
+          DDG->addDependency(typeFieldW, instMap[pInstruction], STRUCT_FIELDS);
+          k++;
+        }
+      }
+      seen_structs[allocainst] = 1;
+    }
+
+    // if find a getElementPtr type, it could be accessing the struct
+    if (auto *gepI = dyn_cast<GetElementPtrInst>(pInstruction)) {
+      if (gepI->getSourceElementType()->isStructTy()) {
+        int operand_num = gepI->getNumOperands();
+        // get the last operand, which is the position of the field
+        Value *last_idx = gepI->getOperand(operand_num - 1);
+        if (ConstantInt* constInt = dyn_cast<ConstantInt>(last_idx)) {
+          // get the integer value of index
+          int field_idx = constInt->getSExtValue();
+          if (Instruction *source_alloca_inst = dyn_cast<Instruction>(gepI->getOperand(0))) {
+            for (InstructionWrapper* instW : instnodes) {
+              if (instW->getType() == STRUCT_FIELD && instW->getInstruction() == source_alloca_inst && instW->getFieldId() == field_idx) {
+                //errs() << *(instW->getInstruction()) << "\n";
+//                errs() << *pInstruction << "\n";
+                //DDG->addDependency(instMap[pInstruction], instW, DATA_DEF_USE);
+                DDG->addDependency(instW, instMap[pInstruction], DATA_DEF_USE);
+              }
+            }
+          } else {
+            errs() << "Cast to Inst fail for GEP instruction" << "\n";
+          }
+        }
+        continue;
+      }
+    }
+
     // check for def-use dependencies
     for (Instruction::const_op_iterator cuit = pInstruction->op_begin();
          cuit != pInstruction->op_end(); ++cuit) {
       if (Instruction *pInst = dyn_cast<Instruction>(*cuit)) {
-        DDG->addDependency(instMap[pInst], instMap[&*instIt],
-                           DATA_DEF_USE);
-      }
+          //Value *tempV = dyn_cast<Value>(*cuit);
+            DDG->addDependency(instMap[pInst], instMap[&*instIt], DATA_DEF_USE);
+          }
     }
 
     if(isa<CallInst>(pInstruction)) {
@@ -45,6 +89,8 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
               getDependencyInFunction(F, pInstruction);
 
       for (int i = 0; i < flowdep_set.size(); i++) {
+        errs() << "Debuggin flowdep_set:" << "\n";
+        errs() << *flowdep_set[i] << "\n";
         DDG->addDependency(instMap[flowdep_set[i]], instMap[pInstruction],
                            DATA_RAW);
       }

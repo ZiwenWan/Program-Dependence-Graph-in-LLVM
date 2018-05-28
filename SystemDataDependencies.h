@@ -17,9 +17,13 @@ public:
 
   SystemDataDependencyGraph() : ModulePass(ID) {
     SystemDG = NULL;
+    //      DDG = new DataDepGraph();
+    //      errs()<< "SystemDataDependencyGraph()" << '\n';
   }
 
   ~SystemDataDependencyGraph() {
+    //      BasicBlockWrapper::releaseMemory();
+    //    delete DDG;
   }
 
   virtual bool runOnModule(llvm::Module &M);

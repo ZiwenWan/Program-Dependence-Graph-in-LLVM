@@ -15,6 +15,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/ValueSymbolTable.h"
+#include "llvm/IR/DerivedTypes.h"
 
 #include <map>
 #include <set>
@@ -51,13 +52,16 @@ public:
 
   void drawActualParameterTree(CallInst *CI, TreeType treeTy);
 
-  void connectAllPossibleFunctions(InstructionWrapper *CInstW,
-                                   FunctionType *funcTy);
+  //    void drawParameterTree(llvm::Function* call_func, TreeType treeTy);
+
+//  void connectAllPossibleFunctions(InstructionWrapper *CInstW,
+//                                   FunctionType *funcTy);
 
   void connectFunctionAndFormalTrees(Function *callee);
 
   int connectCallerAndCallee(InstructionWrapper *CInstW,
                              llvm::Function *callee);
+  //    int connectCallerAndCallee(CallInst *CI, llvm::Function *callee);
 
   bool runOnModule(llvm::Module &M);
 

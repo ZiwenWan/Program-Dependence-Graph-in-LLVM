@@ -1,6 +1,7 @@
 #ifndef DATADEPENDENCIES_H
 #define DATADEPENDENCIES_H
 
+//#include "AllPasses.h"
 #include "DependencyGraph.h"
 #include "FunctionWrapper.h"
 #include "llvm/IR/Function.h"
@@ -13,6 +14,7 @@
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Support/raw_ostream.h"
 
+//#include "llvm/Analysis/AliasAnalysis.h"
 extern std::map<const Function *, FunctionWrapper *> funcMap;
 extern std::set<InstructionWrapper *> instnodes;
 extern std::set<InstructionWrapper *> instnodes;
@@ -72,14 +74,28 @@ public:
     MemoryLocation LI_Loc = MemoryLocation::get(LI);
 
     // TODO: global??
+    //  errs() << "gp lise size = " << gp_list.size() << "\n";
+    // errs() << "&&&&& location " << *gp_list[0]->getValue() << "&&&&&&\n";
     for (int j = 0; j < StoreVec.size(); j++) {
       StoreInst *SI = dyn_cast<StoreInst>(StoreVec[j]);
       MemoryLocation SI_Loc = MemoryLocation::get(SI);
+      //      errs() << "SI =" << *SI << ' ';
+      // errs() << "SI.Loc = " << SI_Loc.Ptr << " LI.Loc = " << LI_Loc.Ptr << '
+      // ';
       AliasResult AA_result =
           AA->alias(LI_Loc, SI_Loc);
+      //      errs() << "@@@@@@Test Global AA :" << LI_Loc.Ptr << '\n';
       if (AA_result != NoAlias) {
+        // errs() << "store instruction alias found! SI = " << *SI << " LI = "
+        // << *LI << '\n';
         _flowdep_set.push_back(StoreVec[j]);
       }
+      // following code just for debugging
+      // if(AA_result == AliasAnalysis::MayAlias)
+      //	errs() << "AA_result == MayAlias! " << '\n';
+      // for debugging
+      //      if(AA_result == AliasAnalysis::MustAlias)
+      //	errs() << "AA_result == MustAlias! " << '\n';
     }
     return _flowdep_set;
   }
