@@ -1,30 +1,21 @@
-; ModuleID = 'test_struct_with_func.c'
-source_filename = "test_struct_with_func.c"
+; ModuleID = 'simple_struct_func.c'
+source_filename = "simple_struct_func.c"
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
-%struct.S1 = type { float, %struct.S2* }
-%struct.S2 = type { i32, i32 }
+%struct.S1 = type { i32, float }
 
 @.str = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 
 ; Function Attrs: noinline nounwind optnone uwtable
-define void @func(%struct.S1* %p1, %struct.S2* %p2) #0 {
+define void @print(%struct.S1* %p) #0 {
 entry:
-  %p1.addr = alloca %struct.S1*, align 8
-  %p2.addr = alloca %struct.S2*, align 8
-  store %struct.S1* %p1, %struct.S1** %p1.addr, align 8
-  store %struct.S2* %p2, %struct.S2** %p2.addr, align 8
-  %0 = load %struct.S1*, %struct.S1** %p1.addr, align 8
-  %sp = getelementptr inbounds %struct.S1, %struct.S1* %0, i32 0, i32 1
-  %1 = load %struct.S2*, %struct.S2** %sp, align 8
-  %x = getelementptr inbounds %struct.S2, %struct.S2* %1, i32 0, i32 0
-  %2 = load i32, i32* %x, align 4
-  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %2)
-  %3 = load %struct.S2*, %struct.S2** %p2.addr, align 8
-  %x1 = getelementptr inbounds %struct.S2, %struct.S2* %3, i32 0, i32 0
-  %4 = load i32, i32* %x1, align 4
-  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %4)
+  %p.addr = alloca %struct.S1*, align 8
+  store %struct.S1* %p, %struct.S1** %p.addr, align 8
+  %0 = load %struct.S1*, %struct.S1** %p.addr, align 8
+  %a = getelementptr inbounds %struct.S1, %struct.S1* %0, i32 0, i32 0
+  %1 = load i32, i32* %a, align 4
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %1)
   ret void
 }
 
@@ -34,10 +25,16 @@ declare i32 @printf(i8*, ...) #1
 define i32 @main() #0 {
 entry:
   %retval = alloca i32, align 4
-  %s1 = alloca %struct.S1, align 8
-  %s2 = alloca %struct.S2, align 4
+  %s1 = alloca %struct.S1*, align 8
   store i32 0, i32* %retval, align 4
-  call void @func(%struct.S1* %s1, %struct.S2* %s2)
+  %0 = load %struct.S1*, %struct.S1** %s1, align 8
+  %a = getelementptr inbounds %struct.S1, %struct.S1* %0, i32 0, i32 0
+  store i32 5, i32* %a, align 4
+  %1 = load %struct.S1*, %struct.S1** %s1, align 8
+  %b = getelementptr inbounds %struct.S1, %struct.S1* %1, i32 0, i32 1
+  store float 0x3FF547AE20000000, float* %b, align 4
+  %2 = load %struct.S1*, %struct.S1** %s1, align 8
+  call void @print(%struct.S1* %2)
   ret i32 0
 }
 

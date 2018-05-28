@@ -26,17 +26,17 @@ void ControlDependencyGraph::computeDependencies(llvm::Function &F,
   errs() << "++++++++++++++++++++++++++++++ ControlDependency::runOnFunction "
             "+++++++++++++++++++++++++++++"
          << '\n';
+  constructFuncMap(*F.getParent(), funcMap);
   /// Zhiyuan: explicitly construct the dummy ENTRY NODE:
   if(funcMap[&F]->getEntry() != NULL) {
       return;
   }
-  root = new InstructionWrapper(&F, ENTRY);
+  InstructionWrapper *root = new InstructionWrapper(&F, ENTRY);
   instnodes.insert(root);
   funcInstWList[&F].insert(root);
 
   errs() << " CDG.cpp after insert nodes.size " << instnodes.size() << '\n'
          << " Function: " << F.getName().str() << '\n';
-
   funcMap[&F]->setEntry(root);
 
   // may have changed to DomTreeNodeBase
@@ -160,9 +160,8 @@ void ControlDependencyGraph::addDependency(llvm::BasicBlock *from,
 }
 
 bool ControlDependencyGraph::runOnFunction(Function &F) {
-  if (instMap.empty() == false ) {
-    constructInstMap(F);
-  }
+  constructInstMap(F);
+
   PDT = &getAnalysis<PostDominatorTreeWrapperPass>().getPostDomTree();
   computeDependencies(F, PDT);
   return false;

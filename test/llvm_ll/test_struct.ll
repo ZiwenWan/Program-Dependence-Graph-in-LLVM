@@ -13,7 +13,6 @@ define i32 @main() #0 {
 entry:
   %retval = alloca i32, align 4
   %p1 = alloca %struct.person_t, align 4
-  %b = alloca i32, align 4
   store i32 0, i32* %retval, align 4
   %age = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 0
   store i32 13, i32* %age, align 4
@@ -22,9 +21,7 @@ entry:
   %call = call i8* @strncpy(i8* %arraydecay, i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 5) #3
   %age1 = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 0
   %0 = load i32, i32* %age1, align 4
-  store i32 %0, i32* %b, align 4
-  %1 = load i32, i32* %b, align 4
-  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.1, i32 0, i32 0), i32 %1)
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.1, i32 0, i32 0), i32 %0)
   ret i32 0
 }
 
