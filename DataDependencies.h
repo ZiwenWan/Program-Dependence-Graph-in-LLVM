@@ -7,6 +7,8 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Type.h"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Pass.h"
 
 #include "llvm/ADT/SmallVector.h"
@@ -47,81 +49,97 @@ public:
     delete DDG;
   }
 
-  virtual bool runOnFunction(llvm::Function &F);
+    virtual bool runOnFunction(llvm::Function &F);
 
-  virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
+    virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
 
-  virtual llvm::StringRef getPassName() const {
-    return "Data Dependency Graph";
-  }
+//    virtual std::string getFieldName(MDNode* meta,int offset){
+//        if(!meta){
+//            errs()<<"The meta is NULL\n";
+//            return "";
+//        }
+//        DIVariable div(meta);
+//        DIType dit=div.getType();
+//        DIDerivedType didt=dyn_cast<DIDerivedType>(dit);
+//        DICompositeType dict=dyn_cast<DICompositeType>(didt.getTypeDerivedFrom());
+//        DIArray dia=dict.getTypeArray();
+//        assert(offset<dia.getNumElements());
+//        DIType field=dyn_cast<DIType>(dia.getElement(offset));
+//        //errs()<<"Field'name is "<<field.getName()<<"\n";
+//        return field.getName();
+//    }
 
-  virtual std::vector<Instruction *>
-  getDependencyInFunction(Function &F, Instruction *pLoadInst) {
-    std::vector<Instruction *> _flowdep_set;
-    // find and save all Store/Load instructions
-    std::vector<Instruction *> StoreVec;
-    for (inst_iterator instIt = inst_begin(F), E = inst_end(F); instIt != E;
-         ++instIt) {
-      Instruction *pInstruction = dyn_cast<Instruction>(&*instIt);
-      if (isa<StoreInst>(pInstruction))
-        StoreVec.push_back(pInstruction);
+    virtual llvm::StringRef getPassName() const {
+        return "Data Dependency Graph";
     }
-    // for each Load Instruction, find related Store Instructions(alias
-    // considered)
-    errs() << "LoadInst: " << *pLoadInst << '\n';
-    LoadInst *LI = dyn_cast<LoadInst>(pLoadInst);
 
-    MemoryLocation LI_Loc = MemoryLocation::get(LI);
+    virtual std::vector<Instruction *>
+    getDependencyInFunction(Function &F, Instruction *pLoadInst) {
+        std::vector<Instruction *> _flowdep_set;
+        // find and save all Store/Load instructions
+        std::vector<Instruction *> StoreVec;
+        for (inst_iterator instIt = inst_begin(F), E = inst_end(F); instIt != E;
+             ++instIt) {
+            Instruction *pInstruction = dyn_cast<Instruction>(&*instIt);
+            if (isa<StoreInst>(pInstruction))
+                StoreVec.push_back(pInstruction);
+        }
+        // for each Load Instruction, find related Store Instructions(alias
+        // considered)
+        errs() << "LoadInst: " << *pLoadInst << '\n';
+        LoadInst *LI = dyn_cast<LoadInst>(pLoadInst);
 
-    // TODO: global??
-    //  errs() << "gp lise size = " << gp_list.size() << "\n";
-    // errs() << "&&&&& location " << *gp_list[0]->getValue() << "&&&&&&\n";
-    for (int j = 0; j < StoreVec.size(); j++) {
-      StoreInst *SI = dyn_cast<StoreInst>(StoreVec[j]);
-      MemoryLocation SI_Loc = MemoryLocation::get(SI);
-      //      errs() << "SI =" << *SI << ' ';
-      // errs() << "SI.Loc = " << SI_Loc.Ptr << " LI.Loc = " << LI_Loc.Ptr << '
-      // ';
-      AliasResult AA_result =
-          AA->alias(LI_Loc, SI_Loc);
-      //      errs() << "@@@@@@Test Global AA :" << LI_Loc.Ptr << '\n';
-      if (AA_result != NoAlias) {
-        // errs() << "store instruction alias found! SI = " << *SI << " LI = "
-        // << *LI << '\n';
-        _flowdep_set.push_back(StoreVec[j]);
-      }
-      // following code just for debugging
-      // if(AA_result == AliasAnalysis::MayAlias)
-      //	errs() << "AA_result == MayAlias! " << '\n';
-      // for debugging
-      //      if(AA_result == AliasAnalysis::MustAlias)
-      //	errs() << "AA_result == MustAlias! " << '\n';
+        MemoryLocation LI_Loc = MemoryLocation::get(LI);
+
+        // TODO: global??
+        //  errs() << "gp lise size = " << gp_list.size() << "\n";
+        // errs() << "&&&&& location " << *gp_list[0]->getValue() << "&&&&&&\n";
+        for (int j = 0; j < StoreVec.size(); j++) {
+            StoreInst *SI = dyn_cast<StoreInst>(StoreVec[j]);
+            MemoryLocation SI_Loc = MemoryLocation::get(SI);
+            //      errs() << "SI =" << *SI << ' ';
+            // errs() << "SI.Loc = " << SI_Loc.Ptr << " LI.Loc = " << LI_Loc.Ptr << '
+            // ';
+            AliasResult AA_result =
+                    AA->alias(LI_Loc, SI_Loc);
+            //      errs() << "@@@@@@Test Global AA :" << LI_Loc.Ptr << '\n';
+            if (AA_result != NoAlias) {
+                // errs() << "store instruction alias found! SI = " << *SI << " LI = "
+                // << *LI << '\n';
+                _flowdep_set.push_back(StoreVec[j]);
+            }
+            // following code just for debugging
+            // if(AA_result == AliasAnalysis::MayAlias)
+            //	errs() << "AA_result == MayAlias! " << '\n';
+            // for debugging
+            //      if(AA_result == AliasAnalysis::MustAlias)
+            //	errs() << "AA_result == MustAlias! " << '\n';
+        }
+        return _flowdep_set;
     }
-    return _flowdep_set;
-  }
 
-  virtual void print(llvm::raw_ostream &OS, const llvm::Module *M = 0) const;
-  
-  private:
+    virtual void print(llvm::raw_ostream &OS, const llvm::Module *M = 0) const;
+
+private:
     AliasAnalysis *AA;
 };
 
 namespace llvm {
 
-template <>
-struct GraphTraits<DataDependencyGraph *> : public GraphTraits<DepGraph *> {
-  static NodeRef getEntryNode(DataDependencyGraph *DG) {
-    return *(DG->DDG->begin_children());
-  }
+    template <>
+    struct GraphTraits<DataDependencyGraph *> : public GraphTraits<DepGraph *> {
+        static NodeRef getEntryNode(DataDependencyGraph *DG) {
+            return *(DG->DDG->begin_children());
+        }
 
-  static nodes_iterator nodes_begin(DataDependencyGraph *DG) {
-    return DG->DDG->begin_children();
-  }
+        static nodes_iterator nodes_begin(DataDependencyGraph *DG) {
+            return DG->DDG->begin_children();
+        }
 
-  static nodes_iterator nodes_end(DataDependencyGraph *DG) {
-    return DG->DDG->end_children();
-  }
-};
+        static nodes_iterator nodes_end(DataDependencyGraph *DG) {
+            return DG->DDG->end_children();
+        }
+    };
 
 } // namespace llvm
 

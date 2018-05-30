@@ -6,6 +6,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/DerivedTypes.h"
 
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/Analysis/AliasAnalysis.h"

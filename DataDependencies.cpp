@@ -11,6 +11,13 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
           "+++++++++++++++++++++++++++++"
          << '\n';
   errs() << "Function name:" << F.getName().str() << '\n';
+  constructFuncMap(*F.getParent(), funcMap);
+  if (funcMap[&F]->getEntry() == NULL) {
+    InstructionWrapper *root = new InstructionWrapper(&F, ENTRY);
+    instnodes.insert(root);
+    funcInstWList[&F].insert(root);
+    funcMap[&F]->setEntry(root);
+  }
 
   constructInstMap(F);
 
@@ -28,20 +35,23 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
 
     if (auto allocainst = dyn_cast<AllocaInst>(pInstruction)) {
         // mark processed struct
-      if (seen_structs[allocainst] == 0) {
-        std::vector<Type *> fields = alloca_struct_map[allocainst].second;
-        int k = 0;
-        for (Type *field : fields) {
-          // construct new InstructionWrapper with position info stored in field_id field.
-          errs() << "Extracting fields ... " << "\n";
-          InstructionWrapper *typeFieldW = new InstructionWrapper(pInstruction, &F, k, STRUCT_FIELD, field);
-          instnodes.insert(typeFieldW);
-          funcInstWList[&F].insert(typeFieldW);
-          DDG->addDependency(typeFieldW, instMap[pInstruction], STRUCT_FIELDS);
-          k++;
+        if (allocainst->getAllocatedType()->isStructTy()) {
+          // check if the allocainst has been stored
+          if (seen_structs[allocainst] == 0) {
+            std::vector<Type *> fields = alloca_struct_map[allocainst].second;
+            int k = 0;
+            for (Type *field : fields) {
+              // construct new InstructionWrapper with position info stored in field_id field.
+              errs() << "Extracting fields ... " << "\n";
+              InstructionWrapper *typeFieldW = new InstructionWrapper(pInstruction, &F, k, STRUCT_FIELD, field);
+              instnodes.insert(typeFieldW);
+              funcInstWList[&F].insert(typeFieldW);
+              DDG->addDependency(typeFieldW, instMap[pInstruction], STRUCT_FIELDS);
+              k++;
+            }
+          }
+          seen_structs[allocainst] = 1;
         }
-      }
-      seen_structs[allocainst] = 1;
     }
 
     // if find a getElementPtr type, it could be accessing the struct
@@ -69,6 +79,7 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
         continue;
       }
     }
+
 
     // check for def-use dependencies
     for (Instruction::const_op_iterator cuit = pInstruction->op_begin();
