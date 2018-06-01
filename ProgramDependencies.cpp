@@ -14,6 +14,7 @@ static void constructStructMap(Module &M, Instruction* pInstruction,
     // constructing struct
     vector<StructType*> global_struct_list = M.getIdentifiedStructTypes();
     for (auto st : global_struct_list) {
+        errs() << "Struct Name:" << st->getName().str().substr(7) << "\n";
         if (allocaInst->getAllocatedType()->getStructName() == st->getName()) {
             vector<Type *> fields;
             std::pair<StructType*, std::vector<Type*>> struct_pair;
@@ -44,6 +45,7 @@ std::set<InstructionWrapper *> globalList;
 std::map<const Instruction *, InstructionWrapper *> instMap;
 std::map<const Function *, std::set<InstructionWrapper *>> funcInstWList;
 std::map<AllocaInst*, std::pair<StructType*, std::vector<Type*>>> alloca_struct_map;
+std::map<std::string, std::vector<std::string>> struct_fields_map;
 std::map<AllocaInst*, int> seen_structs;
 
 static IRBuilder<> Builder();
@@ -444,7 +446,6 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
     // process a module function by function
     for (Module::iterator FF = M.begin(), E = M.end(); FF != E; ++FF) {
         errs() << "Module Size: " << M.size() << "\n";
-
         Function *F = dyn_cast<Function>(FF);
 
         if ((*F).isDeclaration()) {
@@ -464,7 +465,6 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
         // find all Load/Store instructions for each F, insert to F's
         // storeInstList and loadInstList
         for (inst_iterator I = inst_begin(F), IE = inst_end(F); I != IE; ++I) {
-
             Instruction *pInstruction = dyn_cast<Instruction>(&*I);
 
             if (isa<StoreInst>(pInstruction)) {
@@ -486,9 +486,32 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
             if (isa<ReturnInst>(pInstruction))
                 funcMap[&*F]->getReturnInstList().push_back(pInstruction);
 
-            if (isa<CallInst>(pInstruction))
-                funcMap[&*F]->getCallInstList().push_back(
-                        dyn_cast<CallInst>(pInstruction));
+            if (isa<CallInst>(pInstruction)) {
+                funcMap[&*F]->getCallInstList().push_back(dyn_cast<CallInst>(pInstruction));
+                if (DbgDeclareInst *ddi = dyn_cast<DbgDeclareInst>(pInstruction)) {
+                    errs() << "Find a dbg declare Inst!!!!" << "\n";
+                    DILocalVariable *div = ddi->getVariable();
+                    errs() << div->getRawName()->getString().str() << "\n";
+                    // fetch metadata associate with the dbg inst
+                    MDNode *mdnode = dyn_cast<MDNode>(div->getRawType());
+                    DICompositeType *dct = dyn_cast<DICompositeType>(mdnode);
+
+                    std::string struct_name = dct->getName().str();
+                    // ensure existing struct name
+                    for (auto node : dct->getElements()) {
+                        // retrive the name in the struct
+                        DIDerivedType *didt = dyn_cast<DIDerivedType>(node);
+                        std::string var_name = didt->getName().str();
+                        if (struct_fields_map.find(struct_name) == struct_fields_map.end()) {
+                            struct_fields_map[struct_name] = std::vector<std::string>();
+                            struct_fields_map[struct_name].push_back(var_name);
+                        } else {
+                            struct_fields_map[struct_name].push_back(var_name);
+                        }
+                    }
+                }
+            }
+
             if (isa<AllocaInst>(pInstruction)) {
                 // find struct allocation
                 AllocaInst *alloinst = dyn_cast<AllocaInst>(pInstruction);
@@ -641,18 +664,6 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
                 if (InstW->getType() == INST || InstW->getType() == STRUCT_FIELD) {
                     if (ddgGraph.DDG->depends(InstW, InstW2)) {
                         PDG->addDependency(InstW, InstW2, ddgGraph.DDG->getDataType(InstW,InstW2));
-                        // only StoreInst->LoadInst edge can be annotated
-//                        if (InstW2->getType() == INST &&
-//                            isa<StoreInst>(InstW->getInstruction()) &&
-//                            isa<LoadInst>(InstW2->getInstruction())) {
-//
-//                            PDG->addDependency(InstW, InstW2, DATA_RAW);
-//                        }
-//                        else {
-//                            if (InstW->getInstruction() != InstW2->getInstruction()) {
-//                                PDG->addDependency(InstW, InstW2, DATA_DEF_USE);
-//                            }
-//                        }
                     }
 
                     if (nullptr != InstW2->getInstruction()) {

@@ -71,8 +71,16 @@ namespace llvm {
                     llvm::AllocaInst *allocaInst = dyn_cast<AllocaInst>(inst);
                     llvm::StringRef struct_name = allocaInst->getAllocatedType()->getStructName();
                     std::string struct_string = struct_name.str();
-                    std::string field_pos = std::to_string(instW->getFieldId());
-                    std::string ret_string = struct_string + "-- field_pos: " + field_pos;
+                    // can switch to use struct_name directly get vector and use field_id to index
+                    std::vector<std::string> fields_name = struct_fields_map[struct_string.substr(7)];
+                    std::string ret_string = "";
+                    if (fields_name.empty() == false) {
+                        std::string field_name =  fields_name.at(instW->getFieldId());
+                        ret_string = struct_string + " : " + field_name ;
+                    } else {
+                        std::string field_pos = std::to_string(instW->getFieldId());
+                        ret_string = struct_string + " : field - " + std::to_string(instW->getFieldId());
+                    }
                     return (ret_string);
                 }
 
@@ -81,7 +89,7 @@ namespace llvm {
                 }
             }
 
-            const Instruction *inst = Node->getData()->getInstruction();
+            llvm::Instruction *inst = Node->getData()->getInstruction();
 
             if (isSimple() && !inst->getName().empty()) {
                 return inst->getName().str();
@@ -271,21 +279,6 @@ static RegisterPass<DataDependencyPrinter>
         DdGPrinter("dot-ddg",
                    "Print data dependency graph of function to 'dot' file",
                    false, false);
-
-// Program Printer
-// struct ProgramDependencyViewer
-//     : public DOTGraphTraitsViewer<ProgramDependencyGraph, false> {
-//   static char ID;
-//   ProgramDependencyViewer()
-//       : DOTGraphTraitsViewer<ProgramDependencyGraph, false>("pdgraph",
-//       ID) {
-//   }
-// };
-
-// char ProgramDependencyViewer::ID = 0;
-// static RegisterPass<ProgramDependencyViewer>
-//     PdgViewer("view-pdg", "View program dependency graph of function",
-//               false, false);
 
 struct ProgramDependencyPrinter
         : public DOTGraphTraitsPrinter<ProgramDependencyGraph, false> {
