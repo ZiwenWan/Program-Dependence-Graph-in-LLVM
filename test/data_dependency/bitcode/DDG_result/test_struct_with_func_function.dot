@@ -1,0 +1,33 @@
+digraph "Data dependency graph for 'func' function" {
+	label="Data dependency graph for 'func' function";
+
+	Node0x817fed0 [shape=record,label="{  %p1.addr = alloca %struct.S1*, align 8}"];
+	Node0x817fed0 -> Node0x81800f0;
+	Node0x817fed0 -> Node0x8180200;
+	Node0x817ffd0 [shape=record,label="{  %p2.addr = alloca %struct.S2*, align 8}"];
+	Node0x817ffd0 -> Node0x8180190;
+	Node0x817ffd0 -> Node0x8183090;
+	Node0x81800f0 [shape=record,label="{  store %struct.S1* %p1, %struct.S1** %p1.addr, align 8}"];
+	Node0x81800f0 -> Node0x8180200;
+	Node0x8180190 [shape=record,label="{  store %struct.S2* %p2, %struct.S2** %p2.addr, align 8}"];
+	Node0x8180190 -> Node0x8183090;
+	Node0x8180200 [shape=record,label="{  %0 = load %struct.S1*, %struct.S1** %p1.addr, align 8}"];
+	Node0x8180200 -> Node0x8181530;
+	Node0x8181530 [shape=record,label="{  %sp = getelementptr inbounds %struct.S1, %struct.S1* %0, i32 0, i32 1}"];
+	Node0x8181530 -> Node0x81815a0;
+	Node0x81815a0 [shape=record,label="{  %1 = load %struct.S2*, %struct.S2** %sp, align 8}"];
+	Node0x81815a0 -> Node0x8182e60;
+	Node0x8182e60 [shape=record,label="{  %x = getelementptr inbounds %struct.S2, %struct.S2* %1, i32 0, i32 0}"];
+	Node0x8182e60 -> Node0x8182ef0;
+	Node0x8182ef0 [shape=record,label="{  %2 = load i32, i32* %x, align 4}"];
+	Node0x8182ef0 -> Node0x8180270;
+	Node0x8180270 [shape=record,label="{  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %2)}"];
+	Node0x8183090 [shape=record,label="{  %3 = load %struct.S2*, %struct.S2** %p2.addr, align 8}"];
+	Node0x8183090 -> Node0x8183130;
+	Node0x8183130 [shape=record,label="{  %x1 = getelementptr inbounds %struct.S2, %struct.S2* %3, i32 0, i32 0}"];
+	Node0x8183130 -> Node0x81831a0;
+	Node0x81831a0 [shape=record,label="{  %4 = load i32, i32* %x1, align 4}"];
+	Node0x81831a0 -> Node0x8183250;
+	Node0x8183250 [shape=record,label="{  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %4)}"];
+	Node0x81832c0 [shape=record,label="{  ret void}"];
+}

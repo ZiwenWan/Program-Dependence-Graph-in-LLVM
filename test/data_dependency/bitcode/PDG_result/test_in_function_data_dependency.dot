@@ -1,0 +1,42 @@
+digraph "Program Dependency Graph for 'main' function" {
+	label="Program Dependency Graph for 'main' function";
+
+	Node0x9ed51c0 [shape=record,label="{  %a = alloca i32, align 4}"];
+	Node0x9ed51c0 -> Node0x9ed5230[style=dotted,label = "{DEF_USE}" ];
+	Node0x9ed51c0 -> Node0x9ed52a0[style=dotted,label = "{DEF_USE}" ];
+	Node0x9ed51c0 -> Node0x9ed5370[style=dotted,label = "{DEF_USE}" ];
+	Node0x9ed5230 [shape=record,label="{  store i32 0, i32* %a, align 4}"];
+	Node0x9ed5230 -> Node0x9ed5370[style=dotted,label = "{RAW} a"];
+	Node0x9ed5230 -> Node0x9ed7060[style=dotted,label = "{RAW} "];
+	Node0x9ed52a0 [shape=record,label="{  store i32* %a, i32** %b, align 8}"];
+	Node0x9ed52a0 -> Node0x9ed5310[style=dotted,label = "{RAW} b"];
+	Node0x9ed5370 [shape=record,label="{  %0 = load i32, i32* %a, align 4}"];
+	Node0x9ed5370 -> Node0x9ed7190[style=dotted,label = "{DEF_USE}" ];
+	Node0x9ed5470 [shape=record,label="{  %b = alloca i32*, align 8}"];
+	Node0x9ed5470 -> Node0x9ed52a0[style=dotted,label = "{DEF_USE}" ];
+	Node0x9ed5470 -> Node0x9ed5310[style=dotted,label = "{DEF_USE}" ];
+	Node0x9ed5310 [shape=record,label="{  %1 = load i32*, i32** %b, align 8}"];
+	Node0x9ed5310 -> Node0x9ed7060[style=dotted,label = "{DEF_USE}" ];
+	Node0x9ed55a0 [shape=record,label="{  %c = alloca i32, align 4}"];
+	Node0x9ed55a0 -> Node0x9ed55d0[style=dotted,label = "{DEF_USE}" ];
+	Node0x9ed55d0 [shape=record,label="{  store i32 %add, i32* %c, align 4}"];
+	Node0x9ed7060 [shape=record,label="{  %2 = load i32, i32* %1, align 4}"];
+	Node0x9ed7060 -> Node0x9ed7260[style=dotted,label = "{DEF_USE}" ];
+	Node0x9ed7190 [shape=record,label="{  %add = add nsw i32 %0, 3}"];
+	Node0x9ed7190 -> Node0x9ed55d0[style=dotted,label = "{DEF_USE}" ];
+	Node0x9ed7260 [shape=record,label="{  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %2)}"];
+	Node0x9ed72f0 [shape=record,label="{\<\<ENTRY\>\> main}"];
+	Node0x9ed72f0 -> Node0x9ed51c0;
+	Node0x9ed72f0 -> Node0x9ed5470;
+	Node0x9ed72f0 -> Node0x9ed55a0;
+	Node0x9ed72f0 -> Node0x9ed5230;
+	Node0x9ed72f0 -> Node0x9ed52a0;
+	Node0x9ed72f0 -> Node0x9ed5370;
+	Node0x9ed72f0 -> Node0x9ed7190;
+	Node0x9ed72f0 -> Node0x9ed55d0;
+	Node0x9ed72f0 -> Node0x9ed5310;
+	Node0x9ed72f0 -> Node0x9ed7060;
+	Node0x9ed72f0 -> Node0x9ed7260;
+	Node0x9ed72f0 -> Node0x9ed7380;
+	Node0x9ed7380 [shape=record,label="{  ret i32 0}"];
+}

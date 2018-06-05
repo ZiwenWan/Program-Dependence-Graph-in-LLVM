@@ -1,0 +1,22 @@
+digraph "Data dependency graph for 'f2' function" {
+	label="Data dependency graph for 'f2' function";
+
+	Node0x8aa99d0 [shape=record,label="{  %a.addr = alloca i32, align 4}"];
+	Node0x8aa99d0 -> Node0x8aa9af0;
+	Node0x8aa99d0 -> Node0x8aa9c00;
+	Node0x8aa9a60 [shape=record,label="{  %b.addr = alloca float, align 4}"];
+	Node0x8aa9a60 -> Node0x8aa9b90;
+	Node0x8aa9a60 -> Node0x8aaaf30;
+	Node0x8aa9af0 [shape=record,label="{  store i32 %a, i32* %a.addr, align 4}"];
+	Node0x8aa9af0 -> Node0x8aa9c00;
+	Node0x8aa9b90 [shape=record,label="{  store float %b, float* %b.addr, align 4}"];
+	Node0x8aa9b90 -> Node0x8aaaf30;
+	Node0x8aa9c00 [shape=record,label="{  %0 = load i32, i32* %a.addr, align 4}"];
+	Node0x8aa9c00 -> Node0x8aab040;
+	Node0x8aaaf30 [shape=record,label="{  %1 = load float, float* %b.addr, align 4}"];
+	Node0x8aaaf30 -> Node0x8aaafd0;
+	Node0x8aaafd0 [shape=record,label="{  %conv = fpext float %1 to double}"];
+	Node0x8aaafd0 -> Node0x8aab040;
+	Node0x8aab040 [shape=record,label="{  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([20 x i8], [20 x i8]* @.str, i32 0, i32 0), i32 %0, double %conv)}"];
+	Node0x8aab0f0 [shape=record,label="{  ret void}"];
+}
