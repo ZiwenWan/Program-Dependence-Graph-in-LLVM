@@ -23,24 +23,25 @@
 
 using namespace llvm;
 
-extern std::map<const Function *, FunctionWrapper *> funcMap;
-extern std::map<const CallInst *, CallWrapper *> callMap;
-extern std::set<InstructionWrapper *> instnodes;
-extern std::set<InstructionWrapper *> globalList;
-extern std::map<const llvm::Instruction *, InstructionWrapper *> instMap;
-extern std::map<const llvm::Function *, std::set<InstructionWrapper *>>
-    funcInstWList;
+//extern std::map<const Function *, FunctionWrapper *> funcMap;
+//extern std::map<const CallInst *, CallWrapper *> callMap;
+//extern std::set<InstructionWrapper *> instnodes;
+//extern std::set<InstructionWrapper *> globalList;
+//extern std::map<const llvm::Instruction *, InstructionWrapper *> instMap;
+//extern std::map<const llvm::Function *, std::set<InstructionWrapper *>>
+//    funcInstWList;
 
-int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy);
+namespace pdg {
+    int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy);
 
-int buildActualTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, CallInst *CI);
+    int buildActualTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, CallInst *CI);
 
-void buildFormalTree(Argument *arg, TreeType treeTy);
+    void buildFormalTree(Argument *arg, TreeType treeTy);
 
-void buildActualTree(CallInst* CI, Argument *arg, TreeType treeTy);
+    void buildActualTree(CallInst *CI, Argument *arg, TreeType treeTy);
 
-void buildFormalParameterTrees(Function* Func);
+    void buildFormalParameterTrees(Function *Func);
 
-void buildActualParameterTrees(CallInst *CI);
-
+    void buildActualParameterTrees(CallInst *CI);
+}
 #endif

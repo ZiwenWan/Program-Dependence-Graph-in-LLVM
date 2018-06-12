@@ -9,6 +9,7 @@
 #define RECURSIVE_TYPE 2
 
 using namespace std;
+using namespace pdg;
 
 static std::set<Type*> recursive_types;
 static std::set<Type*> unseparated_types;
@@ -22,7 +23,7 @@ ArgumentWrapper* getArgWrapperFromFunction(FunctionWrapper *funcW, Argument *arg
     return nullptr;
 }
 
-int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy){
+int pdg::buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy){
     if(arg == nullptr){
         errs() << "In buildTypeTree, incomming arg is a nullptr\n";
         return NULLPTR;
@@ -41,7 +42,6 @@ int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy){
         else{
             if(pArgW->getArg() == arg){
                 //TODO: find a better way to do optimization, this way sucks, check historic record of recursive types to avoid redundant processing tree node
-
 //                if(recursive_types.find(tyW->getType()) != recursive_types.end() ){
 //                    errs() << *tyW->getType() << " is a recursive type found in historic record!\n ";
 //                    return RECURSIVE_TYPE;
@@ -57,7 +57,7 @@ int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy){
 
                 //if ty is a pointer, its containedType [ty->getContainedType(0)] means the type ty points to
                 for(unsigned int i = 0; i < tyW->getType()->getContainedType(0)->getNumContainedTypes(); i++){
-                    tyW->getType()->getContainedType(0)->getContainedType(i)->print(errs());
+                    //tyW->getType()->getContainedType(0)->getContainedType(i)->print(errs());
                     TypeWrapper *tempTyW = new TypeWrapper(tyW->getType()->getContainedType(0)->getContainedType(i),id);
                     InstructionWrapper *typeFieldW = new InstructionWrapper(arg->getParent(),arg,tempTyW->getType(),id++,PARAMETER_FIELD);
                     instnodes.insert(typeFieldW);
@@ -135,7 +135,7 @@ int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy){
 }
 
 //build formal in/out tree for each argument in function body(funcMap)
-void buildFormalTree(Argument *arg, TreeType treeTy){
+void pdg::buildFormalTree(Argument *arg, TreeType treeTy){
     InstructionWrapper *treeTyW = nullptr;
     treeTyW = new InstructionWrapper(arg->getParent(), arg, arg->getType(), id, FORMAL_IN);
 
@@ -181,7 +181,7 @@ void buildFormalTree(Argument *arg, TreeType treeTy){
 }
 
 //build formal trees for each function
-void buildFormalParameterTrees(Function* callee){
+void pdg::buildFormalParameterTrees(Function* callee){
     // sequentially set up parameter trees for the each argument
     std::list<ArgumentWrapper*>::iterator argI = funcMap[callee]->getArgWList().begin();
     std::list<ArgumentWrapper*>::iterator argE = funcMap[callee]->getArgWList().end();
@@ -200,7 +200,7 @@ void buildFormalParameterTrees(Function* callee){
 
 
 //build actual trees for each call instruction
-void buildActualParameterTrees(CallInst *CI){
+void pdg::buildActualParameterTrees(CallInst *CI){
     Function *callee = CI->getCalledFunction();
 
     list<ArgumentWrapper*>::iterator

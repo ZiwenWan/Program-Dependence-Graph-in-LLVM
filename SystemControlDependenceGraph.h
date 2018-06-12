@@ -7,71 +7,80 @@
 #include <map>
 #include <set>
 
-typedef DependencyGraph<InstructionWrapper> SystemControlDepGraph;
-typedef DependencyNode<InstructionWrapper> SCDGNode;
-typedef std::vector<DependencyNode<InstructionWrapper> *>::iterator
-    nodes_iterator;
 
-class SystemControlDependenceGraph : public llvm::ModulePass {
-private:
-  const llvm::Function *mainFunction;
-  SCDGNode *root;
-  std::set<const llvm::Function *> libFunctions;
+namespace pdg {
 
-  void generateLibCallCDG(llvm::Function *func);
-  void connectCDG(llvm::Module &M);
-  void addCallEdge(const InstructionWrapper *from,
-                   const InstructionWrapper *to);
 
-public:
-  static char ID;
-  /// Zhiyuan: can reuse the data structure of CDG for the functions
-  SystemControlDepGraph *SCDG;
-  std::map<const llvm::Function *, InstructionWrapper *> entryNodes;
+    typedef DependencyGraph<InstructionWrapper> SystemControlDepGraph;
+    typedef DependencyNode<InstructionWrapper> SCDGNode;
+    typedef std::vector<DependencyNode<InstructionWrapper> *>::iterator
+            nodes_iterator;
 
-  SystemControlDependenceGraph() : ModulePass(ID), SCDG(nullptr) {}
-  ~SystemControlDependenceGraph() {
-    std::map<const llvm::Function *, InstructionWrapper *>::iterator itr =
-        entryNodes.begin();
-    while (itr != entryNodes.end()) {
-      entryNodes.erase(itr++);
-    }
-    std::set<const llvm::Function *>::iterator str = libFunctions.begin();
-    while (str != libFunctions.end()) {
-      libFunctions.erase(str++);
-    }
-  }
-  virtual bool runOnModule(llvm::Module &M);
+    class SystemControlDependenceGraph : public llvm::ModulePass {
+    private:
+        const llvm::Function *mainFunction;
+        SCDGNode *root;
+        std::set<const llvm::Function *> libFunctions;
 
-  virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const {
-    AU.addRequired<ControlDependencyGraph>();
-    AU.addRequired<llvm::CallGraphWrapperPass>();
-    AU.setPreservesAll();
-  }
+        void generateLibCallCDG(llvm::Function *func);
 
-  SCDGNode *getRoot() { return root; }
+        void connectCDG(llvm::Module &M);
 
-  void setRoot(SCDGNode *node) { root = node; }
+        void addCallEdge(const InstructionWrapper *from,
+                         const InstructionWrapper *to);
 
-  bool isLibraryCall(const llvm::Function *func) {
-    return (libFunctions.find(func) != libFunctions.end());
-  }
-};
+    public:
+        static char ID;
+        /// Zhiyuan: can reuse the data structure of CDG for the functions
+        SystemControlDepGraph *SCDG;
+        std::map<const llvm::Function *, InstructionWrapper *> entryNodes;
+
+        SystemControlDependenceGraph() : ModulePass(ID), SCDG(nullptr) {}
+
+        ~SystemControlDependenceGraph() {
+            std::map<const llvm::Function *, InstructionWrapper *>::iterator itr =
+                    entryNodes.begin();
+            while (itr != entryNodes.end()) {
+                entryNodes.erase(itr++);
+            }
+            std::set<const llvm::Function *>::iterator str = libFunctions.begin();
+            while (str != libFunctions.end()) {
+                libFunctions.erase(str++);
+            }
+        }
+
+        virtual bool runOnModule(llvm::Module &M);
+
+        virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+            AU.addRequired<ControlDependencyGraph>();
+            AU.addRequired<llvm::CallGraphWrapperPass>();
+            AU.setPreservesAll();
+        }
+
+        SCDGNode *getRoot() { return root; }
+
+        void setRoot(SCDGNode *node) { root = node; }
+
+        bool isLibraryCall(const llvm::Function *func) {
+            return (libFunctions.find(func) != libFunctions.end());
+        }
+    };
+}
 
 namespace llvm
 {
-    template <> struct GraphTraits<SystemControlDependenceGraph *>
-            : public GraphTraits<DepGraph*> {
-        static NodeRef getEntryNode(SystemControlDependenceGraph *sg) {
+    template <> struct GraphTraits<pdg::SystemControlDependenceGraph *>
+            : public GraphTraits<pdg::DepGraph*> {
+        static NodeRef getEntryNode(pdg::SystemControlDependenceGraph *sg) {
             return sg->getRoot();
         }
 
-        static nodes_iterator nodes_begin(SystemControlDependenceGraph *sg) {
+        static nodes_iterator nodes_begin(pdg::SystemControlDependenceGraph *sg) {
             assert(sg->getRoot());
             return sg->SCDG->begin_children();
         }
 
-        static nodes_iterator nodes_end(SystemControlDependenceGraph *sg) {
+        static nodes_iterator nodes_end(pdg::SystemControlDependenceGraph *sg) {
             assert(sg->getRoot());
             return sg->SCDG->end_children();
         }

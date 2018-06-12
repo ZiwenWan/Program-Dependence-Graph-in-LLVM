@@ -2,7 +2,7 @@
 
 using namespace llvm;
 
-int ControlDependencyGraph::getDependenceType(const BasicBlock *A,
+int pdg::ControlDependencyGraph::getDependenceType(const BasicBlock *A,
                                               const BasicBlock *B) const {
   assert(A && B);
   if (const llvm::BranchInst *b = dyn_cast<BranchInst>(A->getTerminator())) {
@@ -21,7 +21,7 @@ int ControlDependencyGraph::getDependenceType(const BasicBlock *A,
   return ControlType::OTHER;
 }
 
-void ControlDependencyGraph::computeDependencies(llvm::Function &F,
+void pdg::ControlDependencyGraph::computeDependencies(llvm::Function &F,
                                                  llvm::PostDominatorTree *PDT) {
   errs() << "++++++++++++++++++++++++++++++ ControlDependency::runOnFunction "
             "+++++++++++++++++++++++++++++"
@@ -109,7 +109,7 @@ void ControlDependencyGraph::computeDependencies(llvm::Function &F,
                << "\n";
 }
 
-void ControlDependencyGraph::addDependency(InstructionWrapper *from,
+void pdg::ControlDependencyGraph::addDependency(InstructionWrapper *from,
                                            llvm::BasicBlock *to, int type) {
   for (llvm::BasicBlock::iterator ii = to->begin(), ie = to->end(); ii != ie;
        ++ii) {
@@ -125,7 +125,7 @@ void ControlDependencyGraph::addDependency(InstructionWrapper *from,
   }
 }
 
-void ControlDependencyGraph::addDependency(llvm::BasicBlock *from,
+void pdg::ControlDependencyGraph::addDependency(llvm::BasicBlock *from,
                                            llvm::BasicBlock *to, int type) {
   Instruction *Ins = from->getTerminator();
   assert(Ins);
@@ -159,7 +159,7 @@ void ControlDependencyGraph::addDependency(llvm::BasicBlock *from,
   }
 }
 
-bool ControlDependencyGraph::runOnFunction(Function &F) {
+bool pdg::ControlDependencyGraph::runOnFunction(Function &F) {
   constructInstMap(F);
 
   PDT = &getAnalysis<PostDominatorTreeWrapperPass>().getPostDomTree();
@@ -167,33 +167,33 @@ bool ControlDependencyGraph::runOnFunction(Function &F) {
   return false;
 }
 
-void ControlDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const {
+void pdg::ControlDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
   // AU.addRequired<DominatorTreeWrapperPass>();
   AU.addRequired<PostDominatorTreeWrapperPass>();
 }
 
-void ControlDependencyGraph::print(raw_ostream &OS, const Module *) const {
+void pdg::ControlDependencyGraph::print(raw_ostream &OS, const Module *) const {
   const char *passname = getPassName().data();
   CDG->print(OS, passname);
 }
 
-StringRef ControlDependencyGraph::getPassName() const {
+StringRef pdg::ControlDependencyGraph::getPassName() const {
   return "Control Dependency Graph";
 }
 
-void ControlDependencyGraph::mockLibraryCall(llvm::Function &F) {
+void pdg::ControlDependencyGraph::mockLibraryCall(llvm::Function &F) {
   llvm::errs() << "ControlDependencies.h - setRootFor " << F.getName().str()
                << "\n";
   root = new InstructionWrapper(&F, ENTRY);
   isLibrary = true;
 }
 
-ControlDependencyGraph *CreateControlDependencyGraphPass() {
-  return new ControlDependencyGraph();
+pdg::ControlDependencyGraph *CreateControlDependencyGraphPass() {
+  return new pdg::ControlDependencyGraph();
 }
 
-char ControlDependencyGraph::ID = 0;
+char pdg::ControlDependencyGraph::ID = 0;
 
-static RegisterPass<ControlDependencyGraph>
+static RegisterPass<pdg::ControlDependencyGraph>
     CDG("cdg", "Control Dependency Graph Construction", false, true);

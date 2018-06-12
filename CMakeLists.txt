@@ -6,7 +6,9 @@ add_llvm_loadable_module( LLVMCDG
     ControlDependencies.cpp
     DataDependencies.cpp
     ProgramDependencies.cpp
+    PDGHelper.cpp
     ConnectFunctions.cpp
+    FunctionWrapper.cpp
     DepPrinter.cpp
     DEPENDS
     intrinsics_gen
