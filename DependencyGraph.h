@@ -392,9 +392,9 @@ public:
     //   return it->second;
     // }
 
-    void addDependency(const NodeT *pDependent, const NodeT *pDepency, int type) {
-        DependencyNode<NodeT> *pFrom = getNodeByData(pDependent);
-        DependencyNode<NodeT> *pTo = getNodeByData(pDepency);
+    void addDependency(const NodeT *pDependency, const NodeT *pDependent, int type) {
+        DependencyNode<NodeT> *pFrom = getNodeByData(pDependency);
+        DependencyNode<NodeT> *pTo = getNodeByData(pDependent);
         pFrom->addDependencyTo(pTo, type);
     }
 
