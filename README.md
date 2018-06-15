@@ -6,7 +6,7 @@ This project aims at printing a program dependency for a program. It is a upgrad
 The program dependency is consisted of two part 
   1. Control Dependency Graph
   2. Data Dependency Graph
- 
+
 ## Control Dependency Graph
 Control Dependency Graph is built based on the PostDominantTree Pass in LLVM. 
 
@@ -15,8 +15,11 @@ Data Dependency Graph is consisted of Def-use chain and flow dependency analysis
 Currently, the flow dependency analysis module has not been upgraded.  
 
 ## How to use
+### Standard process
+
 This project is built accord to llvm 5.0 build system. 
-Just copy all the files in the repository to the lib/Analysis/CDG 
+
+Just copy all the files in the repository to the lib/Analysis/CDG.
 
 The directory CDG is created by yourself and can be renamed to whatever names.
 
@@ -27,6 +30,8 @@ This should get the llvm to build the pass.
 Then, one can print control dependency graph or data dependency graph by following command (should be ran ):
 
 > opt -load path_to_your_so/LLVMCDG.so -dot-cdg path_to_test/test_file.bc 
+
+
 
 ## How to generate bc file?
 Just write a valid C program and then use. (test.c in this example)

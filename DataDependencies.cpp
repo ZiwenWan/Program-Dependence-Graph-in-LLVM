@@ -11,7 +11,6 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
           "+++++++++++++++++++++++++++++"
          << '\n';
   errs() << "Function name:" << F.getName().str() << '\n';
-
   constructFuncMap(*F.getParent(), funcMap);
 
   if (funcMap[&F]->getEntry() == NULL) {
@@ -120,10 +119,11 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
               getDependencyInFunction(F, pInstruction);
 
       for (int i = 0; i < flowdep_set.size(); i++) {
-        errs() << "Debuggin flowdep_set:" << "\n";
+        errs() << "Debugging flowdep_set:" << "\n";
         errs() << *flowdep_set[i] << "\n";
-        DDG->addDependency(instMap[flowdep_set[i]], instMap[pInstruction],
-                           DATA_RAW);
+        //DDG->addDependency(instMap[flowdep_set[i]], instMap[pInstruction], DATA_RAW);
+        DDG->addDependency(instMap[pInstruction], instMap[flowdep_set[i]], DATA_RAW);
+        errs() << *pInstruction << "\n";
       }
       flowdep_set.clear();
 
@@ -135,15 +135,17 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
       // the return result is NonLocalDepResult. can use getAddress function
       MD->getNonLocalPointerDependency(pInstruction, result);
       // now result stores all possible
-      for (SmallVector<NonLocalDepResult, 20>::iterator II = result.begin(),
-                   EE = result.end();
-           II != EE; ++II) {
-        errs() << "SmallVecter size = " << result.size() << '\n';
-        const MemDepResult nonLocal_res = II->getResult();
+      errs() << "SmallVecter size = " << result.size() << '\n';
+//      for (SmallVector<NonLocalDepResult, 20>::iterator II = result.begin(),
+//                   EE = result.end();
+//           II != EE; ++II) {
+
+      for (NonLocalDepResult &I : result) {
+        const MemDepResult &nonLocal_res = I.getResult();
         InstructionWrapper *itInst = instMap[&*instIt];
         InstructionWrapper *parentInst = instMap[nonLocal_res.getInst()];
 
-        if (nonLocal_res.getInst() != nullptr) {
+        if (nullptr != nonLocal_res.getInst()) {
           errs() << "nonLocal_res.getInst(): " << *nonLocal_res.getInst()
                  << '\n';
           DDG->addDependency(itInst, parentInst, DATA_GENERAL);

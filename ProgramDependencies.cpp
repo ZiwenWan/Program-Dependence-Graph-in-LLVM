@@ -595,8 +595,6 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
                 if (InstW == InstW2) {
                     continue;
                 }
-
-
                 // process all globals see whether dependency exists
                 if (InstW2->getType() == INST &&
                     isa<LoadInst>(InstW2->getInstruction())) {

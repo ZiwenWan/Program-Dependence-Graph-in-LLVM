@@ -111,7 +111,6 @@ namespace pdg {
 }
 
 namespace llvm {
-
     template <>
     struct GraphTraits<pdg::DataDependencyGraph *> : public GraphTraits<pdg::DepGraph *> {
         static NodeRef getEntryNode(pdg::DataDependencyGraph *DG) {

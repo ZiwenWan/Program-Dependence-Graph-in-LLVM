@@ -150,6 +150,49 @@ namespace llvm {
             return "Data dependency graph";
         }
 
+        // return IW.getDependencyType() == DATA ?
+        //"style=dotted" : "";
+        std::string getEdgeAttributes(pdg::DepGraphNode *Node, pdg::DependencyLinkIterator<pdg::InstructionWrapper> &IW, pdg::DataDependencyGraph *PD) {
+            using namespace pdg;
+            switch (IW.getDependencyType()) {
+                case CONTROL:
+                    return "";
+                case DATA_GENERAL:
+                    return "style=dotted, label = \"{DATA_GENERAL}\"";
+                case GLOBAL_VALUE:
+                    return "style=dotted";
+                case PARAMETER:
+                    return "style=dashed";
+                case DATA_DEF_USE: {
+                    Instruction *pFromInst = Node->getData()->getInstruction();
+                    return "style=dotted,label = \"{DEF_USE}\" ";
+                }
+                case DATA_RAW: {
+                    // should be getDependentNode
+                    Instruction *pInstruction = IW.getDependencyNode()->getInstruction();
+                    // pTo Node must be a LoadInst
+                    std::string ret_str;
+                    if (isa<StoreInst>(pInstruction)) {
+                        StoreInst *SI = dyn_cast<StoreInst>(pInstruction);
+                        Value *valLI = SI->getPointerOperand();
+                        ret_str =
+                                "style=dotted,label = \"{RAW} " + valLI->getName().str() + "\"";
+                    } else if (isa<CallInst>(pInstruction)) {
+                        ret_str = "style=dotted,label = \"{RAW}\"";
+                    } else
+                        errs() << "incorrect instruction for DATA_RAW node!"
+                               << "\n";
+                    return ret_str;
+                }
+                case STRUCT_FIELDS: {
+                    return "style=dotted, label=\"{S_FIELD}\"";
+                }
+                default:
+                    return "style=dotted,label=\"{UNDEFINED}\"";
+            }          // end switch
+            //return ""; // default ret statement
+
+        }
         std::string getNodeLabel(pdg::DepGraphNode *Node,
                                  pdg::DataDependencyGraph *Graph) {
             return DOTGraphTraits<pdg::DepGraph *>::getNodeLabel(Node, Graph->DDG);
@@ -200,8 +243,6 @@ namespace llvm {
             return DOTGraphTraits<pdg::DepGraph *>::getNodeLabel(Node, Graph->PDG);
         }
 
-        // return IW.getDependencyType() == DATA ?
-        //"style=dotted" : "";
 
         // take care of the probable display error here
         std::string
