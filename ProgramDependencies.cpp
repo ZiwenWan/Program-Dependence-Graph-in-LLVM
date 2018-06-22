@@ -555,7 +555,7 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
                 // TODO: isIntrinsic or not? Consider intrinsics as common
                 // instructions for now, continue directly
                 // determine if the function start with llvm::
-                if (callee->isIntrinsic() || callee->isDeclaration()) {
+                if (callee->isIntrinsic()) {
                     // if it is a var_annotation, save the sensitive value by the way
                     if (callee->getIntrinsicID() == Intrinsic::var_annotation) {
                         Value *v = CI->getArgOperand(0);
@@ -584,34 +584,35 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
                 // special cases done, common function
                 CallWrapper *callW = new CallWrapper(CI);
                 callMap[CI] = callW;
+                if (!callee->isDeclaration()) {
+                    if (!callee->arg_empty()) {
+                        if (funcMap[callee]->hasTrees() != true) {
+                            //	  errs() << "DEBUG 456 New call for tree construction: "
+                            //<< *InstW->getInstruction() << "\n";  build formal trees in memory
+                            buildFormalParameterTrees(callee);
+                            // add tree edges in PDG
+                            drawFormalParameterTree(callee, FORMAL_IN_TREE);
+                            drawFormalParameterTree(callee, FORMAL_OUT_TREE);
+                            connectFunctionAndFormalTrees(callee);
+                        }
+                        // TODO: We temporarily use this logic since we process F one by
+                        // one, use a better logic later  if callee has parameter trees
+                        // already, just build actual trees
+                        buildActualParameterTrees(CI);
+                        drawActualParameterTree(CI, ACTUAL_IN_TREE);
+                        drawActualParameterTree(CI, ACTUAL_OUT_TREE);
+                    } // end if !callee
 
-                if (!callee->arg_empty()) {
-                    if (funcMap[callee]->hasTrees() != true) {
-                        //	  errs() << "DEBUG 456 New call for tree construction: "
-                        //<< *InstW->getInstruction() << "\n";  build formal trees in memory
-                        buildFormalParameterTrees(callee);
-                        // add tree edges in PDG
-                        drawFormalParameterTree(callee, FORMAL_IN_TREE);
-                        drawFormalParameterTree(callee, FORMAL_OUT_TREE);
-                        connectFunctionAndFormalTrees(callee);
+                    if (0 == connectCallerAndCallee(InstW, callee)) {
+                        InstW->setAccess(true);
                     }
-                    // TODO: We temporarily use this logic since we process F one by
-                    // one, use a better logic later  if callee has parameter trees
-                    // already, just build actual trees
-                    buildActualParameterTrees(CI);
-                    drawActualParameterTree(CI, ACTUAL_IN_TREE);
-                    drawActualParameterTree(CI, ACTUAL_OUT_TREE);
-                } // end if !callee
-
-                if (0 == connectCallerAndCallee(InstW, callee)) {
-                    InstW->setAccess(true);
                 }
             } // end callnode
 
             // second iteration on nodes to add both control and data Dependency
             for (std::set<InstructionWrapper *>::iterator nodeIt2 =
                     funcInstWList[&*F].begin();
-                 nodeIt2 != funcInstWList[&*F].end(); ++nodeIt2) {
+                    nodeIt2 != funcInstWList[&*F].end(); ++nodeIt2) {
                 InstructionWrapper *InstW2 = *nodeIt2;
 
                 if (InstW == InstW2) {
@@ -621,13 +622,13 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
 
                 // process all globals see whether dependency exists
                 if (InstW2->getType() == INST &&
-                    isa<LoadInst>(InstW2->getInstruction())) {
+                        isa<LoadInst>(InstW2->getInstruction())) {
 
                     LoadInst *LI2 = dyn_cast<LoadInst>(InstW2->getInstruction());
 
                     for (std::set<InstructionWrapper *>::const_iterator gi =
                             globalList.begin();
-                         gi != globalList.end(); ++gi) {
+                            gi != globalList.end(); ++gi) {
                         //		errs() << "global v = " << *(*gi)->getValue() <<
                         //"\n";
                         if (LI2->getPointerOperand() == (*gi)->getValue()) {
@@ -642,17 +643,17 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
                     if (ddgGraph.DDG->depends(InstW, InstW2)) {
                         PDG->addDependency(InstW, InstW2, ddgGraph.DDG->getDataType(InstW,InstW2));
                         // only StoreInst->LoadInst edge can be annotated
-//                        if (InstW2->getType() == INST &&
-//                            isa<StoreInst>(InstW->getInstruction()) &&
-//                            isa<LoadInst>(InstW2->getInstruction())) {
-//
-//                            PDG->addDependency(InstW, InstW2, DATA_RAW);
-//                        }
-//                        else {
-//                            if (InstW->getInstruction() != InstW2->getInstruction()) {
-//                                PDG->addDependency(InstW, InstW2, DATA_DEF_USE);
-//                            }
-//                        }
+                        //                        if (InstW2->getType() == INST &&
+                        //                            isa<StoreInst>(InstW->getInstruction()) &&
+                        //                            isa<LoadInst>(InstW2->getInstruction())) {
+                        //
+                        //                            PDG->addDependency(InstW, InstW2, DATA_RAW);
+                        //                        }
+                        //                        else {
+                        //                            if (InstW->getInstruction() != InstW2->getInstruction()) {
+                        //                                PDG->addDependency(InstW, InstW2, DATA_DEF_USE);
+                        //                            }
+                        //                        }
                     }
 
                     if (nullptr != InstW2->getInstruction()) {
@@ -675,7 +676,7 @@ bool ProgramDependencyGraph::runOnModule(Module &M) {
 
                 if (InstW->getType() == ENTRY) {
                     if (nullptr != InstW2->getInstruction() &&
-                        cdgGraph.CDG->depends(InstW, InstW2)) {
+                            cdgGraph.CDG->depends(InstW, InstW2)) {
                         PDG->addDependency(InstW, InstW2, CONTROL);
                     }
                 }
@@ -714,4 +715,4 @@ ProgramDependencyGraph *CreateProgramDependencyGraphPass() {
 }
 
 static RegisterPass<ProgramDependencyGraph>
-        PDG("pdg", "Program Dependency Graph Construction", false, true);
+PDG("pdg", "Program Dependency Graph Construction", false, true);
