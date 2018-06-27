@@ -11,13 +11,6 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
           "+++++++++++++++++++++++++++++"
          << '\n';
   errs() << "Function name:" << F.getName().str() << '\n';
-  constructFuncMap(*F.getParent(), funcMap);
-  if (funcMap[&F]->getEntry() == NULL) {
-    InstructionWrapper *root = new InstructionWrapper(&F, ENTRY);
-    instnodes.insert(root);
-    funcInstWList[&F].insert(root);
-    funcMap[&F]->setEntry(root);
-  }
 
   constructInstMap(F);
 
@@ -35,24 +28,20 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
 
     if (auto allocainst = dyn_cast<AllocaInst>(pInstruction)) {
         // mark processed struct
-        Type *alloca_type = allocainst->getAllocatedType();
-        if (alloca_type->isStructTy() || alloca_type->isPointerTy()) {
-          // check if the allocainst has been stored
-          if (seen_structs[allocainst] == 0) {
-            std::vector<Type *> fields = alloca_struct_map[allocainst].second;
-            int k = 0;
-            for (Type *field : fields) {
-              // construct new InstructionWrapper with position info stored in field_id field.
-              errs() << "Extracting fields ... " << "\n";
-              InstructionWrapper *typeFieldW = new InstructionWrapper(pInstruction, &F, k, STRUCT_FIELD, field);
-              instnodes.insert(typeFieldW);
-              funcInstWList[&F].insert(typeFieldW);
-              DDG->addDependency(typeFieldW, instMap[pInstruction], STRUCT_FIELDS);
-              k++;
-            }
-          }
-          seen_structs[allocainst] = 1;
+      if (seen_structs[allocainst] == 0) {
+        std::vector<Type *> fields = alloca_struct_map[allocainst].second;
+        int k = 0;
+        for (Type *field : fields) {
+          // construct new InstructionWrapper with position info stored in field_id field.
+          errs() << "Extracting fields ... " << "\n";
+          InstructionWrapper *typeFieldW = new InstructionWrapper(pInstruction, &F, k, STRUCT_FIELD, field);
+          instnodes.insert(typeFieldW);
+          funcInstWList[&F].insert(typeFieldW);
+          DDG->addDependency(typeFieldW, instMap[pInstruction], STRUCT_FIELDS);
+          k++;
         }
+      }
+      seen_structs[allocainst] = 1;
     }
 
     // if find a getElementPtr type, it could be accessing the struct
@@ -67,6 +56,9 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
           if (Instruction *source_alloca_inst = dyn_cast<Instruction>(gepI->getOperand(0))) {
             for (InstructionWrapper* instW : instnodes) {
               if (instW->getType() == STRUCT_FIELD && instW->getInstruction() == source_alloca_inst && instW->getFieldId() == field_idx) {
+                //errs() << *(instW->getInstruction()) << "\n";
+//                errs() << *pInstruction << "\n";
+                //DDG->addDependency(instMap[pInstruction], instW, DATA_DEF_USE);
                 DDG->addDependency(instW, instMap[pInstruction], DATA_DEF_USE);
               }
             }
@@ -74,9 +66,9 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
             errs() << "Cast to Inst fail for GEP instruction" << "\n";
           }
         }
+        continue;
       }
     }
-
 
     // check for def-use dependencies
     for (Instruction::const_op_iterator cuit = pInstruction->op_begin();
@@ -88,27 +80,6 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
     }
 
     if(isa<CallInst>(pInstruction)) {
-        if (DbgDeclareInst *ddi = dyn_cast<DbgDeclareInst>(pInstruction)) {
-          errs() << "This is a dbg declare Inst (DDG)" << "\n";
-          DILocalVariable *div = ddi->getVariable();
-          errs() << div->getRawName()->getString().str() << "\n";
-          // fetch metadata associate with the dbg inst
-          MDNode *mdnode = dyn_cast<MDNode>(div->getRawType());
-          DICompositeType *dct = dyn_cast<DICompositeType>(mdnode);
-
-          std::string struct_name = dct->getName().str();
-          for (auto node : dct->getElements()) {
-            // retrive the name in the struct
-            DIDerivedType *didt = dyn_cast<DIDerivedType>(node);
-            std::string var_name = didt->getName().str();
-            if (struct_fields_map.find(struct_name) == struct_fields_map.end()) {
-              struct_fields_map[struct_name] = std::vector<std::string>();
-              struct_fields_map[struct_name].push_back(var_name);
-            } else {
-              struct_fields_map[struct_name].push_back(var_name);
-            }
-          }
-        }
       errs() << "This is a call Inst (DDG)" << "\n";
     }
 
@@ -144,8 +115,8 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
         if (nonLocal_res.getInst() != nullptr) {
           errs() << "nonLocal_res.getInst(): " << *nonLocal_res.getInst()
                  << '\n';
-          if (!DDG->depends(parentInst, itInst)) 
-            DDG->addDependency(itInst, parentInst, DATA_GENERAL);
+	  if (!DDG->depends(parentInst, itInst))
+	    DDG->addDependency(parentInst, itInst, DATA_GENERAL);
         } else {
           errs() << "nonLocal_res.getInst() is a nullptr" << '\n';
         }
