@@ -144,7 +144,8 @@ bool DataDependencyGraph::runOnFunction(llvm::Function &F) {
         if (nonLocal_res.getInst() != nullptr) {
           errs() << "nonLocal_res.getInst(): " << *nonLocal_res.getInst()
                  << '\n';
-          DDG->addDependency(itInst, parentInst, DATA_GENERAL);
+          if (!DDG->depends(parentInst, itInst)) 
+            DDG->addDependency(itInst, parentInst, DATA_GENERAL);
         } else {
           errs() << "nonLocal_res.getInst() is a nullptr" << '\n';
         }

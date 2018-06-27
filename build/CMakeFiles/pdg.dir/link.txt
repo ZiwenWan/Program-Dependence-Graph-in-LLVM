@@ -1,1 +1,0 @@
-/usr/bin/c++  -fPIC   -shared  -o libpdg.so CMakeFiles/pdg.dir/ControlDependencies.cpp.o CMakeFiles/pdg.dir/DataDependencies.cpp.o CMakeFiles/pdg.dir/ProgramDependencies.cpp.o CMakeFiles/pdg.dir/ConnectFunctions.cpp.o CMakeFiles/pdg.dir/DepPrinter.cpp.o  -L/home/yongzhe/llvm-versions/llvm-5.0/build/./lib 
