@@ -1,5 +1,6 @@
 #ifndef DEPENDENCYGRAPH_H_
 #define DEPENDENCYGRAPH_H_
+#define DEBUG_TYPE "pdg"
 
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
@@ -11,6 +12,7 @@
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Debug.h"
 
 #include "tree.hh"
 #include <iterator>
@@ -61,6 +63,7 @@ namespace pdg{
         llvm::Value *value;
         llvm::Argument *arg;
         llvm::Type *field_type;
+        llvm::Type *parent_type;
         int field_id;
         InstWrapperType type;
         bool flag;   // for separation algorithm coloring
@@ -79,6 +82,7 @@ namespace pdg{
             this->Inst = Inst;
             this->field_id = -1;
             this->field_type = nullptr;
+            this->parent_type = nullptr;
             this->flag = false;
             this->access = false;
         }
@@ -86,6 +90,24 @@ namespace pdg{
         // for function argument node(formal in/out)
 
         InstructionWrapper(llvm::Function *Func, llvm::Argument *arg,
+                           llvm::Type *field_type, llvm::Type *parent_type, int field_id,
+                           InstWrapperType type) {
+            this->arg = arg;
+            this->type = type;
+            this->Func = Func;
+            this->field_type = field_type;
+            this->field_id = field_id;
+            this->parent_type = parent_type;
+
+            this->BB = nullptr;
+            this->Inst = nullptr;
+            // changed by shen
+            this->value = arg;
+            this->flag = false;
+            this->access = false;
+        }
+
+        InstructionWrapper(llvm::Function *Func, llvm::Instruction *inst, llvm::Argument *arg,
                            llvm::Type *field_type, int field_id,
                            InstWrapperType type) {
             this->arg = arg;
@@ -93,9 +115,9 @@ namespace pdg{
             this->Func = Func;
             this->field_type = field_type;
             this->field_id = field_id;
-
             this->BB = nullptr;
-            this->Inst = nullptr;
+            this->parent_type = parent_type;
+            this->Inst = inst;
             // changed by shen
             this->value = arg;
             this->flag = false;
@@ -113,6 +135,7 @@ namespace pdg{
             this->value = arg; // changed 12.14
             this->field_id = -1;
             this->field_type = nullptr;
+            this->parent_type = nullptr;
             this->flag = false;
             this->access = false;
         }
@@ -123,6 +146,8 @@ namespace pdg{
             this->BB = nullptr;
             this->Inst = nullptr;
             this->value = nullptr;
+            this->field_type = nullptr;
+            this->parent_type = nullptr;
             this->arg = nullptr;
             this->flag = false;
             this->access = false;
@@ -138,6 +163,7 @@ namespace pdg{
             this->arg = nullptr;
             this->field_id = -1;
             this->field_type = nullptr;
+            this->parent_type = nullptr;
             this->flag = false;
             this->access = false;
         }
@@ -152,6 +178,7 @@ namespace pdg{
             this->arg = nullptr;
             this->field_id = -1;
             this->field_type = nullptr;
+            this->parent_type = nullptr;
             this->flag = false;
             this->access = false;
         }
@@ -166,9 +193,27 @@ namespace pdg{
             this->arg = nullptr;
             this->field_id = field_id;
             this->field_type = field_type;
+            this->parent_type = nullptr;
             this->flag = false;
             this->access = false;
         }
+
+        InstructionWrapper(llvm::Function *Func, int field_id,
+                           InstWrapperType type, Type *field_type) {
+            this->Func = Func;
+            this->type = type;
+            this->BB = nullptr;
+            this->Inst = Inst;
+            this->value = Inst; // changed from nullptr to Inst, 12.14
+            this->arg = nullptr;
+            this->field_id = field_id;
+            this->field_type = field_type;
+            this->parent_type = nullptr;
+            this->flag = false;
+            this->access = false;
+        }
+
+
 
         std::string getFunctionName() const { return (this->Func->getName()).str(); }
 
@@ -183,6 +228,8 @@ namespace pdg{
         llvm::Argument *getArgument() const { return arg; }
 
         llvm::Type *getFieldType() const { return field_type; }
+
+        llvm::Type *getParentType() const { return parent_type; }
 
         int getFieldId() const { return field_id; }
 
@@ -282,6 +329,12 @@ namespace pdg{
             return -1;
         }
 
+        void printDepdendencies() {
+            for (typename DependencyLinkList::const_iterator it = mDependencies.begin(); it != mDependencies.end(); ++it) {
+               errs() << "Dependency Type:" << it->second << "\n";
+            }
+        }
+
     private:
         const NodeT *mpData;
         DependencyLinkList mDependencies;
@@ -349,8 +402,7 @@ namespace pdg{
     template<class NodeT>
     class DependencyGraph {
     public:
-        typedef
-        typename std::vector<DependencyNode<NodeT> *>::iterator nodes_iterator;
+        typedef typename std::vector<DependencyNode<NodeT> *>::iterator nodes_iterator;
         typedef typename std::vector<DependencyNode<NodeT> *>::const_iterator
                 const_nodes_iterator;
 
@@ -379,9 +431,9 @@ namespace pdg{
         //   return it->second;
         // }
 
-        void addDependency(const NodeT *pDependent, const NodeT *pDepency, int type) {
-            DependencyNode<NodeT> *pFrom = getNodeByData(pDependent);
-            DependencyNode<NodeT> *pTo = getNodeByData(pDepency);
+        void addDependency(const NodeT *from, const NodeT *to, int type) {
+            DependencyNode<NodeT> *pFrom = getNodeByData(from);
+            DependencyNode<NodeT> *pTo = getNodeByData(to);
             pFrom->addDependencyTo(pTo, type);
         }
 
@@ -421,6 +473,11 @@ namespace pdg{
             return const_nodes_iterator(mNodes.end());
         }
 
+        void printDependencies(NodeT *pNode) {
+            DependencyNode<NodeT> *data = this->getNodeByData(pNode);
+            data->printDepdendencies();
+        }
+
         //    void print(llvm::raw_ostream &OS, const char *PN) const
         void print(llvm::raw_ostream &OS, const char *PN) const {
             OS << "=============================--------------------------------\n";
@@ -429,6 +486,7 @@ namespace pdg{
             if (firstNode != end_children())
                 PrintDependencyTree(OS, this);
         }
+
 
         /// Zhiyuan added
         ~DependencyGraph() {

@@ -1,0 +1,33 @@
+digraph "Data dependency graph for 'main' function" {
+	label="Data dependency graph for 'main' function";
+
+	Node0x938d9c0 [shape=record,label="{  %retval = alloca i32, align 4}"];
+	Node0x938d9c0 -> Node0x938db60[style=dotted,label = "{DEF_USE}" ];
+	Node0x938da30 [shape=record,label="{  %a = alloca i32, align 4}"];
+	Node0x938da30 -> Node0x938dbd0[style=dotted,label = "{DEF_USE}" ];
+	Node0x938da30 -> Node0x938dcf0[style=dotted,label = "{DEF_USE}" ];
+	Node0x938dac0 [shape=record,label="{  %b = alloca i32, align 4}"];
+	Node0x938dac0 -> Node0x938db30[style=dotted,label = "{DEF_USE}" ];
+	Node0x938dac0 -> Node0x938f1a0[style=dotted,label = "{DEF_USE}" ];
+	Node0x938db60 [shape=record,label="{  store i32 0, i32* %retval, align 4}"];
+	Node0x938dbd0 [shape=record,label="{  store i32 0, i32* %a, align 4}"];
+	Node0x938db30 [shape=record,label="{  store i32 3, i32* %b, align 4}"];
+	Node0x938dcf0 [shape=record,label="{  %0 = load i32, i32* %a, align 4}"];
+	Node0x938dcf0 -> Node0x938dbd0[style=dotted,label = "{RAW} a"];
+	Node0x938dcf0 -> Node0x938f000[style=dotted,label = "{DEF_USE}" ];
+	Node0x938f000 [shape=record,label="{  %cmp = icmp sgt i32 %0, 4}"];
+	Node0x938f000 -> Node0x938f0a0[style=dotted,label = "{DEF_USE}" ];
+	Node0x938f0a0 [shape=record,label="{  br i1 %cmp, label %land.lhs.true, label %if.else}"];
+	Node0x938f1a0 [shape=record,label="{  %1 = load i32, i32* %b, align 4}"];
+	Node0x938f1a0 -> Node0x938db30[style=dotted,label = "{RAW} b"];
+	Node0x938f1a0 -> Node0x938db30[style=dotted, label = "{DATA_GENERAL}"];
+	Node0x938f1a0 -> Node0x9390a70[style=dotted,label = "{DEF_USE}" ];
+	Node0x9390a70 [shape=record,label="{  %cmp1 = icmp slt i32 %1, 5}"];
+	Node0x9390a70 -> Node0x938dc60[style=dotted,label = "{DEF_USE}" ];
+	Node0x938dc60 [shape=record,label="{  br i1 %cmp1, label %if.then, label %if.else}"];
+	Node0x9390b70 [shape=record,label="{  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str, i32 0, i32 0))}"];
+	Node0x9390be0 [shape=record,label="{  br label %if.end}"];
+	Node0x9390c50 [shape=record,label="{  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str.1, i32 0, i32 0))}"];
+	Node0x9390cc0 [shape=record,label="{  br label %if.end}"];
+	Node0x9390d30 [shape=record,label="{  ret i32 0}"];
+}

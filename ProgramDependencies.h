@@ -26,8 +26,6 @@
 #include <string.h>
 #include <time.h>
 
-
-
 /*!
  * Program Dependencies Graph
  */
@@ -49,10 +47,17 @@ namespace pdg {
             delete PDG;
         }
 
+        int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, int field_pos);
+
+        void buildFormalTree(Argument *arg, TreeType treeTy, int field_pos);
+
+        void buildFormalParameterTrees(Function *callee);
+
         void drawFormalParameterTree(Function *func, TreeType treeTy);
 
         void drawActualParameterTree(CallInst *CI, TreeType treeTy);
 
+        void drawDependencyTree(Function *func);
         //    void drawParameterTree(llvm::Function* call_func, TreeType treeTy);
 
 //  void connectAllPossibleFunctions(InstructionWrapper *CInstW,
@@ -62,7 +67,8 @@ namespace pdg {
 
         int connectCallerAndCallee(InstructionWrapper *CInstW,
                                    llvm::Function *callee);
-        //    int connectCallerAndCallee(CallInst *CI, llvm::Function *callee);
+
+        void printArgUseInfo(llvm::Module &M);
 
         bool runOnModule(llvm::Module &M);
 
@@ -71,25 +77,33 @@ namespace pdg {
         llvm::StringRef getPassName() const { return "Program Dependency Graph"; }
 
         void print(llvm::raw_ostream &OS, const llvm::Module *M = 0) const;
+
+        std::map<const llvm::Function*, FunctionWrapper *> getFuncMap() {
+            return funcMap;
+        };
+
+        std::map<const llvm::Instruction*, InstructionWrapper*> getInstMap() {
+            return instMap;
+        };
     };
 }
 
 namespace llvm
 {
-  template <> struct GraphTraits<pdg::ProgramDependencyGraph *>
-    : public GraphTraits<pdg::DepGraph*> {
-    static NodeRef getEntryNode(pdg::ProgramDependencyGraph *PG) {
-      return *(PG->PDG->begin_children());
-    }
+    template <> struct GraphTraits<pdg::ProgramDependencyGraph *>
+            : public GraphTraits<pdg::DepGraph*> {
+        static NodeRef getEntryNode(pdg::ProgramDependencyGraph *PG) {
+            return *(PG->PDG->begin_children());
+        }
 
-    static nodes_iterator nodes_begin(pdg::ProgramDependencyGraph *PG) {
-      return PG->PDG->begin_children();
-    }
+        static nodes_iterator nodes_begin(pdg::ProgramDependencyGraph *PG) {
+            return PG->PDG->begin_children();
+        }
 
-    static nodes_iterator nodes_end(pdg::ProgramDependencyGraph *PG) {
-      return PG->PDG->end_children();
-    }
-  };
+        static nodes_iterator nodes_end(pdg::ProgramDependencyGraph *PG) {
+            return PG->PDG->end_children();
+        }
+    };
 }
 
 

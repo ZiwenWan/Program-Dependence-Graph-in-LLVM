@@ -4,7 +4,7 @@
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 
-#include "ProgramDependencies.h"
+//#include "ProgramDependencies.h"
 #include "SystemDataDependencies.h"
 #include "SystemControlDependenceGraph.h"
 
@@ -23,25 +23,21 @@
 
 using namespace llvm;
 
-//extern std::map<const Function *, FunctionWrapper *> funcMap;
-//extern std::map<const CallInst *, CallWrapper *> callMap;
-//extern std::set<InstructionWrapper *> instnodes;
-//extern std::set<InstructionWrapper *> globalList;
-//extern std::map<const llvm::Instruction *, InstructionWrapper *> instMap;
-//extern std::map<const llvm::Function *, std::set<InstructionWrapper *>>
-//    funcInstWList;
-
 namespace pdg {
-    int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy);
+    //int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, DataDependencyGraph &ddg);
 
     int buildActualTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, CallInst *CI);
 
-    void buildFormalTree(Argument *arg, TreeType treeTy);
+    //void buildFormalTree(Argument *arg, TreeType treeTy, DataDependencyGraph &ddg);
 
     void buildActualTree(CallInst *CI, Argument *arg, TreeType treeTy);
 
-    void buildFormalParameterTrees(Function *Func);
+    //void buildFormalParameterTrees(Function *Func, DataDependencyGraph &ddg);
 
     void buildActualParameterTrees(CallInst *CI);
+
+    tree<InstructionWrapper*>::iterator getInstInsertLoc(ArgumentWrapper *argW, TypeWrapper *tyW, TreeType treeType);
+
+    void insertArgToTree(TypeWrapper *tyW, ArgumentWrapper *pArgW, TreeType treeTy, tree<InstructionWrapper*>::iterator insertLoc);
 }
 #endif

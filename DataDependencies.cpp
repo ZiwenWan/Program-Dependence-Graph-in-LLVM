@@ -7,10 +7,9 @@ char pdg::DataDependencyGraph::ID = 0;
 
 bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
-  errs() << "++++++++++++++++++++++++++++++ DataDependency::runOnFunction "
-          "+++++++++++++++++++++++++++++"
-         << '\n';
-  errs() << "Function name:" << F.getName().str() << '\n';
+  DEBUG(dbgs() << "++++++++++++++++++++++++++++++ DataDependency::runOnFunction "
+          "+++++++++++++++++++++++++++++" << '\n');
+  DEBUG(dbgs() << "Function name:" << F.getName().str() << '\n');
   constructFuncMap(*F.getParent(), funcMap);
 
   if (funcMap[&F]->getEntry() == NULL) {
@@ -26,7 +25,7 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
   MemoryDependenceResults *MD =
           &getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
 
-  errs() << "After getAnalysis<MemoryDependenceAnalysis>()" << '\n';
+  DEBUG(dbgs() << "After getAnalysis<MemoryDependenceAnalysis>()" << '\n');
 
   for (inst_iterator instIt = inst_begin(F), E = inst_end(F); instIt != E;
        ++instIt) {
@@ -34,6 +33,7 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
 
     Instruction *pInstruction = dyn_cast<Instruction>(&*instIt);
 
+#if 0
     if (auto allocainst = dyn_cast<AllocaInst>(pInstruction)) {
         // mark processed struct
         Type *alloca_type = allocainst->getAllocatedType();
@@ -44,11 +44,12 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
             int k = 0;
             for (Type *field : fields) {
               // construct new InstructionWrapper with position info stored in field_id field.
-              errs() << "Extracting fields ... " << "\n";
+              DEBUG(dbgs() << "Extracting fields ... " << "\n");
               InstructionWrapper *typeFieldW = new InstructionWrapper(pInstruction, &F, k, STRUCT_FIELD, field);
               instnodes.insert(typeFieldW);
               funcInstWList[&F].insert(typeFieldW);
-              DDG->addDependency(typeFieldW, instMap[pInstruction], STRUCT_FIELDS);
+              //DDG->addDependency(typeFieldW, instMap[pInstruction], STRUCT_FIELDS);
+              DDG->addDependency(instMap[pInstruction], typeFieldW, STRUCT_FIELDS);
               k++;
             }
           }
@@ -62,37 +63,41 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
         int operand_num = gepI->getNumOperands();
         // get the last operand, which is the position of the field
         Value *last_idx = gepI->getOperand(operand_num - 1);
-        if (ConstantInt* constInt = dyn_cast<ConstantInt>(last_idx)) {
+        if (llvm::ConstantInt* constInt = dyn_cast<ConstantInt>(last_idx)) {
           // get the integer value of index
           int field_idx = constInt->getSExtValue();
-          if (Instruction *source_alloca_inst = dyn_cast<Instruction>(gepI->getOperand(0))) {
+          if (llvm::Instruction *source_alloca_inst = dyn_cast<Instruction>(gepI->getOperand(0))) {
+            if (isa<llvm::LoadInst>(source_alloca_inst)) {
+              source_alloca_inst = dyn_cast<Instruction>(source_alloca_inst->getOperand(0));
+            }
             for (InstructionWrapper* instW : instnodes) {
               if (instW->getType() == STRUCT_FIELD && instW->getInstruction() == source_alloca_inst && instW->getFieldId() == field_idx) {
                 DDG->addDependency(instW, instMap[pInstruction], DATA_DEF_USE);
               }
             }
           } else {
-            errs() << "Cast to Inst fail for GEP instruction" << "\n";
+            DEBUG(dbgs() << "Cast to Inst fail for GEP instruction" << "\n");
           }
         }
       }
     }
-
+#endif
 
     // check for def-use dependencies
     for (Instruction::const_op_iterator cuit = pInstruction->op_begin();
          cuit != pInstruction->op_end(); ++cuit) {
       if (Instruction *pInst = dyn_cast<Instruction>(*cuit)) {
-          //Value *tempV = dyn_cast<Value>(*cuit);
-            DDG->addDependency(instMap[pInst], instMap[&*instIt], DATA_DEF_USE);
-          }
+        //Value *tempV = dyn_cast<Value>(*cuit);
+        DDG->addDependency(instMap[pInst], instMap[&*instIt], DATA_DEF_USE);
+      }
     }
 
     if(isa<CallInst>(pInstruction)) {
-        if (DbgDeclareInst *ddi = dyn_cast<DbgDeclareInst>(pInstruction)) {
-          errs() << "This is a dbg declare Inst (DDG)" << "\n";
+#if 0
+      if (DbgDeclareInst *ddi = dyn_cast<DbgDeclareInst>(pInstruction)) {
+          DEBUG(dbgs() << "This is a dbg declare Inst (DDG)" << "\n");
           DILocalVariable *div = ddi->getVariable();
-          errs() << div->getRawName()->getString().str() << "\n";
+          DEBUG(dbgs() << div->getRawName()->getString().str() << "\n");
           // fetch metadata associate with the dbg inst
           MDNode *mdnode = dyn_cast<MDNode>(div->getRawType());
           DICompositeType *dct = dyn_cast<DICompositeType>(mdnode);
@@ -110,7 +115,8 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
             }
           }
         }
-      errs() << "This is a call Inst (DDG)" << "\n";
+#endif
+      DEBUG(dbgs() << "This is a call Inst (DDG)" << "\n");
     }
 
     if (isa<LoadInst>(pInstruction)) {
@@ -119,11 +125,10 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
               getDependencyInFunction(F, pInstruction);
 
       for (int i = 0; i < flowdep_set.size(); i++) {
-        errs() << "Debugging flowdep_set:" << "\n";
-        errs() << *flowdep_set[i] << "\n";
-        //DDG->addDependency(instMap[flowdep_set[i]], instMap[pInstruction], DATA_RAW);
-        DDG->addDependency(instMap[pInstruction], instMap[flowdep_set[i]], DATA_RAW);
-        errs() << *pInstruction << "\n";
+        DEBUG(dbgs() << "Debugging flowdep_set:" << "\n");
+        DEBUG(dbgs() << *flowdep_set[i] << "\n");
+        DDG->addDependency(instMap[flowdep_set[i]], instMap[pInstruction], DATA_RAW);
+        //DDG->addDependency(instMap[pInstruction], instMap[flowdep_set[i]], DATA_RAW);
       }
       flowdep_set.clear();
 
@@ -135,7 +140,7 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
       // the return result is NonLocalDepResult. can use getAddress function
       MD->getNonLocalPointerDependency(pInstruction, result);
       // now result stores all possible
-      errs() << "SmallVecter size = " << result.size() << '\n';
+      DEBUG(dbgs() << "SmallVecter size = " << result.size() << '\n');
 //      for (SmallVector<NonLocalDepResult, 20>::iterator II = result.begin(),
 //                   EE = result.end();
 //           II != EE; ++II) {
@@ -146,11 +151,11 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
         InstructionWrapper *parentInst = instMap[nonLocal_res.getInst()];
 
         if (nullptr != nonLocal_res.getInst()) {
-          errs() << "nonLocal_res.getInst(): " << *nonLocal_res.getInst()
-                 << '\n';
+          DEBUG(dbgs() << "nonLocal_res.getInst(): " << *nonLocal_res.getInst()
+                       << '\n');
           DDG->addDependency(itInst, parentInst, DATA_GENERAL);
         } else {
-          errs() << "nonLocal_res.getInst() is a nullptr" << '\n';
+          DEBUG(dbgs() << "nonLocal_res.getInst() is a nullptr" << '\n');
         }
       }
 
@@ -172,6 +177,6 @@ void pdg::DataDependencyGraph::print(raw_ostream &OS, const Module *) const {
 static RegisterPass<pdg::DataDependencyGraph>
         DDG("ddg", "Data Dependency Graph Construction", false, true);
 
-pdg::DataDependencyGraph *CreateDataDependencyGraphPass() {
-  return new pdg::DataDependencyGraph();
-}
+//pdg::DataDependencyGraph *CreateDataDependencyGraphPass() {
+//  return new pdg::DataDependencyGraph();
+//}

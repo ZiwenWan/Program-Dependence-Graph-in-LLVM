@@ -1,0 +1,29 @@
+digraph "Data dependency graph for 'main' function" {
+	label="Data dependency graph for 'main' function";
+
+	Node0x80e6b30 [shape=record,label="{  %a = alloca i32, align 4}"];
+	Node0x80e6b30 -> Node0x80e6d40;
+	Node0x80e6b30 -> Node0x80e6db0;
+	Node0x80e6b30 -> Node0x80e6e70;
+	Node0x80e6ba0 [shape=record,label="{  %b = alloca i32*, align 8}"];
+	Node0x80e6ba0 -> Node0x80e6db0;
+	Node0x80e6ba0 -> Node0x80e8270;
+	Node0x80e6ca0 [shape=record,label="{  %c = alloca i32, align 4}"];
+	Node0x80e6ca0 -> Node0x80e81c0;
+	Node0x80e6d40 [shape=record,label="{  store i32 0, i32* %a, align 4}"];
+	Node0x80e6d40 -> Node0x80e6e70;
+	Node0x80e6d40 -> Node0x80e6e20;
+	Node0x80e6db0 [shape=record,label="{  store i32* %a, i32** %b, align 8}"];
+	Node0x80e6db0 -> Node0x80e8270;
+	Node0x80e6e70 [shape=record,label="{  %0 = load i32, i32* %a, align 4}"];
+	Node0x80e6e70 -> Node0x80e6d10;
+	Node0x80e6d10 [shape=record,label="{  %add = add nsw i32 %0, 3}"];
+	Node0x80e6d10 -> Node0x80e81c0;
+	Node0x80e81c0 [shape=record,label="{  store i32 %add, i32* %c, align 4}"];
+	Node0x80e8270 [shape=record,label="{  %1 = load i32*, i32** %b, align 8}"];
+	Node0x80e8270 -> Node0x80e6e20;
+	Node0x80e6e20 [shape=record,label="{  %2 = load i32, i32* %1, align 4}"];
+	Node0x80e6e20 -> Node0x80e8450;
+	Node0x80e8450 [shape=record,label="{  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %2)}"];
+	Node0x80e84c0 [shape=record,label="{  ret i32 0}"];
+}

@@ -1,0 +1,46 @@
+digraph "Program Dependency Graph for 'main' function" {
+	label="Program Dependency Graph for 'main' function";
+
+	Node0x8b40940 [shape=record,label="{  %retval = alloca i32, align 4}"];
+	Node0x8b40940 -> Node0x8b409b0[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b409b0 [shape=record,label="{  store i32 0, i32* %retval, align 4}"];
+	Node0x8b40b70 [shape=record,label="{  %p1 = alloca %struct.person_t, align 4}"];
+	Node0x8b40b70 -> Node0x8b40c10[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b40b70 -> Node0x8b40c80[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b40b70 -> Node0x8b40cf0[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b40c10 [shape=record,label="{  %age = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 0}"];
+	Node0x8b40c10 -> Node0x8b40be0[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b40c80 [shape=record,label="{  %name = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 1}"];
+	Node0x8b40c80 -> Node0x8b3ecc0[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b40cf0 [shape=record,label="{  %age1 = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 0}"];
+	Node0x8b40cf0 -> Node0x8b3ec30[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b40be0 [shape=record,label="{  store i32 13, i32* %age, align 4}"];
+	Node0x8b40be0 -> Node0x8b3ec30[style=dotted,label = "{RAW} age1"];
+	Node0x8b3ec30 [shape=record,label="{  %0 = load i32, i32* %age1, align 4}"];
+	Node0x8b3ec30 -> Node0x8b3ee90[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b3ecc0 [shape=record,label="{  %arraydecay = getelementptr inbounds [10 x i8], [10 x i8]* %name, i32 0, i32 0}"];
+	Node0x8b3ecc0 -> Node0x8b3ede0[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b3ede0 [shape=record,label="{  %call = call i8* @strncpy(i8* %arraydecay, i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 5) #3}"];
+	Node0x8b3ee90 [shape=record,label="{  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.1, i32 0, i32 0), i32 %0)}"];
+	Node0x8b3ef20 [shape=record,label="{\<\<ENTRY\>\> main}"];
+	Node0x8b3ef20 -> Node0x8b40940;
+	Node0x8b3ef20 -> Node0x8b40b70;
+	Node0x8b3ef20 -> Node0x8b409b0;
+	Node0x8b3ef20 -> Node0x8b40c10;
+	Node0x8b3ef20 -> Node0x8b40be0;
+	Node0x8b3ef20 -> Node0x8b40c80;
+	Node0x8b3ef20 -> Node0x8b3ecc0;
+	Node0x8b3ef20 -> Node0x8b3ede0;
+	Node0x8b3ef20 -> Node0x8b40cf0;
+	Node0x8b3ef20 -> Node0x8b3ec30;
+	Node0x8b3ef20 -> Node0x8b3ee90;
+	Node0x8b3ef20 -> Node0x8b3efb0;
+	Node0x8b3efb0 [shape=record,label="{  ret i32 0}"];
+	Node0x8b3f020 [shape=record,label="{struct.person_t : field - 0}"];
+	Node0x8b3f020 -> Node0x8b40b70[style=dotted, label="{S_FIELD}"];
+	Node0x8b3f020 -> Node0x8b40c10[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b3f020 -> Node0x8b40cf0[style=dotted,label = "{DEF_USE}" ];
+	Node0x8b3f1c0 [shape=record,label="{struct.person_t : field - 1}"];
+	Node0x8b3f1c0 -> Node0x8b40b70[style=dotted, label="{S_FIELD}"];
+	Node0x8b3f1c0 -> Node0x8b40c80[style=dotted,label = "{DEF_USE}" ];
+}

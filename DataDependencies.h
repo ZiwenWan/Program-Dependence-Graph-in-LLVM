@@ -71,7 +71,6 @@ namespace pdg {
             }
             // for each Load Instruction, find related Store Instructions(alias
             // considered)
-            errs() << "LoadInst: " << *pLoadInst << '\n';
             LoadInst *LI = dyn_cast<LoadInst>(pLoadInst);
 
             MemoryLocation LI_Loc = MemoryLocation::get(LI);

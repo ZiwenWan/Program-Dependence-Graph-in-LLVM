@@ -8,15 +8,14 @@ std::set<InstructionWrapper *> pdg::instnodes;
 std::set<InstructionWrapper *> pdg::globalList;
 std::map<const Instruction *, InstructionWrapper *> pdg::instMap;
 std::map<const Function *, std::set<InstructionWrapper *>> pdg::funcInstWList;
-std::map<AllocaInst*, std::pair<StructType*, std::vector<Type*>>> pdg::alloca_struct_map;
-std::map<std::string, std::vector<std::string>> pdg::struct_fields_map;
-std::map<AllocaInst*, int> pdg::seen_structs;
+//std::map<AllocaInst*, std::pair<StructType*, std::vector<Type*>>> pdg::alloca_struct_map;
+//std::map<std::string, std::vector<std::string>> pdg::struct_fields_map;
+//std::map<AllocaInst*, int> pdg::seen_structs;
 
 void pdg::constructInstMap(llvm::Function &F) {
         for (llvm::inst_iterator I = inst_begin(F), IE = inst_end(F); I != IE; ++I) {
             // llvm::errs() << "Current InstMap Size: " << instMap.size() << "\n";
             // if not in instMap yet, insert
-            Instruction *tmpInst = &*I;
 
             if (instMap.find(&*I) == instMap.end()) {
                 InstructionWrapper *iw = new InstructionWrapper(&*I, &F, INST);
@@ -30,6 +29,7 @@ void pdg::constructInstMap(llvm::Function &F) {
         }
 }
 
+#if 0
 void pdg::constructStructMap(llvm::Module &M,
                              llvm::Instruction *pInstruction,
                              std::map<llvm::AllocaInst *, std::pair<StructType *, std::vector<Type *>>> &alloca_struct_map)
@@ -38,8 +38,16 @@ void pdg::constructStructMap(llvm::Module &M,
         // constructing struct
         std::vector<llvm::StructType *> global_struct_list = M.getIdentifiedStructTypes();
         for (auto st : global_struct_list) {
-            errs() << "Struct Name:" << st->getName().str().substr(7) << "\n";
-            if (allocaInst->getAllocatedType()->getStructName() == st->getName()) {
+            DEBUG(dbgs() << "Struct Name:" << st->getName().str().substr(7) << "\n");
+            llvm::StringRef structName = "";
+            if (allocaInst->getAllocatedType()->isPointerTy()) {
+                PointerType *pt = dyn_cast<PointerType>(allocaInst->getAllocatedType());
+                structName = pt->getElementType()->getStructName();
+            } else {
+                structName = allocaInst->getAllocatedType()->getStructName();
+            }
+
+            if (structName == st->getName()) {
                 std::vector<Type *> fields;
                 std::pair<StructType *, std::vector<Type *>> struct_pair;
 
@@ -59,13 +67,15 @@ void pdg::constructStructMap(llvm::Module &M,
                 alloca_struct_map[allocaInst] = struct_pair;
             }
         }
-        errs() << "Construct struct map success !" << "\n";
-        errs() << "Struct Map size: " << alloca_struct_map.size() << "\n";
+//        errs() << "Construct struct map success !" << "\n";
+//        errs() << "Struct Map size: " << alloca_struct_map.size() << "\n";
 }
+#endif
 
 void pdg::constructFuncMap(Module &M, std::map<const Function *, FunctionWrapper *> &funcMap) {
         for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F) {
             Function *f = dyn_cast<Function>(F);
+            constructInstMap(*f);
             if (funcMap.find(f) == funcMap.end()) // if not in funcMap yet, insert
             {
                 FunctionWrapper *fw = new FunctionWrapper(f);
@@ -73,3 +83,4 @@ void pdg::constructFuncMap(Module &M, std::map<const Function *, FunctionWrapper
             }
         }
 }
+

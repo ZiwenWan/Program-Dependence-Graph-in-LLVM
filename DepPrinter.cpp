@@ -11,8 +11,7 @@ namespace llvm {
         std::string getNodeLabel(pdg::DepGraphNode *Node, pdg::DepGraphNode *Graph){
             using namespace pdg;
             const InstructionWrapper *instW = Node->getData();
-
-            //TODO: why nullptr for Node->getData()?
+//TODO: why nullptr for Node->getData()?
             if(instW == nullptr || instW == NULL){
                 errs() <<"instW " << instW << "\n";
                 return "null instW";
@@ -24,7 +23,6 @@ namespace llvm {
 
             std::string Str;
             raw_string_ostream OS(Str);
-
             switch(instW->getType()) {
                 case ENTRY:
                     return ("<<ENTRY>> " + instW->getFunctionName());
@@ -35,26 +33,36 @@ namespace llvm {
                 }
 
                 case FORMAL_IN:{
+                    llvm::Argument *arg = instW->getArgument();
+                    int arg_pos = arg->getArgNo();
                     OS << *instW->getArgument()->getType();
-                    return ("FORMAL_IN:" + OS.str());
+                    return ("FORMAL_IN: " + std::to_string(arg_pos) + " " + OS.str());
                 }
 
                 case ACTUAL_IN:{
+                    llvm::Argument *arg = instW->getArgument();
+                    int arg_pos = arg->getArgNo();
                     OS << *instW->getArgument()->getType();
-                    return ("ACTUAL_IN:" + OS.str() );
+                    return ("ACTUAL_IN: " + std::to_string(arg_pos) + " " + OS.str() );
                 }
                 case FORMAL_OUT:{
+                    llvm::Argument *arg = instW->getArgument();
+                    int arg_pos = arg->getArgNo();
                     OS << *instW->getArgument()->getType();
-                    return ("FORMAL_OUT:" + OS.str());
+                    return ("FORMAL_OUT: " + std::to_string(arg_pos)+ " " + OS.str());
                 }
 
                 case ACTUAL_OUT:{
+                    llvm::Argument *arg = instW->getArgument();
+                    int arg_pos = arg->getArgNo();
                     OS << *instW->getArgument()->getType();
-                    return ("ACTUAL_OUT:" + OS.str());
+                    return ("ACTUAL_OUT: " + std::to_string(arg_pos) + " " + OS.str());
                 }
 
                 case PARAMETER_FIELD:{
-                    OS << instW->getFieldId() << " " << *instW->getFieldType();
+                    llvm::Argument *arg = instW->getArgument();
+                    int arg_pos = arg->getArgNo();
+                    OS << *instW->getFieldType() << " pos: " << arg_pos << " - " << instW->getFieldId();
                     return OS.str();
                 }
 
@@ -68,10 +76,16 @@ namespace llvm {
                 case STRUCT_FIELD: {
                     llvm::Instruction *inst = instW->getInstruction();
                     llvm::AllocaInst *allocaInst = dyn_cast<AllocaInst>(inst);
-                    llvm::StringRef struct_name = allocaInst->getAllocatedType()->getStructName();
+                    // processing differently when get a struct pointer
+                    llvm::StringRef struct_name = "";
+                    if (allocaInst->getAllocatedType()->isPointerTy()) {
+                        llvm::PointerType *pt = dyn_cast<llvm::PointerType>(allocaInst->getAllocatedType());
+                        struct_name = pt->getElementType()->getStructName();
+                    } else {
+                        struct_name = allocaInst->getAllocatedType()->getStructName();
+                    }
 
                     std::string struct_string = struct_name.str();
-
                     std::vector<std::string> TYPE_NAMES = {
                             "VoidTy",    ///<  0: type with no size
                             "HalfTy",        ///<  1: 16-bit floating point type
@@ -97,15 +111,18 @@ namespace llvm {
                     llvm::Type *field_type = instW->getFieldType();
                     std::string type_name = TYPE_NAMES.at(field_type->getTypeID());
 
-                    std::vector<std::string> fields_name = struct_fields_map[struct_string.substr(7)];
                     std::string ret_string = "";
-                    if (fields_name.empty() == false) {
-                        std::string field_name =  fields_name.at(instW->getFieldId());
-                        ret_string = struct_string + " (" + type_name + ") : " + field_name ;
-                    } else {
-                        std::string field_pos = std::to_string(instW->getFieldId());
-                        ret_string = struct_string + " (" + type_name + ") : " + std::to_string(instW->getFieldId());
-                    }
+                    std::string field_pos = std::to_string(instW->getFieldId());
+                    ret_string = struct_string + " (" + type_name + ") : " + std::to_string(instW->getFieldId());
+
+//                    std::vector<std::string> fields_name = struct_fields_map[struct_string.substr(7)];
+//                    if (fields_name.empty() == false) {
+//                        std::string field_name =  fields_name.at(instW->getFieldId());
+//                        ret_string = struct_string + " (" + type_name + ") : " + field_name ;
+//                    } else {
+//                        std::string field_pos = std::to_string(instW->getFieldId());
+//                        ret_string = struct_string + " (" + type_name + ") : " + std::to_string(instW->getFieldId());
+//                    }
                     return (ret_string);
                 }
 
@@ -172,8 +189,8 @@ namespace llvm {
                     Instruction *pInstruction = IW.getDependencyNode()->getInstruction();
                     // pTo Node must be a LoadInst
                     std::string ret_str;
-                    if (isa<StoreInst>(pInstruction)) {
-                        StoreInst *SI = dyn_cast<StoreInst>(pInstruction);
+                    if (isa<LoadInst>(pInstruction)) {
+                        LoadInst *SI = dyn_cast<LoadInst>(pInstruction);
                         Value *valLI = SI->getPointerOperand();
                         ret_str =
                                 "style=dotted,label = \"{RAW} " + valLI->getName().str() + "\"";
@@ -185,7 +202,7 @@ namespace llvm {
                     return ret_str;
                 }
                 case STRUCT_FIELDS: {
-                    return "style=dotted, label=\"{S_FIELD}\"";
+                    return "style=dotted, label=\"{S_FIELD}\", color=\"red\"";
                 }
                 default:
                     return "style=dotted,label=\"{UNDEFINED}\"";
@@ -254,11 +271,12 @@ namespace llvm {
                 case CONTROL:
                     return "";
                 case DATA_GENERAL:
-                    return "style=dotted, label = \"{DATA_GENERAL}\"";
+                    return "style=dotted, label = \"{data_g}\"";
+                    //return "style=dotted, label = \"{DATA_GENERAL}\"";
                 case GLOBAL_VALUE:
                     return "style=dotted";
                 case PARAMETER:
-                    return "style=dashed";
+                    return "style=dashed, color=\"blue\"";
                 case DATA_DEF_USE: {
                     Instruction *pFromInst = Node->getData()->getInstruction();
                     return "style=dotted,label = \"{DEF_USE}\" ";
@@ -270,8 +288,7 @@ namespace llvm {
                     if (isa<LoadInst>(pInstruction)) {
                         LoadInst *LI = dyn_cast<LoadInst>(pInstruction);
                         Value *valLI = LI->getPointerOperand();
-                        ret_str =
-                                "style=dotted,label = \"{RAW} " + valLI->getName().str() + "\"";
+                        ret_str = "style=dotted,label = \"{RAW} " + valLI->getName().str() + "\"";
                     } else if (isa<CallInst>(pInstruction)) {
                         ret_str = "style=dotted,label = \"{RAW}\"";
                     } else
@@ -280,7 +297,7 @@ namespace llvm {
                     return ret_str;
                 }
                 case STRUCT_FIELDS: {
-                    return "style=dotted, label=\"{S_FIELD}\"";
+                    return "style=dotted, label=\"{S_FIELD}\", color=\"red\", penwidth=\"2.0\"";
                 }
                 default:
                     return "style=dotted,label=\"{UNDEFINED}\"";

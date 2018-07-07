@@ -10,6 +10,9 @@
 using namespace llvm;
 
 namespace pdg {
+
+
+
     enum TreeType {
         ACTUAL_IN_TREE = 0,
         ACTUAL_OUT_TREE,
@@ -44,20 +47,22 @@ namespace pdg {
     class ArgumentWrapper {
     private:
         Argument *arg;
-
         //formal in/out trees should be together with each function body
         tree<InstructionWrapper *> formalInTree;
         tree<InstructionWrapper *> formalOutTree;
         //actual in/out trees should be together with each call wrapper
         tree<InstructionWrapper *> actualInTree;
         tree<InstructionWrapper *> actualOutTree;
-
-        //  tree<InstructionWrapper*> testTree;
-
+        std::set<InstructionWrapper *> GEPList;
     public:
         ArgumentWrapper(Argument *arg) {
             this->arg = arg;
             //    this->recursive_types = {};
+
+            llvm::Instruction *allocInst = findAllocaInst(arg);
+            if (allocInst != nullptr) {
+                getDependentGEP(allocInst);
+            }
         }
 
         Argument *getArg() {
@@ -75,12 +80,19 @@ namespace pdg {
                     return actualInTree;
                 case ACTUAL_OUT_TREE:
                     return actualOutTree;
-
                     break;
             }
         }
 
+        llvm::Instruction *findAllocaInst(Argument *arg);
+
+        void getDependentGEP(Instruction *allocaInst);
+
         void copyTree(const tree<InstructionWrapper *> &srcTree, TreeType treeTy);
+
+        std::set<InstructionWrapper *> &getGEPList() {
+            return GEPList;
+        }
     };
 
     class CallWrapper {
@@ -92,12 +104,16 @@ namespace pdg {
         CallWrapper(CallInst *CI) {
             this->CI = CI;
             //  Function::ArgumentListType& callee_args = Func->getArgumentList();
+            int arg_pos_in_call_site = 0;
             for (Function::arg_iterator argIt = CI->getCalledFunction()->arg_begin(),
                          argE = CI->getCalledFunction()->arg_end(); argIt != argE; ++argIt) {
 
-                ArgumentWrapper *argW = new ArgumentWrapper(&*argIt);
+                Argument *arg = &*argIt;
+                ArgumentWrapper *argW = new ArgumentWrapper(arg);
                 argWList.push_back(argW);
+                arg_pos_in_call_site++;
             }
+
         }
 
         CallInst *getCallInstruction() {
@@ -121,6 +137,7 @@ namespace pdg {
         std::list<llvm::Instruction *> returnInstList;
         std::list<llvm::CallInst *> callInstList;
         std::list<ArgumentWrapper *> argWList;
+        std::map<InstructionWrapper*, bool > visitedMap;
         std::set<llvm::Value *> ptrSet;
 
         bool treeFlag = false;
@@ -170,14 +187,16 @@ namespace pdg {
 
         std::set<llvm::Value *> &getPtrSet() { return ptrSet; }
 
+        std::map<InstructionWrapper*, bool> &getVisitedMap() {return visitedMap;};
+
         bool hasFuncOrFilePrt();
     };
 }
 
 namespace pdg {
-    extern std::map<AllocaInst *, std::pair<StructType *, std::vector<Type *>>> alloca_struct_map;
-    extern std::map<std::string, std::vector<std::string>> struct_fields_map;
-    extern std::map<AllocaInst *, int> seen_structs;
+    //extern std::map<AllocaInst *, std::pair<StructType *, std::vector<Type *>>> alloca_struct_map;
+    //extern std::map<std::string, std::vector<std::string>> struct_fields_map;
+    //extern std::map<AllocaInst *, int> seen_structs;
     extern std::map<const Function *, FunctionWrapper *> funcMap;
     extern std::map<const CallInst *, CallWrapper *> callMap;
 }

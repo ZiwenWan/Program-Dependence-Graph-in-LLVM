@@ -1,0 +1,24 @@
+digraph "Program Dependency Graph for 'main' function" {
+	label="Program Dependency Graph for 'main' function";
+
+	Node0x94d33a0 [shape=record,label="{  %retval = alloca i32, align 4}"];
+	Node0x94d33a0 -> Node0x94d3410[style=dotted,label = "{DEF_USE}" ];
+	Node0x94d3410 [shape=record,label="{  store i32 0, i32* %retval, align 4}"];
+	Node0x94d3510 [shape=record,label="{  %a = alloca i32, align 4}"];
+	Node0x94d3510 -> Node0x94d35b0[style=dotted,label = "{DEF_USE}" ];
+	Node0x94d3510 -> Node0x94d3620[style=dotted,label = "{DEF_USE}" ];
+	Node0x94d35b0 [shape=record,label="{  store i32 6, i32* %a, align 4}"];
+	Node0x94d35b0 -> Node0x94d3620[style=dotted,label = "{RAW} a"];
+	Node0x94d3620 [shape=record,label="{  %0 = load i32, i32* %a, align 4}"];
+	Node0x94d3620 -> Node0x94d36e0[style=dotted,label = "{DEF_USE}" ];
+	Node0x94d36e0 [shape=record,label="{  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %0)}"];
+	Node0x94d3770 [shape=record,label="{\<\<ENTRY\>\> main}"];
+	Node0x94d3770 -> Node0x94d33a0;
+	Node0x94d3770 -> Node0x94d3510;
+	Node0x94d3770 -> Node0x94d3410;
+	Node0x94d3770 -> Node0x94d35b0;
+	Node0x94d3770 -> Node0x94d3620;
+	Node0x94d3770 -> Node0x94d36e0;
+	Node0x94d3770 -> Node0x94d51b0;
+	Node0x94d51b0 [shape=record,label="{  ret i32 0}"];
+}
