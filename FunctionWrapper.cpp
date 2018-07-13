@@ -103,7 +103,7 @@ llvm::Instruction* pdg::ArgumentWrapper::findAllocaInst(Argument *arg) {
                 }
         }
         if (ALLOCA_DEPENDEN_ON_ARG == nullptr) {
-                errs() << "Empty alloca inst" << "\n";
+                DEBUG(dbgs() << "Empty alloca inst" << "\n");
         }
         return ALLOCA_DEPENDEN_ON_ARG;
 }

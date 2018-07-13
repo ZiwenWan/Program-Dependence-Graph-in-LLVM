@@ -5,162 +5,118 @@ using namespace llvm;
 
 char pdg::DataDependencyGraph::ID = 0;
 
-bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
+void pdg::DataDependencyGraph::initializeMemoryDependencyPasses() {
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
+  MD = &getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
+}
+
+void pdg::DataDependencyGraph::constructFuncMapAndCreateFunctionEntry() {
+  if (funcMap[func]->getEntry() == NULL) {
+    InstructionWrapper *root = new InstructionWrapper(func, ENTRY);
+    instnodes.insert(root);
+    funcInstWList[func].insert(root);
+    funcMap[func]->setEntry(root);
+  }
+}
+
+void pdg::DataDependencyGraph::collectDefUseDependency(llvm::Instruction *inst) {
+  // check for def-use dependencies
+  for (Instruction::const_op_iterator cuit = inst->op_begin();
+       cuit != inst->op_end(); ++cuit) {
+    if (Instruction *pInst = dyn_cast<Instruction>(*cuit)) {
+      //Value *tempV = dyn_cast<Value>(*cuit);
+      DDG->addDependency(instMap[pInst], instMap[inst], DATA_DEF_USE);
+    }
+  }
+}
+
+void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst) {
+  if(isa<CallInst>(inst)) {
+    DEBUG(dbgs() << "This is a call Inst (DDG)" << "\n");
+  }
+}
+
+std::vector<Instruction *> pdg::DataDependencyGraph::getDependencyInFunction(Instruction *pLoadInst) {
+  std::vector<Instruction *> _flowdep_set;
+  std::list<StoreInst *> StoreVec = funcMap[func]->getStoreInstList();
+
+  // for each Load Instruction, find related Store Instructions(alias considered)
+  LoadInst *LI = dyn_cast<LoadInst>(pLoadInst);
+
+  MemoryLocation LI_Loc = MemoryLocation::get(LI);
+//  for (int j = 0; j < StoreVec.size(); j++) {
+  for (StoreInst* SI : StoreVec) {
+//    StoreInst *SI = dyn_cast<StoreInst>(StoreVec[j]);
+    MemoryLocation SI_Loc = MemoryLocation::get(SI);
+    AliasResult AA_result = AA->alias(LI_Loc, SI_Loc);
+    if (AA_result != NoAlias) {
+      _flowdep_set.push_back(SI);
+    }
+  }
+  return _flowdep_set;
+}
+
+void pdg::DataDependencyGraph::collectRAWDependency(llvm::Instruction *inst) {
+  // dealing with dependencies in a function
+  std::vector<Instruction *> flowdep_set = getDependencyInFunction(inst);
+  for (int i = 0; i < flowdep_set.size(); i++) {
+    DEBUG(dbgs() << "Debugging flowdep_set:" << "\n");
+    DEBUG(dbgs() << *flowdep_set[i] << "\n");
+    DDG->addDependency(instMap[flowdep_set[i]], instMap[inst], DATA_RAW);
+  }
+  flowdep_set.clear();
+}
+
+void pdg::DataDependencyGraph::collectNonLocalDependency(llvm::Instruction *inst) {
+  // dealing with non local pointer dependency, nonLocalPointer dep is stored in result small vector
+  SmallVector<NonLocalDepResult, 20> result;
+  BasicBlock *BB = inst->getParent();
+  MemoryLocation Loc = MemoryLocation::get(dyn_cast<LoadInst>(inst));
+  // the return result is NonLocalDepResult. can use getAddress function
+  MD->getNonLocalPointerDependency(inst, result);
+  // now result stores all possible
+  DEBUG(dbgs() << "SmallVecter size = " << result.size() << '\n');
+
+  for (NonLocalDepResult &I : result) {
+    const MemDepResult &nonLocal_res = I.getResult();
+    InstructionWrapper *itInst = instMap[inst];
+    InstructionWrapper *parentInst = instMap[nonLocal_res.getInst()];
+
+    if (nullptr != nonLocal_res.getInst()) {
+      DEBUG(dbgs() << "nonLocal_res.getInst(): " << *nonLocal_res.getInst()
+                   << '\n');
+      DDG->addDependency(itInst, parentInst, DATA_GENERAL);
+    } else {
+      DEBUG(dbgs() << "nonLocal_res.getInst() is a nullptr" << '\n');
+    }
+  }
+
+}
+
+void pdg::DataDependencyGraph::collectDataDependencyInFunc() {
+  for (inst_iterator instIt = inst_begin(func), E = inst_end(func); instIt != E;
+       ++instIt) {
+    DDG->getNodeByData(instMap[&*instIt]);
+    llvm::Instruction *pInstruction = dyn_cast<Instruction>(&*instIt);
+    collectDefUseDependency(pInstruction);
+    collectCallInstDependency(pInstruction);
+    if (isa<LoadInst>(pInstruction)) {
+      collectRAWDependency(pInstruction);
+      collectNonLocalDependency(pInstruction);
+    }
+  }
+}
+
+bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
   DEBUG(dbgs() << "++++++++++++++++++++++++++++++ DataDependency::runOnFunction "
           "+++++++++++++++++++++++++++++" << '\n');
   DEBUG(dbgs() << "Function name:" << F.getName().str() << '\n');
-  constructFuncMap(*F.getParent(), funcMap);
-
-  if (funcMap[&F]->getEntry() == NULL) {
-    InstructionWrapper *root = new InstructionWrapper(&F, ENTRY);
-    instnodes.insert(root);
-    funcInstWList[&F].insert(root);
-    funcMap[&F]->setEntry(root);
-  }
-
+  func = &F;
+  constructFuncMap(*func->getParent());
+  initializeMemoryDependencyPasses();
+  constructFuncMapAndCreateFunctionEntry();
   constructInstMap(F);
-
-  AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
-  MemoryDependenceResults *MD =
-          &getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
-
-  DEBUG(dbgs() << "After getAnalysis<MemoryDependenceAnalysis>()" << '\n');
-
-  for (inst_iterator instIt = inst_begin(F), E = inst_end(F); instIt != E;
-       ++instIt) {
-    DDG->getNodeByData(instMap[&*instIt]);
-
-    Instruction *pInstruction = dyn_cast<Instruction>(&*instIt);
-
-#if 0
-    if (auto allocainst = dyn_cast<AllocaInst>(pInstruction)) {
-        // mark processed struct
-        Type *alloca_type = allocainst->getAllocatedType();
-        if (alloca_type->isStructTy() || alloca_type->isPointerTy()) {
-          // check if the allocainst has been stored
-          if (seen_structs[allocainst] == 0) {
-            std::vector<Type *> fields = alloca_struct_map[allocainst].second;
-            int k = 0;
-            for (Type *field : fields) {
-              // construct new InstructionWrapper with position info stored in field_id field.
-              DEBUG(dbgs() << "Extracting fields ... " << "\n");
-              InstructionWrapper *typeFieldW = new InstructionWrapper(pInstruction, &F, k, STRUCT_FIELD, field);
-              instnodes.insert(typeFieldW);
-              funcInstWList[&F].insert(typeFieldW);
-              //DDG->addDependency(typeFieldW, instMap[pInstruction], STRUCT_FIELDS);
-              DDG->addDependency(instMap[pInstruction], typeFieldW, STRUCT_FIELDS);
-              k++;
-            }
-          }
-          seen_structs[allocainst] = 1;
-        }
-    }
-
-    // if find a getElementPtr type, it could be accessing the struct
-    if (auto *gepI = dyn_cast<GetElementPtrInst>(pInstruction)) {
-      if (gepI->getSourceElementType()->isStructTy()) {
-        int operand_num = gepI->getNumOperands();
-        // get the last operand, which is the position of the field
-        Value *last_idx = gepI->getOperand(operand_num - 1);
-        if (llvm::ConstantInt* constInt = dyn_cast<ConstantInt>(last_idx)) {
-          // get the integer value of index
-          int field_idx = constInt->getSExtValue();
-          if (llvm::Instruction *source_alloca_inst = dyn_cast<Instruction>(gepI->getOperand(0))) {
-            if (isa<llvm::LoadInst>(source_alloca_inst)) {
-              source_alloca_inst = dyn_cast<Instruction>(source_alloca_inst->getOperand(0));
-            }
-            for (InstructionWrapper* instW : instnodes) {
-              if (instW->getType() == STRUCT_FIELD && instW->getInstruction() == source_alloca_inst && instW->getFieldId() == field_idx) {
-                DDG->addDependency(instW, instMap[pInstruction], DATA_DEF_USE);
-              }
-            }
-          } else {
-            DEBUG(dbgs() << "Cast to Inst fail for GEP instruction" << "\n");
-          }
-        }
-      }
-    }
-#endif
-
-    // check for def-use dependencies
-    for (Instruction::const_op_iterator cuit = pInstruction->op_begin();
-         cuit != pInstruction->op_end(); ++cuit) {
-      if (Instruction *pInst = dyn_cast<Instruction>(*cuit)) {
-        //Value *tempV = dyn_cast<Value>(*cuit);
-        DDG->addDependency(instMap[pInst], instMap[&*instIt], DATA_DEF_USE);
-      }
-    }
-
-    if(isa<CallInst>(pInstruction)) {
-#if 0
-      if (DbgDeclareInst *ddi = dyn_cast<DbgDeclareInst>(pInstruction)) {
-          DEBUG(dbgs() << "This is a dbg declare Inst (DDG)" << "\n");
-          DILocalVariable *div = ddi->getVariable();
-          DEBUG(dbgs() << div->getRawName()->getString().str() << "\n");
-          // fetch metadata associate with the dbg inst
-          MDNode *mdnode = dyn_cast<MDNode>(div->getRawType());
-          DICompositeType *dct = dyn_cast<DICompositeType>(mdnode);
-
-          std::string struct_name = dct->getName().str();
-          for (auto node : dct->getElements()) {
-            // retrive the name in the struct
-            DIDerivedType *didt = dyn_cast<DIDerivedType>(node);
-            std::string var_name = didt->getName().str();
-            if (struct_fields_map.find(struct_name) == struct_fields_map.end()) {
-              struct_fields_map[struct_name] = std::vector<std::string>();
-              struct_fields_map[struct_name].push_back(var_name);
-            } else {
-              struct_fields_map[struct_name].push_back(var_name);
-            }
-          }
-        }
-#endif
-      DEBUG(dbgs() << "This is a call Inst (DDG)" << "\n");
-    }
-
-    if (isa<LoadInst>(pInstruction)) {
-      // dealing with dependencies in a function
-      std::vector<Instruction *> flowdep_set =
-              getDependencyInFunction(F, pInstruction);
-
-      for (int i = 0; i < flowdep_set.size(); i++) {
-        DEBUG(dbgs() << "Debugging flowdep_set:" << "\n");
-        DEBUG(dbgs() << *flowdep_set[i] << "\n");
-        DDG->addDependency(instMap[flowdep_set[i]], instMap[pInstruction], DATA_RAW);
-        //DDG->addDependency(instMap[pInstruction], instMap[flowdep_set[i]], DATA_RAW);
-      }
-      flowdep_set.clear();
-
-      // dealing with non local pointer dependency, nonLocalPointer dep is
-      // stored in result small vector
-      SmallVector<NonLocalDepResult, 20> result;
-      BasicBlock *BB = pInstruction->getParent();
-      MemoryLocation Loc = MemoryLocation::get(dyn_cast<LoadInst>(pInstruction));
-      // the return result is NonLocalDepResult. can use getAddress function
-      MD->getNonLocalPointerDependency(pInstruction, result);
-      // now result stores all possible
-      DEBUG(dbgs() << "SmallVecter size = " << result.size() << '\n');
-//      for (SmallVector<NonLocalDepResult, 20>::iterator II = result.begin(),
-//                   EE = result.end();
-//           II != EE; ++II) {
-
-      for (NonLocalDepResult &I : result) {
-        const MemDepResult &nonLocal_res = I.getResult();
-        InstructionWrapper *itInst = instMap[&*instIt];
-        InstructionWrapper *parentInst = instMap[nonLocal_res.getInst()];
-
-        if (nullptr != nonLocal_res.getInst()) {
-          DEBUG(dbgs() << "nonLocal_res.getInst(): " << *nonLocal_res.getInst()
-                       << '\n');
-          DDG->addDependency(itInst, parentInst, DATA_GENERAL);
-        } else {
-          DEBUG(dbgs() << "nonLocal_res.getInst() is a nullptr" << '\n');
-        }
-      }
-
-    }
-  }
+  collectDataDependencyInFunc();
   return false;
 }
 

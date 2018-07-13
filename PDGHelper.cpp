@@ -8,9 +8,6 @@ std::set<InstructionWrapper *> pdg::instnodes;
 std::set<InstructionWrapper *> pdg::globalList;
 std::map<const Instruction *, InstructionWrapper *> pdg::instMap;
 std::map<const Function *, std::set<InstructionWrapper *>> pdg::funcInstWList;
-//std::map<AllocaInst*, std::pair<StructType*, std::vector<Type*>>> pdg::alloca_struct_map;
-//std::map<std::string, std::vector<std::string>> pdg::struct_fields_map;
-//std::map<AllocaInst*, int> pdg::seen_structs;
 
 void pdg::constructInstMap(llvm::Function &F) {
         for (llvm::inst_iterator I = inst_begin(F), IE = inst_end(F); I != IE; ++I) {
@@ -29,50 +26,7 @@ void pdg::constructInstMap(llvm::Function &F) {
         }
 }
 
-#if 0
-void pdg::constructStructMap(llvm::Module &M,
-                             llvm::Instruction *pInstruction,
-                             std::map<llvm::AllocaInst *, std::pair<StructType *, std::vector<Type *>>> &alloca_struct_map)
-{
-        AllocaInst *allocaInst = dyn_cast<AllocaInst>(pInstruction);
-        // constructing struct
-        std::vector<llvm::StructType *> global_struct_list = M.getIdentifiedStructTypes();
-        for (auto st : global_struct_list) {
-            DEBUG(dbgs() << "Struct Name:" << st->getName().str().substr(7) << "\n");
-            llvm::StringRef structName = "";
-            if (allocaInst->getAllocatedType()->isPointerTy()) {
-                PointerType *pt = dyn_cast<PointerType>(allocaInst->getAllocatedType());
-                structName = pt->getElementType()->getStructName();
-            } else {
-                structName = allocaInst->getAllocatedType()->getStructName();
-            }
-
-            if (structName == st->getName()) {
-                std::vector<Type *> fields;
-                std::pair<StructType *, std::vector<Type *>> struct_pair;
-
-                StructType::element_iterator SB = st->element_begin();
-                StructType::element_iterator SE = st->element_end();
-                while (SB != SE) {
-                    // get the type for each field
-                    auto type = *SB;
-                    // add each field to vector
-                    fields.push_back(type);
-                    SB++;
-                }
-                // store the vector with corresponding in the map
-                //structMap[st] = fields;
-                struct_pair.first = st;
-                struct_pair.second = fields;
-                alloca_struct_map[allocaInst] = struct_pair;
-            }
-        }
-//        errs() << "Construct struct map success !" << "\n";
-//        errs() << "Struct Map size: " << alloca_struct_map.size() << "\n";
-}
-#endif
-
-void pdg::constructFuncMap(Module &M, std::map<const Function *, FunctionWrapper *> &funcMap) {
+void pdg::constructFuncMap(Module &M) {
         for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F) {
             Function *f = dyn_cast<Function>(F);
             constructInstMap(*f);
@@ -82,5 +36,14 @@ void pdg::constructFuncMap(Module &M, std::map<const Function *, FunctionWrapper
                 funcMap[f] = fw;
             }
         }
+}
+
+void pdg::cleanupGlobalVars() {
+    funcMap.clear();
+    callMap.clear();
+    instnodes.clear();
+    globalList.clear();
+    instMap.clear();
+    funcInstWList.clear();
 }
 

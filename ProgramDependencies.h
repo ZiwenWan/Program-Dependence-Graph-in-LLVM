@@ -9,18 +9,14 @@
 #include "llvm/Pass.h"
 #include "ControlDependencies.h"
 #include "DataDependencies.h"
-#include "ConnectFunctions.h"
-
 
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/ValueSymbolTable.h"
 
-#include <map>
-#include <set>
 #include <vector>
-#include <deque>
+#include <queue>
 #include <list>
 #include <iostream>
 #include <string.h>
@@ -47,28 +43,39 @@ namespace pdg {
             delete PDG;
         }
 
+        tree<InstructionWrapper*>::iterator getInstInsertLoc(ArgumentWrapper *argW, TypeWrapper *tyW, TreeType treeType);
+
+        void insertArgToTree(TypeWrapper *tyW, ArgumentWrapper *pArgW, TreeType treeTy, tree<InstructionWrapper*>::iterator insertLoc);
+
         int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, int field_pos);
 
         void buildFormalTree(Argument *arg, TreeType treeTy, int field_pos);
 
         void buildFormalParameterTrees(Function *callee);
 
+        void buildActualParameterTrees(CallInst *CI);
+
         void drawFormalParameterTree(Function *func, TreeType treeTy);
 
         void drawActualParameterTree(CallInst *CI, TreeType treeTy);
 
         void drawDependencyTree(Function *func);
-        //    void drawParameterTree(llvm::Function* call_func, TreeType treeTy);
 
-//  void connectAllPossibleFunctions(InstructionWrapper *CInstW,
-//                                   FunctionType *funcTy);
+        void linkTypeNodeWithGEPInst(std::list<ArgumentWrapper *>::iterator argI, tree<InstructionWrapper *>::iterator formal_in_TI);
 
         void connectFunctionAndFormalTrees(Function *callee);
 
-        int connectCallerAndCallee(InstructionWrapper *CInstW,
-                                   llvm::Function *callee);
+        int connectCallerAndCallee(InstructionWrapper *CInstW, llvm::Function *callee);
 
-        void printArgUseInfo(llvm::Module &M);
+        void printArgUseInfo(llvm::Module &M, std::set<std::string> funcNameList);
+
+        void collectGlobalInstList();
+
+        void categorizeInstInFunc(llvm::Function *func);
+
+        bool processingCallInst(InstructionWrapper *instW);
+
+        bool addNodeDependencies(InstructionWrapper *instW1, InstructionWrapper *instW2);
 
         bool runOnModule(llvm::Module &M);
 
@@ -78,13 +85,10 @@ namespace pdg {
 
         void print(llvm::raw_ostream &OS, const llvm::Module *M = 0) const;
 
-        std::map<const llvm::Function*, FunctionWrapper *> getFuncMap() {
-            return funcMap;
-        };
-
-        std::map<const llvm::Instruction*, InstructionWrapper*> getInstMap() {
-            return instMap;
-        };
+    private:
+        llvm::Module *module;
+        DataDependencyGraph *ddg;
+        ControlDependencyGraph *cdg;
     };
 }
 

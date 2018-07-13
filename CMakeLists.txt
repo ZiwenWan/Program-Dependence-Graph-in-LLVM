@@ -7,7 +7,6 @@ add_llvm_loadable_module( LLVMCDG
     DataDependencies.cpp
     ProgramDependencies.cpp
     PDGHelper.cpp
-    ConnectFunctions.cpp
     FunctionWrapper.cpp
     DepPrinter.cpp
     idl_gen.cpp

@@ -25,7 +25,7 @@ void pdg::ControlDependencyGraph::computeDependencies(llvm::Function &F,
                                                  llvm::PostDominatorTree *PDT) {
   DEBUG(dbgs() << "++++++++++++++++++++++++++++++ ControlDependency::runOnFunction "
             "+++++++++++++++++++++++++++++" << '\n');
-  constructFuncMap(*F.getParent(), funcMap);
+  constructFuncMap(*F.getParent());
   /// Zhiyuan: explicitly construct the dummy ENTRY NODE:
   if(funcMap[&F]->getEntry() != NULL) {
       return;

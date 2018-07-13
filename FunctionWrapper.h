@@ -10,9 +10,6 @@
 using namespace llvm;
 
 namespace pdg {
-
-
-
     enum TreeType {
         ACTUAL_IN_TREE = 0,
         ACTUAL_OUT_TREE,
@@ -26,8 +23,6 @@ namespace pdg {
     private:
         llvm::Type *ty;
         int id;
-        //this flag is true means this type contains a field(or grandfield) that is function pointer or FILE*
-        // bool flag;
 
     public:
         TypeWrapper(llvm::Type *ty, int id) {
@@ -39,9 +34,6 @@ namespace pdg {
         llvm::Type *getType() { return ty; }
 
         int getId() { return id; }
-        // bool getUnseparatedFlag(){return flag;}
-        //void setUnseparatedFlag(){this->flag = true;}
-
     };
 
     class ArgumentWrapper {
@@ -148,7 +140,6 @@ namespace pdg {
 
             this->Func = Func;
             this->entryW = NULL;
-            //  Function::ArgumentListType& callee_args = Func->getArgumentList();
             for (Function::arg_iterator argIt = Func->arg_begin(),
                          argE = Func->arg_end();
                  argIt != argE; ++argIt) {
@@ -169,7 +160,6 @@ namespace pdg {
         Function *getFunction() { return Func; }
 
         void setEntry(InstructionWrapper *entry) {
-            //errs() << "Hello \n";
             this->entryW = entry;
         }
 
@@ -194,9 +184,6 @@ namespace pdg {
 }
 
 namespace pdg {
-    //extern std::map<AllocaInst *, std::pair<StructType *, std::vector<Type *>>> alloca_struct_map;
-    //extern std::map<std::string, std::vector<std::string>> struct_fields_map;
-    //extern std::map<AllocaInst *, int> seen_structs;
     extern std::map<const Function *, FunctionWrapper *> funcMap;
     extern std::map<const CallInst *, CallWrapper *> callMap;
 }
