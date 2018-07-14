@@ -38,7 +38,7 @@ void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst
 
 std::vector<Instruction *> pdg::DataDependencyGraph::getDependencyInFunction(Instruction *pLoadInst) {
   std::vector<Instruction *> _flowdep_set;
-  std::list<StoreInst *> StoreVec = funcMap[func]->getStoreInstList();
+  std::vector<StoreInst *> StoreVec = funcMap[func]->getStoreInstList();
 
   // for each Load Instruction, find related Store Instructions(alias considered)
   LoadInst *LI = dyn_cast<LoadInst>(pLoadInst);

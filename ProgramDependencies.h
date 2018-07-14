@@ -17,7 +17,6 @@
 
 #include <vector>
 #include <queue>
-#include <list>
 #include <iostream>
 #include <string.h>
 #include <time.h>
@@ -61,7 +60,7 @@ namespace pdg {
 
         void drawDependencyTree(Function *func);
 
-        void linkTypeNodeWithGEPInst(std::list<ArgumentWrapper *>::iterator argI, tree<InstructionWrapper *>::iterator formal_in_TI);
+        void linkTypeNodeWithGEPInst(std::vector<ArgumentWrapper *>::iterator argI, tree<InstructionWrapper *>::iterator formal_in_TI);
 
         void connectFunctionAndFormalTrees(Function *callee);
 
@@ -73,7 +72,7 @@ namespace pdg {
 
         void categorizeInstInFunc(llvm::Function *func);
 
-        bool processingCallInst(InstructionWrapper *instW);
+        bool processingCallInst(CallInst *CI);
 
         bool addNodeDependencies(InstructionWrapper *instW1, InstructionWrapper *instW2);
 

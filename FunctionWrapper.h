@@ -3,7 +3,6 @@
 
 #include "llvm/Pass.h"
 #include "DependencyGraph.h"
-#include <list>
 #include <vector>
 
 //using namespace std;
@@ -90,7 +89,7 @@ namespace pdg {
     class CallWrapper {
     private:
         CallInst *CI;
-        std::list<ArgumentWrapper *> argWList;
+        std::vector<ArgumentWrapper *> argWList;
 
     public:
         CallWrapper(CallInst *CI) {
@@ -112,7 +111,7 @@ namespace pdg {
             return CI;
         }
 
-        std::list<ArgumentWrapper *> &getArgWList() {
+        std::vector<ArgumentWrapper *> &getArgWList() {
             return argWList;
         }
     };
@@ -124,11 +123,11 @@ namespace pdg {
     private:
         Function *Func;
         InstructionWrapper *entryW;
-        std::list<llvm::StoreInst *> storeInstList;
-        std::list<llvm::LoadInst *> loadInstList;
-        std::list<llvm::Instruction *> returnInstList;
-        std::list<llvm::CallInst *> callInstList;
-        std::list<ArgumentWrapper *> argWList;
+        std::vector<llvm::StoreInst *> storeInstList;
+        std::vector<llvm::LoadInst *> loadInstList;
+        std::vector<llvm::Instruction *> returnInstList;
+        std::vector<llvm::CallInst *> callInstList;
+        std::vector<ArgumentWrapper *> argWList;
         std::map<InstructionWrapper*, bool > visitedMap;
         std::set<llvm::Value *> ptrSet;
 
@@ -165,15 +164,15 @@ namespace pdg {
 
         InstructionWrapper *getEntry() { return entryW; }
 
-        std::list<ArgumentWrapper *> &getArgWList() { return argWList; }
+        std::vector<ArgumentWrapper *> &getArgWList() { return argWList; }
 
-        std::list<llvm::StoreInst *> &getStoreInstList() { return storeInstList; }
+        std::vector<llvm::StoreInst *> &getStoreInstList() { return storeInstList; }
 
-        std::list<llvm::LoadInst *> &getLoadInstList() { return loadInstList; }
+        std::vector<llvm::LoadInst *> &getLoadInstList() { return loadInstList; }
 
-        std::list<llvm::Instruction *> &getReturnInstList() { return returnInstList; }
+        std::vector<llvm::Instruction *> &getReturnInstList() { return returnInstList; }
 
-        std::list<llvm::CallInst *> &getCallInstList() { return callInstList; }
+        std::vector<llvm::CallInst *> &getCallInstList() { return callInstList; }
 
         std::set<llvm::Value *> &getPtrSet() { return ptrSet; }
 
