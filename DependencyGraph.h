@@ -293,9 +293,26 @@ namespace pdg{
             }
         }
 
+	// Add dependency backwards so we can go up the PDG too
+        void addBackDependencyTo(DependencyNode<NodeT> *pNode, int type) {
+            // Avoid self-loops.
+            if (pNode == this)
+                return;
+
+            DependencyLink link = DependencyLink(pNode, type);
+
+            // Avoid double links.
+            if (std::find(mBackDependencies.begin(), mBackDependencies.end(), link) ==
+                mBackDependencies.end()) {
+                mBackDependencies.push_back(link);
+            }
+        }
+
         const NodeT *getData() const { return mpData; }
 
         const DependencyLinkList &getDependencyList() const { return mDependencies; }
+
+        const DependencyLinkList &getBackDependencyList() const { return mBackDependencies; }
 
         bool dependsFrom(const DependencyNode<NodeT> *pNode) const {
             if (pNode == nullptr)
@@ -338,6 +355,7 @@ namespace pdg{
     private:
         const NodeT *mpData;
         DependencyLinkList mDependencies;
+	DependencyLinkList mBackDependencies;
     };
 
 //  typedef DependencyNode<BasicBlockWrapper> DepGraphNode;
@@ -435,6 +453,7 @@ namespace pdg{
             DependencyNode<NodeT> *pFrom = getNodeByData(from);
             DependencyNode<NodeT> *pTo = getNodeByData(to);
             pFrom->addDependencyTo(pTo, type);
+	    pTo->addBackDependencyTo(pFrom, type);
         }
 
         bool depends(const NodeT *pNode1, const NodeT *pNode2) {
