@@ -37,7 +37,7 @@ Then, one can print control dependency graph or data dependency graph by followi
 
 ### Plug-in Version
 
-The plug-in version is contributed by Lehigh team. One can use it with only llvm-5.0 binaries(Don't have to build the whole llvm from source). It's on branch **pdg-plugin**. User can simply switch to the branch and type **make** to build the pdg tool. However, before doing this, make sure you have llvm 5.0 project binaries on your machine. After the make,  you can use the opt-5.0 tool to use the pass.
+The plug-in version is contributed by Lehigh team. One can use it with only llvm-5.0 binaries(Don't have to build the whole llvm from source). It's on branch **pdg_plugin**. User can simply switch to the branch and type **make** to build the pdg tool. However, before doing this, make sure you have llvm 5.0 project binaries on your machine. After the make,  you can use the opt-5.0 tool to use the pass.
 
 For example: 
 
