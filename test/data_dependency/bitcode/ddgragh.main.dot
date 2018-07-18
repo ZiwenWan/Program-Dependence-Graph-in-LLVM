@@ -1,0 +1,26 @@
+digraph "Data dependency graph for 'main' function" {
+	label="Data dependency graph for 'main' function";
+
+	Node0x8e9bac0 [shape=record,label="{  %retval = alloca i32, align 4}"];
+	Node0x8e9bac0 -> Node0x8e9bc70;
+	Node0x8e9bb50 [shape=record,label="{  %p1 = alloca %struct.person_t, align 4}"];
+	Node0x8e9bb50 -> Node0x8e9bd10;
+	Node0x8e9bb50 -> Node0x8e9bce0;
+	Node0x8e9bb50 -> Node0x8e9bfd0;
+	Node0x8e9bc70 [shape=record,label="{  store i32 0, i32* %retval, align 4}"];
+	Node0x8e9bd10 [shape=record,label="{  %age = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 0}"];
+	Node0x8e9bd10 -> Node0x8e9bd80;
+	Node0x8e9bd80 [shape=record,label="{  store i32 13, i32* %age, align 4}"];
+	Node0x8e9bd80 -> Node0x8e9bea0;
+	Node0x8e9bce0 [shape=record,label="{  %name = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 1}"];
+	Node0x8e9bce0 -> Node0x8e9bed0;
+	Node0x8e9bed0 [shape=record,label="{  %arraydecay = getelementptr inbounds [10 x i8], [10 x i8]* %name, i32 0, i32 0}"];
+	Node0x8e9bed0 -> Node0x8e9bf40;
+	Node0x8e9bf40 [shape=record,label="{  %call = call i8* @strncpy(i8* %arraydecay, i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 5) #3}"];
+	Node0x8e9bfd0 [shape=record,label="{  %age1 = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 0}"];
+	Node0x8e9bfd0 -> Node0x8e9bea0;
+	Node0x8e9bea0 [shape=record,label="{  %0 = load i32, i32* %age1, align 4}"];
+	Node0x8e9bea0 -> Node0x8e9ebb0;
+	Node0x8e9ebb0 [shape=record,label="{  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.1, i32 0, i32 0), i32 %0)}"];
+	Node0x8e9ec20 [shape=record,label="{  ret i32 0}"];
+}

@@ -4,26 +4,19 @@
 
 This project aims at printing a program dependency for a program. It is a upgraded version of an old PDG program written in llvm-3.5.
 The program dependency is consisted of two part 
-
-1. Control Dependency Graph
-2. Data Dependency Graph
-
+  1. Control Dependency Graph
+  2. Data Dependency Graph
+ 
 ## Control Dependency Graph
-
 Control Dependency Graph is built based on the PostDominantTree Pass in LLVM. 
 
 ## Data Dependency Graph
-
 Data Dependency Graph is consisted of Def-use chain and flow dependency analysis. 
 Currently, the flow dependency analysis module has not been upgraded.  
 
 ## How to use
-
-### Standard process
-
 This project is built accord to llvm 5.0 build system. 
-
-Just copy all the files in the repository to the lib/Analysis/CDG.
+Just copy all the files in the repository to the lib/Analysis/CDG 
 
 The directory CDG is created by yourself and can be renamed to whatever names.
 
@@ -35,16 +28,7 @@ Then, one can print control dependency graph or data dependency graph by followi
 
 > opt -load path_to_your_so/LLVMCDG.so -dot-cdg path_to_test/test_file.bc 
 
-### Plug-in Version
-
-The plug-in version is contributed by Lehigh team. One can use it with only llvm-5.0 binaries(Don't have to build the whole llvm from source). It's on branch **pdg-plugin**. User can simply switch to the branch and type **make** to build the pdg tool. However, before doing this, make sure you have llvm 5.0 project binaries on your machine. After the make,  you can use the opt-5.0 tool to use the pass.
-
-For example: 
-
-> **opt-5.0 -load ../../build/libpdg.so -dot-ddg test.bc**
-
 ## How to generate bc file?
-
 Just write a valid C program and then use. (test.c in this example)
 
 > clang -emit-llvm -S test.c

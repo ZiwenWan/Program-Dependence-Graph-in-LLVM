@@ -2,7 +2,7 @@
 
 using namespace llvm;
 
-int ControlDependencyGraph::getDependenceType(const BasicBlock *A,
+int pdg::ControlDependencyGraph::getDependenceType(const BasicBlock *A,
                                               const BasicBlock *B) const {
   assert(A && B);
   if (const llvm::BranchInst *b = dyn_cast<BranchInst>(A->getTerminator())) {
@@ -12,7 +12,7 @@ int ControlDependencyGraph::getDependenceType(const BasicBlock *A,
       } else if (b->getSuccessor(1) == B) {
         return ControlType::FALSE;
       } else {
-        errs() << *A << "\n" << *B << "\n";
+        DEBUG(dbgs() << *A << "\n" << *B << "\n");
         assert(false &&
                "Asking for edge type between unconnected basic blocks!");
       }
@@ -21,12 +21,11 @@ int ControlDependencyGraph::getDependenceType(const BasicBlock *A,
   return ControlType::OTHER;
 }
 
-void ControlDependencyGraph::computeDependencies(llvm::Function &F,
+void pdg::ControlDependencyGraph::computeDependencies(llvm::Function &F,
                                                  llvm::PostDominatorTree *PDT) {
-  errs() << "++++++++++++++++++++++++++++++ ControlDependency::runOnFunction "
-            "+++++++++++++++++++++++++++++"
-         << '\n';
-  constructFuncMap(*F.getParent(), funcMap);
+  DEBUG(dbgs() << "++++++++++++++++++++++++++++++ ControlDependency::runOnFunction "
+            "+++++++++++++++++++++++++++++" << '\n');
+  constructFuncMap(*F.getParent());
   /// Zhiyuan: explicitly construct the dummy ENTRY NODE:
   if(funcMap[&F]->getEntry() != NULL) {
       return;
@@ -35,8 +34,8 @@ void ControlDependencyGraph::computeDependencies(llvm::Function &F,
   instnodes.insert(root);
   funcInstWList[&F].insert(root);
 
-  errs() << " CDG.cpp after insert nodes.size " << instnodes.size() << '\n'
-         << " Function: " << F.getName().str() << '\n';
+  DEBUG(dbgs() << " CDG.cpp after insert nodes.size " << instnodes.size() << "\n"
+         << " Function: " << F.getName().str() << '\n');
   funcMap[&F]->setEntry(root);
 
   // may have changed to DomTreeNodeBase
@@ -63,7 +62,7 @@ void ControlDependencyGraph::computeDependencies(llvm::Function &F,
 
   typedef std::vector<std::pair<BasicBlock *, BasicBlock *>>::iterator EdgeItr;
 
-  errs() << "computerDependencies DEBUG 1\n";
+  DEBUG(dbgs() << "computerDependencies DEBUG 1\n");
 
   for (EdgeItr I = EdgeSet.begin(), E = EdgeSet.end(); I != E; ++I) {
     std::pair<BasicBlock *, BasicBlock *> Edge = *I;
@@ -80,7 +79,7 @@ void ControlDependencyGraph::computeDependencies(llvm::Function &F,
     DomTreeNode *domNode = PDT->getNode(Edge.second);
 
     if (domNode == nullptr) {
-      errs() << "domNode is null!\n";
+      DEBUG(dbgs() << "domNode is null!\n");
       continue;
     }
 
@@ -105,19 +104,18 @@ void ControlDependencyGraph::computeDependencies(llvm::Function &F,
       }
     }
   }
-  llvm::errs() << "Finish Control Depen Analysis"
-               << "\n";
+  DEBUG(dbgs() << "Finish Control Depen Analysis" << "\n");
 }
 
-void ControlDependencyGraph::addDependency(InstructionWrapper *from,
+void pdg::ControlDependencyGraph::addDependency(InstructionWrapper *from,
                                            llvm::BasicBlock *to, int type) {
   for (llvm::BasicBlock::iterator ii = to->begin(), ie = to->end(); ii != ie;
        ++ii) {
     if (llvm::Instruction *Ins = llvm::dyn_cast<llvm::Instruction>(ii)) {
       if (llvm::DebugFlag) {
-        llvm::errs() << "[i_cdg debug] dependence from type ("
+        DEBUG(dbgs() << "[i_cdg debug] dependence from type ("
                      << from->getType() << ") to instruction (" << *Ins
-                     << ")\n";
+                     << ")\n");
       }
       InstructionWrapper *iw = instMap[Ins];
       CDG->addDependency(from, iw, type);
@@ -125,7 +123,7 @@ void ControlDependencyGraph::addDependency(InstructionWrapper *from,
   }
 }
 
-void ControlDependencyGraph::addDependency(llvm::BasicBlock *from,
+void pdg::ControlDependencyGraph::addDependency(llvm::BasicBlock *from,
                                            llvm::BasicBlock *to, int type) {
   Instruction *Ins = from->getTerminator();
   assert(Ins);
@@ -134,9 +132,9 @@ void ControlDependencyGraph::addDependency(llvm::BasicBlock *from,
   if (from == to) {
 
     if (llvm::DebugFlag) {
-      llvm::errs() << "[i_cdg debug] loop dependence from (" << *from
-                   << ") to (" << *to << ")\n";
-      llvm::errs() << "Terminator: " << *Ins << "\n";
+      DEBUG(dbgs() << "[i_cdg debug] loop dependence from (" << *from
+                   << ") to (" << *to << ")\n");
+      DEBUG(dbgs() << "Terminator: " << *Ins << "\n");
     }
     for (llvm::BasicBlock::iterator ii = from->begin(), ie = from->end();
          ii != ie; ++ii) {
@@ -146,9 +144,9 @@ void ControlDependencyGraph::addDependency(llvm::BasicBlock *from,
     }
   } else {
     if (llvm::DebugFlag) {
-      llvm::errs() << "[i_cdg debug] dependence from (" << *from << ") to ("
-                   << *to << ")\n";
-      llvm::errs() << "Terminator: " << *Ins << "\n";
+      DEBUG(dbgs() << "[i_cdg debug] dependence from (" << *from << ") to ("
+                   << *to << ")\n");
+      DEBUG(dbgs() << "Terminator: " << *Ins << "\n");
     }
     for (llvm::BasicBlock::iterator ii = to->begin(), ie = to->end(); ii != ie;
          ++ii) {
@@ -159,7 +157,7 @@ void ControlDependencyGraph::addDependency(llvm::BasicBlock *from,
   }
 }
 
-bool ControlDependencyGraph::runOnFunction(Function &F) {
+bool pdg::ControlDependencyGraph::runOnFunction(Function &F) {
   constructInstMap(F);
 
   PDT = &getAnalysis<PostDominatorTreeWrapperPass>().getPostDomTree();
@@ -167,33 +165,33 @@ bool ControlDependencyGraph::runOnFunction(Function &F) {
   return false;
 }
 
-void ControlDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const {
+void pdg::ControlDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
   // AU.addRequired<DominatorTreeWrapperPass>();
   AU.addRequired<PostDominatorTreeWrapperPass>();
 }
 
-void ControlDependencyGraph::print(raw_ostream &OS, const Module *) const {
+void pdg::ControlDependencyGraph::print(raw_ostream &OS, const Module *) const {
   const char *passname = getPassName().data();
   CDG->print(OS, passname);
 }
 
-StringRef ControlDependencyGraph::getPassName() const {
+StringRef pdg::ControlDependencyGraph::getPassName() const {
   return "Control Dependency Graph";
 }
 
-void ControlDependencyGraph::mockLibraryCall(llvm::Function &F) {
-  llvm::errs() << "ControlDependencies.h - setRootFor " << F.getName().str()
-               << "\n";
+void pdg::ControlDependencyGraph::mockLibraryCall(llvm::Function &F) {
+  DEBUG(dbgs() << "ControlDependencies.h - setRootFor " << F.getName().str()
+               << "\n");
   root = new InstructionWrapper(&F, ENTRY);
   isLibrary = true;
 }
 
-ControlDependencyGraph *CreateControlDependencyGraphPass() {
-  return new ControlDependencyGraph();
-}
+//pdg::ControlDependencyGraph *CreateControlDependencyGraphPass() {
+//  return new pdg::ControlDependencyGraph();
+//}
 
-char ControlDependencyGraph::ID = 0;
+char pdg::ControlDependencyGraph::ID = 0;
 
-static RegisterPass<ControlDependencyGraph>
+static RegisterPass<pdg::ControlDependencyGraph>
     CDG("cdg", "Control Dependency Graph Construction", false, true);

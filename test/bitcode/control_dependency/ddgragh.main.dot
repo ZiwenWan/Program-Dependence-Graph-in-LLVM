@@ -1,0 +1,38 @@
+digraph "Data dependency graph for 'main' function" {
+	label="Data dependency graph for 'main' function";
+
+	Node0x9c53930 [shape=record,label="{  %1 = alloca i32, align 4}"];
+	Node0x9c53930 -> Node0x9c53ab0;
+	Node0x9c53930 -> Node0x9c56c60;
+	Node0x9c539a0 [shape=record,label="{  %2 = alloca i32, align 4}"];
+	Node0x9c539a0 -> Node0x9c53b20;
+	Node0x9c539a0 -> Node0x9c53c20;
+	Node0x9c53a10 [shape=record,label="{  %3 = alloca i32, align 4}"];
+	Node0x9c53a10 -> Node0x9c53a80;
+	Node0x9c53a10 -> Node0x9c55080;
+	Node0x9c53ab0 [shape=record,label="{  store i32 0, i32* %1, align 4}"];
+	Node0x9c53ab0 -> Node0x9c56c60;
+	Node0x9c53b20 [shape=record,label="{  store i32 0, i32* %2, align 4}"];
+	Node0x9c53b20 -> Node0x9c53c20;
+	Node0x9c53a80 [shape=record,label="{  store i32 3, i32* %3, align 4}"];
+	Node0x9c53a80 -> Node0x9c55080;
+	Node0x9c53c20 [shape=record,label="{  %4 = load i32, i32* %2, align 4}"];
+	Node0x9c53c20 -> Node0x9c54f10;
+	Node0x9c54f10 [shape=record,label="{  %5 = icmp sgt i32 %4, 4}"];
+	Node0x9c54f10 -> Node0x9c54f80;
+	Node0x9c54f80 [shape=record,label="{  br i1 %5, label %6, label %11}"];
+	Node0x9c55080 [shape=record,label="{  %7 = load i32, i32* %3, align 4}"];
+	Node0x9c55080 -> Node0x9c53a80;
+	Node0x9c55080 -> Node0x9c56990;
+	Node0x9c56990 [shape=record,label="{  %8 = icmp slt i32 %7, 5}"];
+	Node0x9c56990 -> Node0x9c56a30;
+	Node0x9c56a30 [shape=record,label="{  br i1 %8, label %9, label %11}"];
+	Node0x9c56aa0 [shape=record,label="{  %10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str, i32 0, i32 0))}"];
+	Node0x9c56b10 [shape=record,label="{  br label %13}"];
+	Node0x9c56b80 [shape=record,label="{  %12 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str.1, i32 0, i32 0))}"];
+	Node0x9c56bf0 [shape=record,label="{  br label %13}"];
+	Node0x9c56c60 [shape=record,label="{  %14 = load i32, i32* %1, align 4}"];
+	Node0x9c56c60 -> Node0x9c53ab0;
+	Node0x9c56c60 -> Node0x9c56d40;
+	Node0x9c56d40 [shape=record,label="{  ret i32 %14}"];
+}

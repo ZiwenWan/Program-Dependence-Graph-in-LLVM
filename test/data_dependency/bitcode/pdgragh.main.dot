@@ -1,0 +1,46 @@
+digraph "Program Dependency Graph for 'main' function" {
+	label="Program Dependency Graph for 'main' function";
+
+	Node0x800e930 [shape=record,label="{  %retval = alloca i32, align 4}"];
+	Node0x800e930 -> Node0x800e9a0[style=dotted,label = "{DEF_USE}" ];
+	Node0x800e9a0 [shape=record,label="{  store i32 0, i32* %retval, align 4}"];
+	Node0x800eb60 [shape=record,label="{  %p1 = alloca %struct.person_t, align 4}"];
+	Node0x800eb60 -> Node0x800ec00[style=dotted,label = "{DEF_USE}" ];
+	Node0x800eb60 -> Node0x800ec70[style=dotted,label = "{DEF_USE}" ];
+	Node0x800eb60 -> Node0x800ece0[style=dotted,label = "{DEF_USE}" ];
+	Node0x800ec00 [shape=record,label="{  %age = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 0}"];
+	Node0x800ec00 -> Node0x800ebd0[style=dotted,label = "{DEF_USE}" ];
+	Node0x800ec70 [shape=record,label="{  %name = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 1}"];
+	Node0x800ec70 -> Node0x800ccb0[style=dotted,label = "{DEF_USE}" ];
+	Node0x800ece0 [shape=record,label="{  %age1 = getelementptr inbounds %struct.person_t, %struct.person_t* %p1, i32 0, i32 0}"];
+	Node0x800ece0 -> Node0x800cc20[style=dotted,label = "{DEF_USE}" ];
+	Node0x800ebd0 [shape=record,label="{  store i32 13, i32* %age, align 4}"];
+	Node0x800ebd0 -> Node0x800cc20[style=dotted,label = "{RAW} age1"];
+	Node0x800cc20 [shape=record,label="{  %0 = load i32, i32* %age1, align 4}"];
+	Node0x800cc20 -> Node0x800ce80[style=dotted,label = "{DEF_USE}" ];
+	Node0x800ccb0 [shape=record,label="{  %arraydecay = getelementptr inbounds [10 x i8], [10 x i8]* %name, i32 0, i32 0}"];
+	Node0x800ccb0 -> Node0x800cdd0[style=dotted,label = "{DEF_USE}" ];
+	Node0x800cdd0 [shape=record,label="{  %call = call i8* @strncpy(i8* %arraydecay, i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 5) #3}"];
+	Node0x800ce80 [shape=record,label="{  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.1, i32 0, i32 0), i32 %0)}"];
+	Node0x800cf10 [shape=record,label="{\<\<ENTRY\>\> main}"];
+	Node0x800cf10 -> Node0x800e930;
+	Node0x800cf10 -> Node0x800eb60;
+	Node0x800cf10 -> Node0x800e9a0;
+	Node0x800cf10 -> Node0x800ec00;
+	Node0x800cf10 -> Node0x800ebd0;
+	Node0x800cf10 -> Node0x800ec70;
+	Node0x800cf10 -> Node0x800ccb0;
+	Node0x800cf10 -> Node0x800cdd0;
+	Node0x800cf10 -> Node0x800ece0;
+	Node0x800cf10 -> Node0x800cc20;
+	Node0x800cf10 -> Node0x800ce80;
+	Node0x800cf10 -> Node0x800cfa0;
+	Node0x800cfa0 [shape=record,label="{  ret i32 0}"];
+	Node0x800d010 [shape=record,label="{struct.person_t (IntegerTy) : 0}"];
+	Node0x800d010 -> Node0x800eb60[style=dotted, label="{S_FIELD}"];
+	Node0x800d010 -> Node0x800ec00[style=dotted,label = "{DEF_USE}" ];
+	Node0x800d010 -> Node0x800ece0[style=dotted,label = "{DEF_USE}" ];
+	Node0x800d1b0 [shape=record,label="{struct.person_t (ArrayTy) : 1}"];
+	Node0x800d1b0 -> Node0x800eb60[style=dotted, label="{S_FIELD}"];
+	Node0x800d1b0 -> Node0x800ec70[style=dotted,label = "{DEF_USE}" ];
+}

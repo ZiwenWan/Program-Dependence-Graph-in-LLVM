@@ -9,86 +9,106 @@
 #include "llvm/Pass.h"
 #include "ControlDependencies.h"
 #include "DataDependencies.h"
-#include "ConnectFunctions.h"
 
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/ValueSymbolTable.h"
-#include "llvm/IR/DerivedTypes.h"
 
-#include <map>
-#include <set>
 #include <vector>
-#include <deque>
+#include <queue>
 #include <list>
 #include <iostream>
 #include <string.h>
 #include <time.h>
-
-extern std::map<const Function *, FunctionWrapper *> funcMap;
-extern std::map<const CallInst *, CallWrapper *> callMap;
-
-typedef DependencyGraph<InstructionWrapper> ProgramDepGraph;
+#include <chrono>
 
 /*!
  * Program Dependencies Graph
  */
-class ProgramDependencyGraph : public llvm::ModulePass {
-public:
-  static char ID; // Pass ID, replacement for typeid
-  ProgramDepGraph *PDG;
-  static llvm::AliasAnalysis *Global_AA;
+namespace pdg {
+    typedef DependencyGraph<InstructionWrapper> ProgramDepGraph;
 
-  ProgramDependencyGraph() : llvm::ModulePass(ID) {
-    PDG = new ProgramDepGraph();
-  }
+    class ProgramDependencyGraph : public llvm::ModulePass {
+    public:
+        static char ID; // Pass ID, replacement for typeid
+        ProgramDepGraph *PDG;
+        static llvm::AliasAnalysis *Global_AA;
 
-  ~ProgramDependencyGraph() {
-    releaseMemory();
-    delete PDG;
-  }
-  void drawFormalParameterTree(Function *func, TreeType treeTy);
+        ProgramDependencyGraph() : llvm::ModulePass(ID) {
+            PDG = new ProgramDepGraph();
+        }
 
-  void drawActualParameterTree(CallInst *CI, TreeType treeTy);
+        ~ProgramDependencyGraph() {
+            releaseMemory();
+            delete PDG;
+        }
 
-  //    void drawParameterTree(llvm::Function* call_func, TreeType treeTy);
+        tree<InstructionWrapper*>::iterator getInstInsertLoc(ArgumentWrapper *argW, TypeWrapper *tyW, TreeType treeType);
 
-//  void connectAllPossibleFunctions(InstructionWrapper *CInstW,
-//                                   FunctionType *funcTy);
+        void insertArgToTree(TypeWrapper *tyW, ArgumentWrapper *pArgW, TreeType treeTy, tree<InstructionWrapper*>::iterator insertLoc);
 
-  void connectFunctionAndFormalTrees(Function *callee);
+        int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, int field_pos);
 
-  int connectCallerAndCallee(InstructionWrapper *CInstW,
-                             llvm::Function *callee);
-  //    int connectCallerAndCallee(CallInst *CI, llvm::Function *callee);
+        void buildFormalTree(Argument *arg, TreeType treeTy, int field_pos);
 
-  bool runOnModule(llvm::Module &M);
+        void buildFormalParameterTrees(Function *callee);
 
-  void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
+        void buildActualParameterTrees(CallInst *CI);
 
-  llvm::StringRef getPassName() const { return "Program Dependency Graph"; }
+        void drawFormalParameterTree(Function *func, TreeType treeTy);
 
-  void print(llvm::raw_ostream &OS, const llvm::Module *M = 0) const;
-};
+        void drawActualParameterTree(CallInst *CI, TreeType treeTy);
 
+        void drawDependencyTree(Function *func);
+
+        void linkTypeNodeWithGEPInst(std::list<ArgumentWrapper *>::iterator argI, tree<InstructionWrapper *>::iterator formal_in_TI);
+
+        void connectFunctionAndFormalTrees(Function *callee);
+
+        int connectCallerAndCallee(InstructionWrapper *CInstW, llvm::Function *callee);
+
+        void printArgUseInfo(llvm::Module &M, std::set<std::string> funcNameList);
+
+        void collectGlobalInstList();
+
+        void categorizeInstInFunc(llvm::Function *func);
+
+        bool processingCallInst(InstructionWrapper *instW);
+
+        bool addNodeDependencies(InstructionWrapper *instW1, InstructionWrapper *instW2);
+
+        bool runOnModule(llvm::Module &M);
+
+        void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
+
+        llvm::StringRef getPassName() const { return "Program Dependency Graph"; }
+
+        void print(llvm::raw_ostream &OS, const llvm::Module *M = 0) const;
+
+    private:
+        llvm::Module *module;
+        DataDependencyGraph *ddg;
+        ControlDependencyGraph *cdg;
+    };
+}
 
 namespace llvm
 {
-  template <> struct GraphTraits<ProgramDependencyGraph *>
-    : public GraphTraits<DepGraph*> {
-    static NodeRef getEntryNode(ProgramDependencyGraph *PG) {
-      return *(PG->PDG->begin_children());
-    }
+    template <> struct GraphTraits<pdg::ProgramDependencyGraph *>
+            : public GraphTraits<pdg::DepGraph*> {
+        static NodeRef getEntryNode(pdg::ProgramDependencyGraph *PG) {
+            return *(PG->PDG->begin_children());
+        }
 
-    static nodes_iterator nodes_begin(ProgramDependencyGraph *PG) {
-      return PG->PDG->begin_children();
-    }
+        static nodes_iterator nodes_begin(pdg::ProgramDependencyGraph *PG) {
+            return PG->PDG->begin_children();
+        }
 
-    static nodes_iterator nodes_end(ProgramDependencyGraph *PG) {
-      return PG->PDG->end_children();
-    }
-  };
+        static nodes_iterator nodes_end(pdg::ProgramDependencyGraph *PG) {
+            return PG->PDG->end_children();
+        }
+    };
 }
 
 

@@ -21,7 +21,7 @@ class FlowDependenceAnalysis;
 DataDependencyGraph *CreateDataDependencyGraphPass();
 ControlDependencyGraph *CreateControlDependencyGraphPass();
 ProgramDependencyGraph *CreateProgramDependencyGraphPass();
-FlowDependenceAnalysis *CreateFlowDataDependenceAnalysisPass();
+//FlowDependenceAnalysis *CreateFlowDataDependenceAnalysisPass();
 namespace llvm {
 
 class PassRegistry;
