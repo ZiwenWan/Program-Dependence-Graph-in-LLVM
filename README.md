@@ -23,17 +23,17 @@ Currently, the flow dependency analysis module has not been upgraded.
 
 This project is built accord to llvm 5.0 build system. 
 
-Just copy all the files in the repository to the lib/Analysis/CDG.
+Just copy all the files in the repository to the `lib/Analysis/CDG`.
 
 The directory CDG is created by yourself and can be renamed to whatever names.
 
-Then, modify the Cmakelist file in the lib/Analysis directory and add add_subdirecoty("CDG")
+Then, modify the `CMakeLists.txt` file in the lib/Analysis directory and add `add_subdirectory("CDG")`
 
 This should get the llvm to build the pass.
 
 Then, one can print control dependency graph or data dependency graph by following command (should be ran ):
 
-> opt -load path_to_your_so/LLVMCDG.so -dot-cdg path_to_test/test_file.bc 
+> opt -load path\_to\_your\_so/LLVMCDG.so -dot-cdg path\_to\_test/test\_file.bc
 
 ### Plug-in Version
 
