@@ -27,3 +27,7 @@ Temporary Items
 
 # Java
 *.class
+
+# build folder
+build/
+cmake-build-debug/

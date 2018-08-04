@@ -423,14 +423,6 @@ namespace pdg{
             return it->second;
         }
 
-        // const DependencyNode<NodeT> *getNodeByData(const NodeT *pData) const {
-        //   typename DataToNodeMap::const_iterator it = mDataToNode.find(pData);
-        //   if (it == mDataToNode.end()) {
-        //     return 0;
-        //   }
-        //   return it->second;
-        // }
-
         void addDependency(const NodeT *from, const NodeT *to, int type) {
             DependencyNode<NodeT> *pFrom = getNodeByData(from);
             DependencyNode<NodeT> *pTo = getNodeByData(to);

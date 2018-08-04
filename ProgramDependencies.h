@@ -48,7 +48,7 @@ namespace pdg {
 
         void insertArgToTree(TypeWrapper *tyW, ArgumentWrapper *pArgW, TreeType treeTy, tree<InstructionWrapper*>::iterator insertLoc);
 
-        int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, int field_pos);
+        int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, int field_pos );
 
         void buildFormalTree(Argument *arg, TreeType treeTy, int field_pos);
 
@@ -68,6 +68,8 @@ namespace pdg {
 
         int connectCallerAndCallee(InstructionWrapper *CInstW, llvm::Function *callee);
 
+        const StructLayout* getStructLayout(llvm::Module &M, InstructionWrapper *curTyNode);
+
         void printArgUseInfo(llvm::Module &M, std::set<std::string> funcNameList);
 
         void collectGlobalInstList();
@@ -76,7 +78,10 @@ namespace pdg {
 
         bool processingCallInst(InstructionWrapper *instW);
 
-        bool addNodeDependencies(InstructionWrapper *instW1, InstructionWrapper *instW2);
+        //bool addNodeDependencies(InstructionWrapper *instW1, InstructionWrapper *instW2);
+        bool addNodeDependencies(InstructionWrapper *instW1);
+
+        //void printSensitiveFunctions();
 
         bool runOnModule(llvm::Module &M);
 
@@ -90,6 +95,7 @@ namespace pdg {
         llvm::Module *module;
         DataDependencyGraph *ddg;
         ControlDependencyGraph *cdg;
+        //std::vector<llvm::Value *> sensitive_values;
     };
 }
 

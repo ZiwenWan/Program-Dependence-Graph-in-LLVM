@@ -1,17 +1,53 @@
-if(WIN32 OR CYGWIN)
-    set(LLVM_LINK_COMPONENTS Core Support)
-endif()
+cmake_minimum_required(VERSION 3.1)
+find_package(LLVM REQUIRED CONFIG)
+add_definitions(${LLVM_DEFINITIONS})
+include_directories(${LLVM_INCLUDE_DIRS})
+link_directories(${LLVM_LIBRARY_DIRS})
 
-add_llvm_loadable_module( LLVMCDG
+#
+# We will build one library: libtmplugin.so.  It corresponds to a plugin that we
+# run when compiling.
+#
+
+#
+# Files associated with libtmplugin.so
+#
+add_library(pdg MODULE
     ControlDependencies.cpp
     DataDependencies.cpp
     ProgramDependencies.cpp
+    DepPrinter.cpp
     PDGHelper.cpp
     FunctionWrapper.cpp
-    DepPrinter.cpp
-    idl_gen.cpp
-    DEPENDS
-    intrinsics_gen
-    PLUGIN_TOOL
-    opt
-    )
+)
+
+
+#
+# Turn on C++11, turn off C++ RTTI.
+#
+target_compile_features(pdg PRIVATE cxx_range_for cxx_auto_type)
+set_target_properties(pdg PROPERTIES COMPILE_FLAGS "-fno-rtti")
+
+#
+# OS X-specific configuration
+#
+if(APPLE)
+    set_target_properties(pdg PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+endif(APPLE)
+
+#if(WIN32 OR CYGWIN)
+#set(LLVM_LINK_COMPONENTS Core Support)
+#endif()
+
+#add_llvm_loadable_module( LLVMCDG
+#ControlDependencies.cpp
+#DataDependencies.cpp
+#ProgramDependencies.cpp
+#PDGHelper.cpp
+#FunctionWrapper.cpp
+#DepPrinter.cpp
+#DEPENDS
+#intrinsics_gen
+#PLUGIN_TOOL
+#opt
+#)
