@@ -17,6 +17,8 @@ Currently, the flow dependency analysis module has not been upgraded.
 ## How to use
 This project is built accord to llvm 5.0 build system. 
 
+
+### Quick Start
 To get start quickly. Simply **type** 
 
 1. **mkdir build**
@@ -25,7 +27,8 @@ To get start quickly. Simply **type**
 
 Then, you will see a couple of dot files are generated. Click the one named by **pdgraph.main.dot** to view (Need a dot viewer).
 
-The other way that accord to llvm 5.0 and above buld is described as follow:
+### Standard Build
+The other way that accord to llvm 5.0 and above version is described as follow:
 
 Copy all the files in the repository to the **lib/Analysis/PDG** 
 
