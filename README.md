@@ -6,7 +6,7 @@ This project aims at printing a program dependency for a program. It is a upgrad
 The program dependency is consisted of two part 
   1. Control Dependency Graph
   2. Data Dependency Graph
- 
+
 ## Control Dependency Graph
 Control Dependency Graph is built based on the PostDominantTree Pass in LLVM. 
 
@@ -16,11 +16,22 @@ Currently, the flow dependency analysis module has not been upgraded.
 
 ## How to use
 This project is built accord to llvm 5.0 build system. 
-Just copy all the files in the repository to the lib/Analysis/CDG 
 
-The directory CDG is created by yourself and can be renamed to whatever names.
+To get start quickly. Simply **type** 
 
-Then, modify the Cmakelist file in the lib/Analysis directory and add add_subdirecoty("CDG")
+1. **mkdir build**
+
+2. **opt -load ./build/libpdg.so -dot-pdg path_to_test/test_file.bc**
+
+Then, you will see a couple of dot files are generated. Click the one named by **pdgraph.main.dot** to view (Need a dot viewer).
+
+The other way that accord to llvm 5.0 and above buld is described as follow:
+
+Copy all the files in the repository to the **lib/Analysis/PDG** 
+
+The directory **PDG** is created by yourself and can be renamed to whatever names.
+
+Then, modify the **CMakelist.txt** file in the **lib/Analysis** directory and add **add_subdirecoty("PDG")**
 
 This should get the llvm to build the pass.
 
@@ -31,12 +42,12 @@ Then, one can print control dependency graph or data dependency graph by followi
 ## How to generate bc file?
 Just write a valid C program and then use. (test.c in this example)
 
-> clang -emit-llvm -S test.c
+> **clang -emit-llvm -S test.c**
 
 This should give you test.ll, which is represented in llvm IR. 
 
 Then, use the llvm-as tool to generate bc file.
 
-> llvm-as test.ll 
+> **llvm-as test.ll** 
 
 This should give you the bc file needed for testing.

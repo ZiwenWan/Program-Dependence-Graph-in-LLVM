@@ -850,52 +850,6 @@ bool pdg::ProgramDependencyGraph::addNodeDependencies(InstructionWrapper *instW1
 //}
 
 bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
-//    std::set<std::string> funcList = {
-//            "___might_sleep",
-//            "__alloc_percpu",
-//            "__rtnl_link_register",
-//            "__rtnl_link_unregister",
-//            "_cond_resched",
-//            "alloc_netdev_mqs",
-//            "consume_skb",
-//            "dummy_change_carrier",
-//            "dummy_cleanup_module",
-//            "dummy_dev_init",
-//            "dummy_dev_uninit",
-//            "dummy_get_drvinfo",
-//            "dummy_get_stats64",
-//            "dummy_init_module",
-//            "dummy_init_one",
-//            "dummy_setup",
-//            "dummy_validate",
-//            "dummy_xmit",
-//            "eth_hw_addr_random",
-//            "eth_mac_addr",
-//            "eth_random_addr",
-//            "eth_validate_addr",
-//            "ether_setup",
-//            "free_netdev",
-//            "free_percpu",
-//            "get_random_bytes",
-//            "is_multicast_ether_addr",
-//            "is_valid_ether_addr",
-//            "is_zero_ether_addr",
-//            "llvm.dbg.declare",
-//            "netif_carrier_off",
-//            "netif_carrier_on",
-//            "nla_data",
-//            "nla_len",
-//            "register_netdevice",
-//            "rtnl_link_unregister",
-//            "rtnl_lock",
-//            "rtnl_unlock",
-//            "set_multicast_list",
-//            "strlcpy",
-//            "u64_stats_fetch_begin_irq",
-//            "u64_stats_fetch_retry_irq",
-//            "u64_stats_update_begin",
-//            "u64_stats_update_end"
-//    };
 
     DEBUG(dbgs() << "ProgramDependencyGraph::runOnModule" << '\n');
     module = &M;
@@ -910,9 +864,6 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
     for (Module::iterator FF = M.begin(), E = M.end(); FF != E; ++FF) {
         DEBUG(dbgs() << "Module Size: " << M.size() << "\n");
         Function *F = dyn_cast<Function>(FF);
-//        if (funcList.find(F->getName()) == funcList.end()) {
-//            continue;
-//        }
         if ((*F).isDeclaration()) {
             DEBUG(dbgs() << (*F).getName() << " is defined outside!" << "\n");
             continue;
@@ -942,17 +893,6 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
             if (!addNodeDependencies(instW1)) {
                 continue;
             }
-//            t1 = std::chrono::high_resolution_clock::now();
-            // second iteration on nodes to add both control and data Dependency
-            //pdg::DependencyNode<InstructionWrapper> *DNode = PDG->getNodeByData(instW1);
-//            for (std::set<InstructionWrapper *>::iterator nodeIt2 = funcInstWList[F].begin();
-//                 nodeIt2 != funcInstWList[F].end(); ++nodeIt2) {
-//                InstructionWrapper *instW2 = *nodeIt2;
-//                if (!addNodeDependencies(instW1, instW2)) {
-//                    continue;
-//                }
-//            } // end second iteration for PDG->addDependency...
-
         }   // end the iteration for finding CallInst
     } // end for(Module...
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -968,94 +908,6 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
     cleanupGlobalVars();
     return false;
 }
-
-const StructLayout* pdg::ProgramDependencyGraph::getStructLayout(llvm::Module &M, InstructionWrapper *curTyNode) {
-    DataLayout DL = M.getDataLayout();
-    llvm::Type *curNodeTy = curTyNode->getFieldType();
-
-    PointerType *pt = dyn_cast<PointerType>(curNodeTy);
-    if (curNodeTy->isPointerTy() ) {
-        if (!pt->getElementType()->isStructTy()) {
-            return nullptr;
-        }
-    }
-
-    StructType *st = nullptr;
-
-    if (curNodeTy->isPointerTy()) {
-        st = dyn_cast<StructType>(pt->getElementType());
-    } else {
-        st = dyn_cast<StructType>(curNodeTy);
-    }
-
-    const StructLayout *StL = DL.getStructLayout(st);
-    return StL;
-}
-
-//void pdg::ProgramDependencyGraph::printArgUseInfo(llvm::Module &M, std::set<std::string> funcNameList) {
-//    typedef std::map<unsigned, std::pair<std::string, DIType*>> offsetNames;
-//    std::map<Function*, offsetNames> funcArgOffsetNames = getAnalysis<DSAGenerator>().getFuncArgOffsetNames();
-//
-//    for (llvm::Function &func : M) {
-//        if (func.isDeclaration()) {
-//            continue;
-//        }
-////        if (funcNameList.find(func.getName()) == funcNameList.end()) {
-////            continue;
-////        }
-//        offsetNames funcOffsetNames = funcArgOffsetNames[&func];
-//        errs() << "\n --------------------------- \n";
-//        errs() << "Function Name:" << func.getName() << "\n";
-//        auto arg_list = funcMap[&func]->getArgWList();
-//        for (auto argW : arg_list) {
-//            errs() << "\n ------------ [ ArgNo: " << argW->getArg()->getArgNo() << "] ------------ \n";
-//            auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
-//
-//            int prev_offset = 0;
-//            int accumulate_offset = 0;
-//            int curDepth = 0;
-//            for (; treeIter != argW->getTree(FORMAL_IN_TREE).end(); ++treeIter) {
-//                int tmpDepth = argW->getTree(FORMAL_IN_TREE).depth(treeIter);
-//                if (tmpDepth != curDepth) {
-//                    prev_offset += accumulate_offset;
-//                    accumulate_offset = 0;
-//                    curDepth = tmpDepth;
-//                }
-//                InstructionWrapper *curTyNode = *treeIter;
-//                if (curTyNode->getParentType() != nullptr) {
-//                    errs() << "Parent Type: " << curTyNode->getParentType()->getTypeID() << "\n";
-//                } else {
-//                    errs() << "This is the root type node. " << "\n";
-//                }
-//                //errs() << "isVisited: " << curTyNode->getVisited() << "\n";
-//                int parentFieldId = 0;
-//                Type *parent_type = (*treeIter)->getParentType();
-//                // root node case
-//                if (parent_type == nullptr) {
-//                    continue;
-//                }
-//
-//                auto parentIter = tree<InstructionWrapper *>::parent(treeIter);
-//                parentFieldId = (*parentIter)->getFieldId();
-//
-//                if (parent_type->isPointerTy()) {
-//                    const StructLayout *stLayout = getStructLayout(M, *parentIter);
-//                    if (stLayout == nullptr) {
-//                        continue;
-//                    }
-//                    int offset = stLayout->getElementOffset(curTyNode->getFieldId());
-//                    errs() << "prev offset: " << prev_offset << "\n";
-//                    errs() << "Current Offset: " << prev_offset + offset << "\n";
-//                    errs() << funcOffsetNames[prev_offset + offset].first << "\n";
-//                    if (tmpDepth == curDepth) {
-//                        accumulate_offset = offset;
-//                    }
-//                }
-//               // errs() << "Node Type: " << curTyNode->getFieldType()->getTypeID() << "\n";
-//            }
-//        }
-//    }
-//}
 
 void pdg::ProgramDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequired<ControlDependencyGraph>();

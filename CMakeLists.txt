@@ -35,19 +35,3 @@ if(APPLE)
     set_target_properties(pdg PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
 endif(APPLE)
 
-#if(WIN32 OR CYGWIN)
-#set(LLVM_LINK_COMPONENTS Core Support)
-#endif()
-
-#add_llvm_loadable_module( LLVMCDG
-#ControlDependencies.cpp
-#DataDependencies.cpp
-#ProgramDependencies.cpp
-#PDGHelper.cpp
-#FunctionWrapper.cpp
-#DepPrinter.cpp
-#DEPENDS
-#intrinsics_gen
-#PLUGIN_TOOL
-#opt
-#)
