@@ -22,7 +22,9 @@ To get start quickly. Simply **type**
 
 1. **mkdir build**
 
-2. **opt -load ./build/libpdg.so -dot-pdg path_to_test/test_file.bc**
+2. make
+
+3. **opt -load ./build/libpdg.so -dot-pdg path_to_test/test_file.bc**
 
 Then, you will see a couple of dot files are generated. Click the one named by **pdgraph.main.dot** to view (Need a dot viewer).
 
