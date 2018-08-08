@@ -38,11 +38,11 @@ void pdg::ArgumentWrapper::copyTree(const tree<InstructionWrapper *> &srcTree, T
         for (; SI != SE && TI != TE; ++SI, ++TI) {
                 InstructionWrapper *typeFieldW;
                 if (SI == srcTree.begin()) {
-                        typeFieldW = new InstructionWrapper((*SI)->getFunction(), newArg,
-                                                            (*SI)->getFieldType(), nullptr, id++, instWTy);
+                        //typeFieldW = new InstructionWrapper((*SI)->getFunction(), newArg, (*SI)->getFieldType(), nullptr, id++, instWTy);
+                        typeFieldW = new InstructionWrapper((*SI)->getFunction(), newArg, (*SI)->getFieldType(), nullptr, (*SI)->getFieldId(), instWTy);
                 } else {
-                        typeFieldW = new InstructionWrapper((*SI)->getFunction(), newArg,
-                                                            (*SI)->getFieldType(), nullptr, id++, PARAMETER_FIELD);
+                        //typeFieldW = new InstructionWrapper((*SI)->getFunction(), newArg, (*SI)->getFieldType(), nullptr, id++, PARAMETER_FIELD);
+                        typeFieldW = new InstructionWrapper((*SI)->getFunction(), newArg, (*SI)->getFieldType(), nullptr, (*SI)->getFieldId(), PARAMETER_FIELD);
                 }
                 *TI = typeFieldW;
                 instnodes.insert(typeFieldW);
@@ -110,7 +110,6 @@ llvm::Instruction* pdg::ArgumentWrapper::findAllocaInst(Argument *arg) {
 
 void pdg::ArgumentWrapper::getDependentGEP(llvm::Instruction *allocaInst) {
         std::queue<llvm::Instruction *> dependency_queue;
-
         dependency_queue.push(allocaInst);
         while (!dependency_queue.empty()) {
                 llvm::Instruction *inst = dependency_queue.front();
@@ -120,8 +119,8 @@ void pdg::ArgumentWrapper::getDependentGEP(llvm::Instruction *allocaInst) {
                                 dependency_queue.push(tmpInst);
                                 // if find a GEP inst, add to return res, this GEP must
                                 if (isa<GetElementPtrInst>(tmpInst)) {
-                                        if (instMap[tmpInst] != nullptr) {
-                                                this->GEPList.insert(instMap[tmpInst]);
+                                       if (instMap[tmpInst] != nullptr && this->GEPList.find(instMap[tmpInst]) == this->GEPList.end()) {
+                                               this->GEPList.insert(instMap[tmpInst]);
                                         }
                                 }
                         }

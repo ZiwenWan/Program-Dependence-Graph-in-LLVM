@@ -17,6 +17,8 @@ Currently, the flow dependency analysis module has not been upgraded.
 ## How to use
 This project is built accord to llvm 5.0 build system. 
 
+### Using Plug-in 
+
 To get start quickly. Simply **type** 
 
 1. **mkdir build**
@@ -25,15 +27,18 @@ To get start quickly. Simply **type**
 
 Then, you will see a couple of dot files are generated. Click the one named by **pdgraph.main.dot** to view (Need a dot viewer).
 
+### Using CMake
+
 The other way that accord to llvm 5.0 and above buld is described as follow:
 
-Copy all the files in the repository to the **lib/Analysis/PDG** 
+1. Copy all the files in the repository to the **lib/Analysis/PDG** 
 
 The directory **PDG** is created by yourself and can be renamed to whatever names.
 
-Then, modify the **CMakelist.txt** file in the **lib/Analysis** directory and add **add_subdirecoty("PDG")**
-
-This should get the llvm to build the pass.
+2. Rename **CMakeLists_For_Standard_Build.txt** to **CMakeLists.txt** (Remember firstly change the original **CMakeLists.txt** to other name).
+3. Modify the **CMakelist.txt** file in the **lib/Analysis** directory and add **add_subdirecoty("PDG")**
+4. **cd llvm/build/** (Assume you have already build from source)
+5. make
 
 Then, one can print control dependency graph or data dependency graph by following command (should be ran ):
 

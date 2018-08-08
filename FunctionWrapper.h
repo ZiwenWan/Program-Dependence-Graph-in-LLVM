@@ -72,7 +72,8 @@ namespace pdg {
                     return actualInTree;
                 case ACTUAL_OUT_TREE:
                     return actualOutTree;
-                    break;
+                default:
+                    return formalInTree;
             }
         }
 

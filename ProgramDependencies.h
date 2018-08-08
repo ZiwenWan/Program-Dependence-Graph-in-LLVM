@@ -78,7 +78,6 @@ namespace pdg {
 
         bool processingCallInst(InstructionWrapper *instW);
 
-        //bool addNodeDependencies(InstructionWrapper *instW1, InstructionWrapper *instW2);
         bool addNodeDependencies(InstructionWrapper *instW1);
 
         //void printSensitiveFunctions();

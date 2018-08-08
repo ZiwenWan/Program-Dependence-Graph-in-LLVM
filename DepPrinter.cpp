@@ -58,7 +58,7 @@ namespace llvm {
                 case PARAMETER_FIELD:{
                     llvm::Argument *arg = instW->getArgument();
                     int arg_pos = arg->getArgNo();
-                    OS << *instW->getFieldType() << " pos: " << arg_pos << " - " << instW->getFieldId();
+                    OS << *instW->getFieldType() << " arg_pos: " << arg_pos << " - " << "f_id: " << instW->getFieldId();
                     return OS.str();
                 }
 

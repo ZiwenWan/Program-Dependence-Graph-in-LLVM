@@ -59,7 +59,7 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getDependencyInFunction(Ins
 void pdg::DataDependencyGraph::collectRAWDependency(llvm::Instruction *inst) {
   // dealing with dependencies in a function
   std::vector<Instruction *> flowdep_set = getDependencyInFunction(inst);
-  for (int i = 0; i < flowdep_set.size(); i++) {
+  for (unsigned i = 0; i < flowdep_set.size(); i++) {
     DEBUG(dbgs() << "Debugging flowdep_set:" << "\n");
     DEBUG(dbgs() << *flowdep_set[i] << "\n");
     DDG->addDependency(instMap[flowdep_set[i]], instMap[inst], DATA_RAW);
@@ -70,8 +70,6 @@ void pdg::DataDependencyGraph::collectRAWDependency(llvm::Instruction *inst) {
 void pdg::DataDependencyGraph::collectNonLocalDependency(llvm::Instruction *inst) {
   // dealing with non local pointer dependency, nonLocalPointer dep is stored in result small vector
   SmallVector<NonLocalDepResult, 20> result;
-  BasicBlock *BB = inst->getParent();
-  MemoryLocation Loc = MemoryLocation::get(dyn_cast<LoadInst>(inst));
   // the return result is NonLocalDepResult. can use getAddress function
   MD->getNonLocalPointerDependency(inst, result);
   // now result stores all possible
