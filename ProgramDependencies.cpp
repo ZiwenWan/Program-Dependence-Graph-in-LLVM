@@ -895,17 +895,39 @@ void pdg::ProgramDependencyGraph::linkTypeNodeWithGEPInst(std::list<ArgumentWrap
       for (std::set<InstructionWrapper *>::iterator nodeIt = funcInstWList[F].begin();
 	  nodeIt != funcInstWList[F].end(); ++nodeIt) {
 	InstructionWrapper *instW1 = *nodeIt;
-
-	// processing CallInst
-	if (!processingCallInst(instW1)) {
-	  continue;
-	}
-
 	if (!addNodeDependencies(instW1)) {
 	  continue;
 	}
       }   // end the iteration for finding CallInst
     } // end for(Module...
+
+    std::queue<Function*> functionQ;
+    std::vector<Function*> processedFuncs;
+    for (auto FF = M.begin(); FF != M.end(); ++FF){
+      Function *F = dyn_cast<Function>(FF);
+      if (F->getName().str() == "main"){
+	functionQ.push(F);
+	processedFuncs.push_back(F);
+	break;
+      }
+    }
+    while (!functionQ.empty()){
+      Function *F = functionQ.front();
+      functionQ.pop();
+      for (CallInst *CI: funcMap[F]->getCallInstList()){
+	Function *calledFunction = CI->getCalledFunction();
+	if (calledFunction->isDeclaration() || calledFunction->isIntrinsic())
+	  continue;
+	if (std::find(processedFuncs.begin(), processedFuncs.end(), calledFunction) == processedFuncs.end()){
+	  processedFuncs.push_back(calledFunction);
+	  functionQ.push(calledFunction);
+	  errs() << "pushed " << calledFunction->getName().str() << "\n";
+	} else {
+	  errs() << calledFunction->getName().str() << " was in the list\n";
+	}
+	processingCallInst(instMap[CI]);
+      }
+    }
 
     auto t2 = std::chrono::high_resolution_clock::now();
     auto int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
