@@ -31,3 +31,4 @@ Temporary Items
 # build folder
 build/
 cmake-build-debug/
+.idea/
