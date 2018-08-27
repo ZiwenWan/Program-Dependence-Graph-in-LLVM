@@ -1,6 +1,7 @@
 #ifndef PROGRAMDEPENDENCIES_H
 #define PROGRAMDEPENDENCIES_H
 
+#define NULL 0
 #define SENSITIVE 256
 #define PDG_CONSTRUCTION 0
 
@@ -9,10 +10,9 @@
 #include "ControlDependencies.h"
 #include "DataDependencies.h"
 
-#include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Intrinsics.h" #include "llvm/IR/LLVMContext.h" #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/ValueSymbolTable.h"
+#include "llvm/Analysis/CallGraph.h"
 
 #include <vector>
 #include <queue>
@@ -29,6 +29,7 @@ namespace pdg {
     typedef DependencyGraph<InstructionWrapper> ProgramDepGraph;
 
     class ProgramDependencyGraph : public llvm::ModulePass {
+    typedef std::map<llvm::Function *, std::map<std::string, bool>> ArgUseInfoMap;
     public:
         static char ID; // Pass ID, replacement for typeid
         ProgramDepGraph *PDG;
@@ -55,19 +56,31 @@ namespace pdg {
 
         void buildActualParameterTrees(CallInst *CI);
 
+        void buildActualParameterTreesForIndirectCall(CallInst *CI, llvm::Function *candidate_func); 
+
         void drawFormalParameterTree(Function *func, TreeType treeTy);
 
         void drawActualParameterTree(CallInst *CI, TreeType treeTy);
 
         void drawDependencyTree(Function *func);
 
-        void linkTypeNodeWithGEPInst(std::list<ArgumentWrapper *>::iterator argI, tree<InstructionWrapper *>::iterator formal_in_TI);
+        std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> getParameterTreeNodeWithCorrespondGEP(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator formal_in_TI);
+
+        int getGEPOpType(InstructionWrapper *GEPInstW);
+
+        void linkTypeNodeWithGEPInst(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator formal_in_TI);
 
         void connectFunctionAndFormalTrees(Function *callee);
 
         int connectCallerAndCallee(InstructionWrapper *CInstW, llvm::Function *callee);
 
         const StructLayout* getStructLayout(llvm::Module &M, InstructionWrapper *curTyNode);
+
+        void printArgUseInfoWithRecursiveFunc(llvm::Function *func);
+
+        std::set<pdg::InstructionWrapper *> getAllRelevantGEP(llvm::Argument *arg, std::set<llvm::Function *> seen_funcs);
+
+        void printParameterTreeForFunc(llvm::Module &M);
 
         void printArgUseInfo(llvm::Module &M, std::set<std::string> funcNameList);
 
@@ -77,10 +90,21 @@ namespace pdg {
 
         bool processingCallInst(InstructionWrapper *instW);
 
+        std::vector<llvm::Function *> collectIndirectCallCandidates(FunctionType *funcType);
+
+        //void connectAllPossibleFunctions(InstructionWrapper *CInstW, FunctionType *funcTy);
+        void connectAllPossibleFunctions(CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates);
+
         bool addNodeDependencies(InstructionWrapper *instW1);
 
-        //void printSensitiveFunctions();
+        bool ifFuncTypeMatch(FunctionType *funcTy, FunctionType *indirectFuncCallTy);
 
+        // --- get arg use information using worklist algorithm
+        ArgUseInfoMap initializeArgUseMapForAllFuncs(llvm::Module &M);
+
+        std::map<std::string, bool> getArgUseInfoMap(llvm::Function &func);
+
+        //void printSensitiveFunctions();
         bool runOnModule(llvm::Module &M);
 
         void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
@@ -93,6 +117,7 @@ namespace pdg {
         llvm::Module *module;
         DataDependencyGraph *ddg;
         ControlDependencyGraph *cdg;
+        std::map<llvm::Function *, std::map<std::string, bool>> global_arg_use_info_map;
         //std::vector<llvm::Value *> sensitive_values;
     };
 }

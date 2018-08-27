@@ -95,98 +95,99 @@ namespace pdg {
 
     public:
         CallWrapper(CallInst *CI) {
-            this->CI = CI;
-            //  Function::ArgumentListType& callee_args = Func->getArgumentList();
-            int arg_pos_in_call_site = 0;
-            for (Function::arg_iterator argIt = CI->getCalledFunction()->arg_begin(),
-                         argE = CI->getCalledFunction()->arg_end(); argIt != argE; ++argIt) {
+          this->CI = CI;
+          for (Function::arg_iterator argIt =
+                   CI->getCalledFunction()->arg_begin();
+               argIt != CI->getCalledFunction()->arg_end(); ++argIt) {
 
+            Argument *arg = &*argIt;
+            ArgumentWrapper *argW = new ArgumentWrapper(arg);
+            argWList.push_back(argW);
+          }
+        }
+
+        CallWrapper(CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates) {
+          this->CI = CI;
+          // constructor for indirect call instruction
+          llvm::Function *candidate_func = indirect_call_candidates[0];
+          for (Function::arg_iterator argIt = candidate_func->arg_begin();
+               argIt != candidate_func->arg_end(); ++argIt) {
                 Argument *arg = &*argIt;
                 ArgumentWrapper *argW = new ArgumentWrapper(arg);
                 argWList.push_back(argW);
-                arg_pos_in_call_site++;
             }
-
         }
 
-        CallInst *getCallInstruction() {
-            return CI;
-        }
+        CallInst *getCallInstruction() { return CI; }
 
-        std::list<ArgumentWrapper *> &getArgWList() {
-            return argWList;
-        }
+        std::list<ArgumentWrapper *> &getArgWList() { return argWList; }
     };
 
-
-// FunctionWrapper
+    // FunctionWrapper
     class FunctionWrapper {
 
     private:
-        Function *Func;
-        InstructionWrapper *entryW;
-        std::list<llvm::StoreInst *> storeInstList;
-        std::list<llvm::LoadInst *> loadInstList;
-        std::list<llvm::Instruction *> returnInstList;
-        std::list<llvm::CallInst *> callInstList;
-        std::list<ArgumentWrapper *> argWList;
-        std::map<InstructionWrapper*, bool > visitedMap;
-        std::set<llvm::Value *> ptrSet;
+      Function *Func;
+      InstructionWrapper *entryW;
+      std::list<llvm::StoreInst *> storeInstList;
+      std::list<llvm::LoadInst *> loadInstList;
+      std::list<llvm::Instruction *> returnInstList;
+      std::list<llvm::CallInst *> callInstList;
+      std::list<ArgumentWrapper *> argWList;
+      std::set<llvm::Function *> dependent_funcs;
+      std::set<llvm::Value *> ptrSet;
 
-        bool treeFlag = false;
-        bool visited = false;
+      bool treeFlag = false;
+      bool visited = false;
 
     public:
-        FunctionWrapper(Function *Func) {
+      FunctionWrapper(Function *Func) {
+        this->Func = Func;
+        this->entryW = NULL;
+        for (Function::arg_iterator argIt = Func->arg_begin(),
+                                    argE = Func->arg_end();
+             argIt != argE; ++argIt) {
 
-            this->Func = Func;
-            this->entryW = NULL;
-            for (Function::arg_iterator argIt = Func->arg_begin(),
-                         argE = Func->arg_end();
-                 argIt != argE; ++argIt) {
-
-                ArgumentWrapper *argW = new ArgumentWrapper(&*argIt);
-                argWList.push_back(argW);
-            }
+          ArgumentWrapper *argW = new ArgumentWrapper(&*argIt);
+          argWList.push_back(argW);
         }
+      }
 
-        bool hasTrees() { return treeFlag; }
+      bool hasTrees() { return treeFlag; }
 
-        void setTreeFlag(bool flag) { this->treeFlag = flag; }
+      void setTreeFlag(bool flag) { this->treeFlag = flag; }
 
-        bool isVisited() { return visited; }
+      bool isVisited() { return visited; }
 
-        void setVisited(bool flag) { this->visited = flag; }
+      void setVisited(bool flag) { this->visited = flag; }
 
-        Function *getFunction() { return Func; }
+      Function *getFunction() { return Func; }
 
-        void setEntry(InstructionWrapper *entry) {
-            this->entryW = entry;
-        }
+      void setEntry(InstructionWrapper *entry) { this->entryW = entry; }
 
-        InstructionWrapper *getEntry() { return entryW; }
+      InstructionWrapper *getEntry() { return entryW; }
 
-        std::list<ArgumentWrapper *> &getArgWList() { return argWList; }
+      std::list<ArgumentWrapper *> &getArgWList() { return argWList; }
 
-        std::list<llvm::StoreInst *> &getStoreInstList() { return storeInstList; }
+      std::list<llvm::StoreInst *> &getStoreInstList() { return storeInstList; }
 
-        std::list<llvm::LoadInst *> &getLoadInstList() { return loadInstList; }
+      std::list<llvm::LoadInst *> &getLoadInstList() { return loadInstList; }
 
-        std::list<llvm::Instruction *> &getReturnInstList() { return returnInstList; }
+      std::list<llvm::Instruction *> &getReturnInstList() {
+        return returnInstList;
+      }
 
-        std::list<llvm::CallInst *> &getCallInstList() { return callInstList; }
+      std::list<llvm::CallInst *> &getCallInstList() { return callInstList; }
 
-        std::set<llvm::Value *> &getPtrSet() { return ptrSet; }
+      std::set<llvm::Value *> &getPtrSet() { return ptrSet; }
 
-        std::map<InstructionWrapper*, bool> &getVisitedMap() {return visitedMap;};
-
-        bool hasFuncOrFilePrt();
+      bool hasFuncOrFilePrt();
     };
-}
+    } // namespace pdg
 
-namespace pdg {
+    namespace pdg {
     extern std::map<const Function *, FunctionWrapper *> funcMap;
     extern std::map<const CallInst *, CallWrapper *> callMap;
-}
+    } // namespace pdg
 
 #endif // FUNCTIONWRAPPER_H
