@@ -196,7 +196,7 @@ void pdg::ProgramDependencyGraph::buildFormalTree(Argument *arg, TreeType treeTy
         errs() << *arg->getParent()->getFunctionType() << " DEBUG 312: in buildFormalTree: function pointer arg = " << *tyW->getType() << "\n";
     }
     else {
-        errs() << "start building formal type tree!" << "\n";
+        //errs() << "start building formal type tree!" << "\n";
         buildFormalTypeTree(arg, tyW, treeTy, field_pos);
     }
     id = 0;
@@ -207,7 +207,7 @@ void pdg::ProgramDependencyGraph::buildFormalParameterTrees(llvm::Function *call
     auto argE = funcMap[callee]->getArgWList().end();
 
     DEBUG(dbgs() << "Function: " << callee->getName() << " " << *callee->getFunctionType() << "\n");
-    errs() << "Function: " << callee->getName() << " " << *callee->getFunctionType() << "\n";
+    // errs() << "Function: " << callee->getName() << " " << *callee->getFunctionType() << "\n";
 
     for(; argI != argE; ++argI){
         int field_pos = 0;
@@ -506,7 +506,7 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(
     instWQueue.push(GEPInstW);
     seenInstW.insert(GEPInstW);
 
-    errs() << "find DDG relevant insts" << "\n";
+    // find DDG relevant insts
     while (!instWQueue.empty()) {
         InstructionWrapper *instW = instWQueue.front();
         instWQueue.pop();
@@ -525,8 +525,6 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(
           if (DNodeW2->getInstruction() == nullptr) {
             errs() << "Type Node" << "\n";
             continue;
-          } else {
-            errs() << *DNodeW2->getInstruction() << "\n";
           }
 
           if (isa<llvm::LoadInst>(DNodeW2->getInstruction())) {
@@ -686,13 +684,22 @@ std::vector<llvm::Function *> pdg::ProgramDependencyGraph::collectIndirectCallCa
     std::map<const llvm::Function *, FunctionWrapper *>::iterator FE = funcMap.end();
     for (; FI != FE; ++FI) {
         llvm::Function *curFunc = const_cast<llvm::Function *>((*FI).first);
+        // get Function type
         llvm::FunctionType *curFuncType = curFunc->getFunctionType();
 
         if (curFunc->getFunctionType() == funcType && curFunc->getName() != "main") {
             DEBUG(dbgs() << curFunc->getName() << " function pointer! \n");
         }
 
+        if (curFunc->getName() == "main") {
+            continue;
+        }
+        
+        // compare the indirect call function type with each function
         if (ifFuncTypeMatch(curFuncType, funcType)) {
+        //    errs() << "Current Function Name: " << curFunc->getName() << "\n";
+        //    errs() << "Current Func Type: " << *curFuncType << "\n";
+        //    errs() << "CmpFuncType: " << *funcType << "\n";
            indirectCallList.push_back(curFunc);
         }
     }
@@ -768,6 +775,12 @@ bool pdg::ProgramDependencyGraph::processingCallInst(InstructionWrapper *instW) 
         FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
         // collect all possible function with same function signature
         std::vector<llvm::Function *> indirect_call_candidates = collectIndirectCallCandidates(funcTy);
+        if (indirect_call_candidates.size() == 0) {
+            // errs() << "Indirect Call Parent function: " << pInstruction->getParent()->getName() << "\n";
+            // errs() << *pInstruction << "\n";
+            errs() << "cannot find possible indirect call candidates.." << "\n";
+            return false;
+        }
         CallWrapper *callW = new CallWrapper(CI, indirect_call_candidates);
         callMap[CI] = callW;
         errs() << "indirect call, called Type t = " << *t << "\n";
@@ -862,8 +875,7 @@ bool pdg::ProgramDependencyGraph::processingCallInst(InstructionWrapper *instW) 
   return true;
 }
 
-bool pdg::ProgramDependencyGraph::addNodeDependencies(
-    InstructionWrapper *instW1) {
+bool pdg::ProgramDependencyGraph::addNodeDependencies(InstructionWrapper *instW1) {
   // processing Global instruction
   if (instW1->getInstruction() != nullptr) {
     if (llvm::LoadInst *LDInst =
@@ -1107,23 +1119,26 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
     cdg = &getAnalysis<ControlDependencyGraph>(*F);
     ddg = &getAnalysis<DataDependencyGraph>(*F);
 
-    // process call nodes, one call node will only be touched
-    // once(!InstW->getAccess)
+    // for each instruction, copy all ddg and cdg dependencies
     for (std::set<InstructionWrapper *>::iterator nodeIt =
              funcInstWList[F].begin();
          nodeIt != funcInstWList[F].end(); ++nodeIt) {
       InstructionWrapper *instW1 = *nodeIt;
-
-      // processing CallInst
-      if (!processingCallInst(instW1)) {
-        continue;
-      }
-
       if (!addNodeDependencies(instW1)) {
         continue;
       }
-    } // end the iteration for finding CallInst
+    }
+
   }   // end for(Module...
+
+  for (Module::iterator FF = M.begin(); FF != M.end(); ++FF) {
+      llvm::Function *F = dyn_cast<llvm::Function>(FF);
+      for (llvm::CallInst *callInst : funcMap[F]->getCallInstList()) {
+          if (!processingCallInst(instMap[callInst])) {
+              continue;
+          }
+      }
+  }
 
 // calculate adding dependency time
 //   auto t1 = std::chrono::high_resolution_clock::now();
@@ -1210,7 +1225,7 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M) {
           DEBUG(dbgs() << "Parent Type: " << curTyNode->getParentType()->getTypeID() << "\n");
         } else {
           errs() << "** Root type node **" << "\n";
-          errs() << "filed name: " << argOffsetNames[0].first << "\n";
+          errs() << "field name: " << argOffsetNames[0].first << "\n";
           errs() << "Visited status: " << curTyNode->getVisited() << "\n";
           errs() << "Visited Type: " << curTyNode->getAccessType() << "\n";
           continue;
@@ -1257,6 +1272,11 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M) {
 
 std::set<pdg::InstructionWrapper *>
 pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llvm::Function *> seen_funcs) {
+  if (arg->getParent()->getName() == "reg_devops") {
+    //   errs() << "Start collecting Relevant GEP for func: " << arg->getParent()->getName() << "\n";
+    //   errs() << "For arg: " << arg->getArgNo() << "\n";
+    //   printArgumentDependentInsts(arg);
+  }
 
   std::queue<InstructionWrapper *> instQueue;
   std::set<InstructionWrapper *> seen_instW;
@@ -1281,10 +1301,11 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llv
     instQueue.pop();
     
     DependencyNode<InstructionWrapper> *DNode = PDG->getNodeByData(curInstW);
+    // iterate all PDG instruction. Can find instruction in the other function
     for (int i = 0; i < DNode->getDependencyList().size(); i++) {
-      InstructionWrapper *adjacentInstW = const_cast<InstructionWrapper *>(
-          DNode->getDependencyList()[i].first->getData());
+      InstructionWrapper *adjacentInstW = const_cast<InstructionWrapper *>(DNode->getDependencyList()[i].first->getData());
 
+      // if already seen this instructionW or the adjacentInstW is not valid(not encounter so far), skip
       if (adjacentInstW == nullptr or seen_instW.find(adjacentInstW) != seen_instW.end()) {
         continue;
       }
@@ -1294,7 +1315,8 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llv
 
       // process GEP and CallInst
       llvm::Instruction *adjacentInst = adjacentInstW->getInstruction();
-
+      
+      // do not process Type node
       if (adjacentInst == nullptr) {
         continue;
       }
@@ -1305,14 +1327,15 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llv
       }
 
       if (llvm::CallInst *call_inst = dyn_cast<llvm::CallInst>(adjacentInst)) {
+        errs() << *adjacentInst << "\n";
         if (isa<llvm::DbgDeclareInst>(call_inst)) {
             continue;
         }
-
         llvm::Function *callee = call_inst->getCalledFunction();
         // indirect call
         if (callee == nullptr) {
           DEBUG(dbgs() << "Find indirect func call, find all GEP in possible funcs ..." << "\n");
+          errs() << "Find indirect func call, find all GEP in possible funcs ..." << "\n";
           llvm::FunctionType *funcType = call_inst->getFunctionType();
           std::vector<llvm::Function *> indirectCallCandidates = collectIndirectCallCandidates(funcType);
           // for each possible function, iterate through its' arguments
@@ -1326,6 +1349,7 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llv
               }
           }
         } else {
+          // direct call
           for (auto argIter = callee->arg_begin(); argIter != callee->arg_end(); ++argIter) {
               llvm::Argument *tmp_arg = &*argIter;
               if (tmp_arg->getType() == arg->getType()) {
@@ -1420,6 +1444,53 @@ void pdg::ProgramDependencyGraph::printArgUseInfo(
     }
   }
 }
+
+void pdg::ProgramDependencyGraph::printArgumentDependentInsts(llvm::Argument *arg)
+{
+    std::queue<InstructionWrapper *> instQueue;
+    std::set<InstructionWrapper *> seen_instW;
+    std::set<InstructionWrapper *> relevantGEPs;
+
+    // initialize queue
+    for (auto UB = arg->user_begin(); UB != arg->user_end(); ++UB)
+    {
+        if (llvm::Instruction *userInst = dyn_cast<llvm::Instruction>(*UB))
+        {
+            instQueue.push(instMap[userInst]);
+            seen_instW.insert(instMap[userInst]);
+        }
+    }
+
+    while (!instQueue.empty())
+    {
+        InstructionWrapper *curInstW = instQueue.front();
+        instQueue.pop();
+        DependencyNode<InstructionWrapper> *DNode = PDG->getNodeByData(curInstW);
+        for (int i = 0; i < DNode->getDependencyList().size(); i++)
+        {
+            InstructionWrapper *adjacentInstW = const_cast<InstructionWrapper *>(DNode->getDependencyList()[i].first->getData());
+
+            // if already seen this instructionW or the adjacentInstW is not valid(not encounter so far), skip
+            if (adjacentInstW == nullptr or seen_instW.find(adjacentInstW) != seen_instW.end())
+            {
+                continue;
+            }
+
+            llvm::Instruction *adjacentInst = adjacentInstW->getInstruction();
+
+            if (adjacentInst == nullptr)
+            {
+                continue;
+            }
+
+            errs() << *adjacentInst << "\n";
+            instQueue.push(adjacentInstW);
+            seen_instW.insert(adjacentInstW);
+        }
+    }
+
+}
+
 
 void pdg::ProgramDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<ControlDependencyGraph>();

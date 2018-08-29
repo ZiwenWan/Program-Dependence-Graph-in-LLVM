@@ -36,10 +36,9 @@ void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst
   }
 }
 
-std::vector<Instruction *> pdg::DataDependencyGraph::getDependencyInFunction(Instruction *pLoadInst) {
+std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *pLoadInst) {
   std::vector<Instruction *> _flowdep_set;
   std::list<StoreInst *> StoreVec = funcMap[func]->getStoreInstList();
-
   // for each Load Instruction, find related Store Instructions(alias considered)
   LoadInst *LI = dyn_cast<LoadInst>(pLoadInst);
 
@@ -56,14 +55,34 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getDependencyInFunction(Ins
   return _flowdep_set;
 }
 
+void pdg::DataDependencyGraph::collectImplicitRAWDepList(llvm::Instruction *inst) {
+  llvm::StoreInst *SI = dyn_cast<llvm::StoreInst>(inst);
+  Value *storeTo = SI->getOperand(1); 
+  
+  for (auto user : storeTo->users())
+  {
+    if (llvm::Instruction *tmpInst = dyn_cast<llvm::Instruction>(user))
+    {
+      // here, store happens. Latter on, if the register being written by store inst
+      // is used by other instruction, not only read
+      DDG->addDependency(instMap[inst], instMap[tmpInst], DATA_RAW);
+    }
+  }
+}
+
+
 void pdg::DataDependencyGraph::collectRAWDependency(llvm::Instruction *inst) {
   // dealing with dependencies in a function
-  std::vector<Instruction *> flowdep_set = getDependencyInFunction(inst);
+  std::vector<llvm::Instruction *> flowdep_set = getRAWDepList(inst);
+
   for (unsigned i = 0; i < flowdep_set.size(); i++) {
     DEBUG(dbgs() << "Debugging flowdep_set:" << "\n");
     DEBUG(dbgs() << *flowdep_set[i] << "\n");
     DDG->addDependency(instMap[flowdep_set[i]], instMap[inst], DATA_RAW);
+    //DDG->addDependency(instMap[inst], instMap[flowdep_set[i]], DATA_RAW);
+    //errs() << "Finish adding dep for:" << *flowdep_set[i]<< "\n";
   }
+
   flowdep_set.clear();
 }
 
@@ -88,7 +107,6 @@ void pdg::DataDependencyGraph::collectNonLocalDependency(llvm::Instruction *inst
       DEBUG(dbgs() << "nonLocal_res.getInst() is a nullptr" << '\n');
     }
   }
-
 }
 
 void pdg::DataDependencyGraph::collectDataDependencyInFunc() {
@@ -98,9 +116,13 @@ void pdg::DataDependencyGraph::collectDataDependencyInFunc() {
     llvm::Instruction *pInstruction = dyn_cast<Instruction>(&*instIt);
     collectDefUseDependency(pInstruction);
     collectCallInstDependency(pInstruction);
-    if (isa<LoadInst>(pInstruction)) {
+    if (isa<llvm::LoadInst>(pInstruction)) {
       collectRAWDependency(pInstruction);
       collectNonLocalDependency(pInstruction);
+    }
+
+    if (isa<llvm::StoreInst>(pInstruction)) {
+      collectImplicitRAWDepList(pInstruction);
     }
   }
 }

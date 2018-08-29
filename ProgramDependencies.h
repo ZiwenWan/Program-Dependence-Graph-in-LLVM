@@ -104,6 +104,8 @@ namespace pdg {
 
         std::map<std::string, bool> getArgUseInfoMap(llvm::Function &func);
 
+        void printArgumentDependentInsts(llvm::Argument *arg);
+
         //void printSensitiveFunctions();
         bool runOnModule(llvm::Module &M);
 

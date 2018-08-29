@@ -39,7 +39,7 @@ void DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, off
         structName = baseTy->getName().str();
         DICompositeType *compType = dyn_cast<DICompositeType>(baseTy);
         // Go thro struct elements and print them all
-        errs() << "element size: " << compType->getElements().size() << "\n";
+        DEBUG(dbgs() << "element size: " << compType->getElements().size() << "\n");
         for (DINode *Op : compType->getElements()) {
             DIDerivedType *der = dyn_cast<DIDerivedType>(Op);
             unsigned offset = der->getOffsetInBits() >> 3;
@@ -47,7 +47,7 @@ void DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, off
             // do some type checking. If recursive type call, return
             std::string curStructName = der->getName().str();
             if (seen_names.find(curStructName) != seen_names.end()) {
-                errs() << "Find repeat struct name. Break Here!"  << "\n";
+                DEBUG(dbgs() << "Find repeat struct name. Break Here!"  << "\n");
                 continue;
             }
             seen_names.insert(curStructName);
@@ -66,19 +66,19 @@ void DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, off
             if (((der->getSizeInBits() >> 3) > 1)
                 && der->getBaseType().resolve()->getTag()) {
                 std::string tempStructName("");
-                errs()<< printinfo <<"RECURSIVELY CALL getAllNames on 200\n";
+                DEBUG(dbgs()<< printinfo <<"RECURSIVELY CALL getAllNames on 200\n");
 
                 getAllNames(dyn_cast<DIType>(der), seen_names, of, prev_off + offset,
                             new_name, indent, argName, tempStructName);
             }
-            errs() << "--------------- " << der->getName().str() << "\n";
+            DEBUG(dbgs() << "--------------- " << der->getName().str() << "\n");
         }
     } else if (DIBasicType *bas = dyn_cast<DIBasicType>(baseTy)) {
         structName = "";
         //if type tag for the parameter is of pointer_type and DI type is DIBasicType
         //then treat it as a pointer of native type
-        errs()<< printinfo << "Updating [of] on line 209 with following pair:\n";
-        errs()<< printinfo << "first item [argName.str()] "<<argName.str()<<"\n";
+        DEBUG(dbgs()<< printinfo << "Updating [of] on line 209 with following pair:\n");
+        DEBUG(dbgs()<< printinfo << "first item [argName.str()] "<<argName.str()<<"\n");
         // of[0] = std::pair<std::string, DIType *>(argName.str(), bas);//This may be overwriting the correct name of the first member of the structure.
         //TODO need to see whether this case (this else if situation) needs to be handled at all.
     }
@@ -99,14 +99,14 @@ DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned a
     SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
     //std::vector<MDNode *> MDs = getParameterNodeInFunction(F);
     F->getAllMetadata(MDs);
-    errs() << "MDNODE vector size: " << MDs.size() << "\n";
+    DEBUG(dbgs() << "MDNODE vector size: " << MDs.size() << "\n");
     for (auto &MD : MDs) {
         if (MDNode *N = MD.second) {
             if (DISubprogram *subprogram = dyn_cast<DISubprogram>(N)) {
                 auto *subRoutine = subprogram->getType();
                 //XXX:if a function takes in no arguments, how can we assume it is of type void?
                 if (!subRoutine->getTypeArray()[0]) {
-                    errs() << printinfo << "return type \"void\" for Function : " << F->getName().str() << "\n";
+                    DEBUG(dbgs() << printinfo << "return type \"void\" for Function : " << F->getName().str() << "\n");
                 }
 
                 const auto &TypeRef = subRoutine->getTypeArray();
@@ -118,7 +118,7 @@ DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned a
 
                 //did not encounter this case with dummy.c
                 if (argNumber >= TypeRef.size()) {
-                    errs() << printinfo << "TypeArray request out of bounds. Are parameters coerced??\n";
+                    DEBUG(dbgs() << printinfo << "TypeArray request out of bounds. Are parameters coerced??\n");
                     goto done;
                 }
 
@@ -126,13 +126,13 @@ DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned a
                     // Resolve the type
                     DIType *Ty = ArgTypeRef.resolve();
                     // Handle Pointer type
-                    if (F->getName() == "passF")errs() << "BEGIN WATCH\n";
-                    errs() << printinfo << "CALL getAllNames on line 266 with these params:\n";
-                    errs() << printinfo << "argName = " << argName << "\n";
+                    if (F->getName() == "passF") DEBUG(dbgs() << "BEGIN WATCH\n");
+                    DEBUG(dbgs() << printinfo << "CALL getAllNames on line 266 with these params:\n");
+                    DEBUG(dbgs() << printinfo << "argName = " << argName << "\n");
                     std::set<std::string> seen_names;
                     getAllNames(Ty, seen_names, offNames, 0, "", "  ", argName, structName);
                     seen_names.clear();
-                    errs() << printinfo << "structName = " << structName << "\n";
+                    DEBUG(dbgs() << printinfo << "structName = " << structName << "\n");
                 }
             }
         }
@@ -172,11 +172,11 @@ std::vector<MDNode*> DSAGenerator::getParameterNodeInFunction(Function *F) {
 
 void DSAGenerator::dumpOffsetNames(offsetNames &of) {
     std::string printinfo = moduleName + "[dumpOffsetNames]: ";
-    errs() << printinfo<<"Entered function\n";
+    DEBUG(dbgs() << printinfo<<"Entered function\n");
     for (auto off : of) {
-        errs() << printinfo<< "offset : " << off.first << "\n";
-        errs() << printinfo<< "name : " << std::get<0>(off.second) << "\n";
-        if (std::get<0>(off.second)=="Block")errs()<<"END WATCH\n";
+        DEBUG(dbgs() << printinfo<< "offset : " << off.first << "\n");
+        DEBUG(dbgs() << printinfo<< "name : " << std::get<0>(off.second) << "\n");
+        if (std::get<0>(off.second)=="Block") DEBUG(dbgs()<<"END WATCH\n");
     }
 }
 
@@ -244,16 +244,16 @@ bool DSAGenerator::runOnModule(Module &M) {
         for (Argument &arg : F->args()) {
             if (arg.getType()->isPointerTy()) {
                 std::string structName;
-                errs()<<printinfo << "arg.getArgNo(){ "<<arg.getArgNo()<<" }\n";
-                errs() << printinfo<<"CALL getArgFieldNames on line 521 with these parameters:\n";
-                errs() << printinfo<<"F, s.t F.getName() = "<<F->getName()<<"\n";
-                errs() << printinfo<<"arg.getArgNo() + 1 = "<<arg.getArgNo() + 1<<"\n";
-                errs() << printinfo<<"arg.getName() = "<<arg.getName()<<"\n";
+                DEBUG(dbgs()<<printinfo << "arg.getArgNo(){ "<<arg.getArgNo()<<" }\n");
+                DEBUG(dbgs() << printinfo<<"CALL getArgFieldNames on line 521 with these parameters:\n");
+                DEBUG(dbgs() << printinfo<<"F, s.t F.getName() = "<<F->getName()<<"\n");
+                DEBUG(dbgs() << printinfo<<"arg.getArgNo() + 1 = "<<arg.getArgNo() + 1<<"\n");
+                DEBUG(dbgs() << printinfo<<"arg.getName() = "<<arg.getName()<<"\n");
                 offsetNames of = getArgFieldNames(F, arg.getArgNo() + 1, arg.getName(), structName);
                 //funcArgOffsetMap[F] = of;
                 argNoToFieldNames[arg.getArgNo()] = of;
-                errs() << printinfo<< "structName = " << structName <<"\n";
-                errs() << printinfo<<"CALL dumpOffsetNames on line 523\n";
+                DEBUG(dbgs() << printinfo<< "structName = " << structName <<"\n");
+                DEBUG(dbgs() << printinfo<<"CALL dumpOffsetNames on line 523\n");
                 //dumpOffsetNames(of);
             }
         }

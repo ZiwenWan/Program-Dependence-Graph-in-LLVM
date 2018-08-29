@@ -50,7 +50,9 @@ namespace pdg {
 
         void collectCallInstDependency(llvm::Instruction *inst);
 
-        std::vector<Instruction *> getDependencyInFunction(Instruction *pLoadInst);
+        void collectImplicitRAWDepList(llvm::Instruction *pLoadInst);
+
+        std::vector<llvm::Instruction *> getRAWDepList(llvm::Instruction *pLoadInst);
 
         void collectRAWDependency(llvm::Instruction *inst);
 
