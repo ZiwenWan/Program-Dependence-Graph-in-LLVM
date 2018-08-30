@@ -443,14 +443,16 @@ int pdg::ProgramDependencyGraph::connectCallerAndCallee(InstructionWrapper *Inst
 }
 
 std::vector<std::pair<pdg::InstructionWrapper *, pdg::InstructionWrapper *>>
-pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(
-    ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator formal_in_TI) {
-
+pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator formal_in_TI) {
   std::set<llvm::Function *> seen_funcs;
-  // find all GEP elements, including GEP in nested call through function call
+  // find all GEP elements, including GEP in nested call through function call. Avoid repeat function
   std::set<InstructionWrapper *> RelevantGEPList = getAllRelevantGEP(argW->getArg(), seen_funcs);
+  seen_funcs.clear();
+
   std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> treeNodeGepPairs;
   for (auto GEPInstW : RelevantGEPList) {
+    errs() << "[" << GEPInstW->getInstruction()->getFunction()->getName() << "]";
+    errs() << *GEPInstW->getInstruction() << "\n";
     int operand_num = GEPInstW->getInstruction()->getNumOperands();
     llvm::Value *last_idx = GEPInstW->getInstruction()->getOperand(operand_num - 1);
 
@@ -481,13 +483,15 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(
       }
 
       // check the src type in GEP inst is equal to parent_type (GET FROM)
-      bool match = GEPSrcTy == parent_type;
+      bool match = (GEPSrcTy == parent_type);
       // check if the offset is equal
       int field_offset = (*formal_in_TI)->getFieldId();
       // if (field_idx+1 == relative_idx && GEPResTy == TreeNodeTy && match) {
       if (field_idx == field_offset && GEPResTy == TreeNodeTy && match) {
         // also add this GEP to the list of GEP that directly access
         // parameter.
+        errs() << "[" << GEPInstW->getInstruction()->getFunction()->getName() << "]";
+        errs() << *GEPInstW->getInstruction() << "\n";
         treeNodeGepPairs.push_back(std::make_pair(*instnodes.find(*formal_in_TI), GEPInstW));
       }
     }
@@ -506,10 +510,20 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(
     instWQueue.push(GEPInstW);
     seenInstW.insert(GEPInstW);
 
+    // actually, here only need to search one depth
     // find DDG relevant insts
+    // also search through parameter tree node.
+    // Some field may be read into a pointer first and then passed to a function
+    if (GEPInstW->getInstruction() == nullptr) {
+        return 0;
+    }
     while (!instWQueue.empty()) {
         InstructionWrapper *instW = instWQueue.front();
         instWQueue.pop();
+        llvm::Instruction *tmpInst = instW->getInstruction();
+        if (tmpInst != nullptr) {
+            errs() << *instW->getInstruction() << "\n";
+        }
         pdg::DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(instW);
         pdg::DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
 
@@ -545,22 +559,24 @@ void pdg::ProgramDependencyGraph::linkTypeNodeWithGEPInst(
     ArgumentWrapper *argW,
     tree<InstructionWrapper *>::iterator formal_in_TI) {
 
-  std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>>
-      treeNodeWithCorrespondGEP = getParameterTreeNodeWithCorrespondGEP(argW, formal_in_TI);
+  std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> treeNodeWithCorrespondGEP = getParameterTreeNodeWithCorrespondGEP(argW, formal_in_TI);
 
   for (auto node_gep_pair : treeNodeWithCorrespondGEP) {
     InstructionWrapper* typeNodeW = node_gep_pair.first;
     InstructionWrapper* gepNodeW = node_gep_pair.second;
     PDG->addDependency(typeNodeW, gepNodeW, STRUCT_FIELDS);
     typeNodeW->setVisited(true);
+
     //collecting R/W information 
 
+    // 1. test if is a GEP instruction
     if (!isa<llvm::GetElementPtrInst>(gepNodeW->getInstruction())) {
         continue;
     }
 
     int gepAccessType = getGEPOpType(gepNodeW);
     int old_type = typeNodeW->getAccessType();
+    
     if (gepAccessType < old_type) {
       continue; // if access info not changed, continue processing
     }
@@ -568,11 +584,11 @@ void pdg::ProgramDependencyGraph::linkTypeNodeWithGEPInst(
     typeNodeW->setAccessType(gepAccessType);
     // need to update all parent node's information
     auto parentIter = tree<InstructionWrapper *>::parent(formal_in_TI);
-    while (parentIter != nullptr) {
-      InstructionWrapper *parentInstW = (*parentIter);
-      parentInstW->setAccessType(gepAccessType);
-      parentIter = tree<InstructionWrapper *>::parent(parentIter);
-    }
+    // while (parentIter != nullptr) {
+    //   InstructionWrapper *parentInstW = (*parentIter);
+    //   parentInstW->setAccessType(gepAccessType);
+    //   parentIter = tree<InstructionWrapper *>::parent(parentIter);
+    // }
   }
 }
 
@@ -1272,12 +1288,6 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M) {
 
 std::set<pdg::InstructionWrapper *>
 pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llvm::Function *> seen_funcs) {
-  if (arg->getParent()->getName() == "reg_devops") {
-    //   errs() << "Start collecting Relevant GEP for func: " << arg->getParent()->getName() << "\n";
-    //   errs() << "For arg: " << arg->getArgNo() << "\n";
-    //   printArgumentDependentInsts(arg);
-  }
-
   std::queue<InstructionWrapper *> instQueue;
   std::set<InstructionWrapper *> seen_instW;
   std::set<InstructionWrapper *> relevantGEPs;

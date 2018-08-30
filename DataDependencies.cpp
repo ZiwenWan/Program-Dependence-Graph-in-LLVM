@@ -24,7 +24,7 @@ void pdg::DataDependencyGraph::collectDefUseDependency(llvm::Instruction *inst) 
   for (Instruction::const_op_iterator cuit = inst->op_begin();
        cuit != inst->op_end(); ++cuit) {
     if (Instruction *pInst = dyn_cast<Instruction>(*cuit)) {
-      //Value *tempV = dyn_cast<Value>(*cuit);
+      // add info flow from the instruction to current instruction
       DDG->addDependency(instMap[pInst], instMap[inst], DATA_DEF_USE);
     }
   }
@@ -116,6 +116,7 @@ void pdg::DataDependencyGraph::collectDataDependencyInFunc() {
     llvm::Instruction *pInstruction = dyn_cast<Instruction>(&*instIt);
     collectDefUseDependency(pInstruction);
     collectCallInstDependency(pInstruction);
+
     if (isa<llvm::LoadInst>(pInstruction)) {
       collectRAWDependency(pInstruction);
       collectNonLocalDependency(pInstruction);
