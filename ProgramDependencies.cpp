@@ -1115,9 +1115,12 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
   for (Module::iterator FF = M.begin(), E = M.end(); FF != E; ++FF) {
     DEBUG(dbgs() << "Module Size: " << M.size() << "\n");
     Function *F = dyn_cast<Function>(FF);
-    // if (funcList.find(F->getName()) == funcList.end()) {
-    //     continue;
-    // }
+
+#ifdef TEST_IDL 
+    if (funcList.find(F->getName()) == funcList.end()) {
+        continue;
+    }
+#endif
 
     if (F->isDeclaration()) {
       DEBUG(dbgs() << (*F).getName() << " is defined outside!"
@@ -1169,7 +1172,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
   // printSensitiveFunctions();
   // printArgUseInfo(M, funcList);
 
-  printParameterTreeForFunc(M);
+  printParameterTreeForFunc(M, funcList);
 
   cleanupGlobalVars();
   return false;
@@ -1178,19 +1181,27 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
 const StructLayout *
 pdg::ProgramDependencyGraph::getStructLayout(llvm::Module &M,
                                              InstructionWrapper *curTyNode) {
+
   DataLayout DL = M.getDataLayout();
   llvm::Type *curNodeTy = curTyNode->getFieldType();
 
+  // check if the pointer type is actually a struct pointer 
   PointerType *pt = dyn_cast<PointerType>(curNodeTy);
   if (curNodeTy->isPointerTy()) {
     if (!pt->getElementType()->isStructTy()) {
       return nullptr;
     }
+  } else {
+      // if current type is not pointer type, check if the current type is a strut type
+      if (!curNodeTy->isStructTy()) {
+          return nullptr;
+      }
   }
 
   StructType *st = nullptr;
 
   if (curNodeTy->isPointerTy()) {
+    // cast the pointed type to struct type.(we know it's a struct pointer at this point)
     st = dyn_cast<StructType>(pt->getElementType());
   } else {
     st = dyn_cast<StructType>(curNodeTy);
@@ -1200,73 +1211,92 @@ pdg::ProgramDependencyGraph::getStructLayout(llvm::Module &M,
   return StL;
 }
 
-void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M) {
+void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std::set<std::string> funcList) {
+    
   //typedef std::map<unsigned, std::pair<std::string, DIType *>> offsetNames;
   std::map<Function *, std::map<unsigned, DSAGenerator::offsetNames>> funcArgOffsetNames = getAnalysis<DSAGenerator>().getFuncArgOffsetNames();
 
   for (llvm::Function &func : M) {
-    if (func.isDeclaration()) {
-      continue;
+
+#ifdef TEST_IDL 
+    if (funcList.find(func.getName()) == funcList.end()) {
+        continue;
     }
+#endif
 
-    // get offset - name pair
-    //offsetNames funcOffsetNames = funcArgOffsetNames[&func];
-    std::map<unsigned, DSAGenerator::offsetNames> argsOffsetNames = funcArgOffsetNames[&func];
-    // traverse parameter tree, print access information and name for each field
-    FunctionWrapper *funcW = funcMap[&func];
-    errs() << "\n [For function: " << func.getName() << "] \n";
-    for (auto argW : funcW->getArgWList()) {
-      errs() << "Arg use information for arg no: " << argW->getArg()->getArgNo() << "\n";
-      DSAGenerator::offsetNames argOffsetNames = argsOffsetNames[argW->getArg()->getArgNo()];
-      for (auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
-           treeIter != argW->getTree(FORMAL_IN_TREE).end(); ++treeIter) {
-        int prev_offset = 0;
-        int accumulate_offset = 0;
-        int curDepth = 0;
-        int tmpDepth = argW->getTree(FORMAL_IN_TREE).depth(treeIter);
-        // make sure we are fetching the code at the same level in the
-        // parameter tree
-        if (tmpDepth != curDepth) {
-          // updating the depth to the new level
-          curDepth = tmpDepth;
-          prev_offset += accumulate_offset;
-          accumulate_offset = 0;
-        }
-
-        InstructionWrapper *curTyNode = *treeIter;
-        llvm::Type *parentType = curTyNode->getParentType();
-
-        // for each node in parameter tree, check its' parent type
-        if (parentType != nullptr) {
-          DEBUG(dbgs() << "Parent Type: " << curTyNode->getParentType()->getTypeID() << "\n");
-        } else {
-          errs() << "** Root type node **" << "\n";
-          errs() << "field name: " << argOffsetNames[0].first << "\n";
-          errs() << "Visited status: " << curTyNode->getVisited() << "\n";
-          errs() << "Visited Type: " << curTyNode->getAccessType() << "\n";
+      if (func.isDeclaration())
+      {
           continue;
-        }
-
-        auto parentIter = tree<InstructionWrapper *>::parent(treeIter);
-        if (parentType->isPointerTy()) {
-          const StructLayout *stLayout = getStructLayout(M, *parentIter);
-          if (stLayout == nullptr) {
-            errs() << "Struct Layout is nullptr. Continue" << "\n";
-            continue;
-          }
-
-          // field offset relative to parent
-          int offset = stLayout->getElementOffset(curTyNode->getFieldId());
-          errs() << "sub field name: " << argOffsetNames[prev_offset + offset].first << "\n";
-          errs() << "Visit status: " << curTyNode->getVisited() << "\n";
-          errs() << "Visited Type: " << curTyNode->getAccessType() << "\n";
-          if (tmpDepth == curDepth) {
-            accumulate_offset = offset;
-          }
-        }
-        errs() << "..................................................\n";
       }
-    }
+      // get offset - name pair
+      std::map<unsigned, DSAGenerator::offsetNames> argsOffsetNames = funcArgOffsetNames[&func];
+      // traverse parameter tree, print access information and name for each field
+      FunctionWrapper *funcW = funcMap[&func];
+      errs() << "\n [For function: " << func.getName() << "] \n";
+      for (auto argW : funcW->getArgWList())
+      {
+          errs() << "Arg use information for arg no: " << argW->getArg()->getArgNo() << "\n";
+          DSAGenerator::offsetNames argOffsetNames = argsOffsetNames[argW->getArg()->getArgNo()];
+          for (auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
+               treeIter != argW->getTree(FORMAL_IN_TREE).end(); ++treeIter)
+          {
+              int prev_offset = 0;
+              int accumulate_offset = 0;
+              int curDepth = 0;
+              int tmpDepth = argW->getTree(FORMAL_IN_TREE).depth(treeIter);
+              // make sure we are fetching the code at the same level in the
+              // parameter tree
+              if (tmpDepth != curDepth)
+              {
+                  // updating the depth to the new level
+                  curDepth = tmpDepth;
+                  prev_offset += accumulate_offset;
+                  accumulate_offset = 0;
+              }
+
+              InstructionWrapper *curTyNode = *treeIter;
+              llvm::Type *parentType = curTyNode->getParentType();
+
+              // for each node in parameter tree, check its' parent type
+              if (parentType != nullptr)
+              {
+                  DEBUG(dbgs() << "Parent Type: " << curTyNode->getParentType()->getTypeID() << "\n");
+              }
+              else
+              {
+                  errs() << "** Root type node **"
+                         << "\n";
+                  errs() << "field name: " << argOffsetNames[0].first << "\n";
+                  errs() << "Visited status: " << curTyNode->getVisited() << "\n";
+                  errs() << "Visited Type: " << curTyNode->getAccessType() << "\n";
+                  continue;
+              }
+
+              auto parentIter = tree<InstructionWrapper *>::parent(treeIter);
+              
+              if (parentType->isPointerTy())
+              {
+                  const StructLayout *stLayout = getStructLayout(M, *parentIter);
+                  if (stLayout == nullptr)
+                  {
+                      errs() << "Struct Layout is nullptr. Continue"
+                             << "\n";
+                      continue;
+                  }
+
+                  // field offset relative to parent
+                  int offset = stLayout->getElementOffset(curTyNode->getFieldId());
+                  errs() << "sub field name: " << argOffsetNames[prev_offset + offset].first << "\n";
+                  errs() << "Visit status: " << curTyNode->getVisited() << "\n";
+                  errs() << "Visited Type: " << curTyNode->getAccessType() << "\n";
+                  if (tmpDepth == curDepth)
+                  {
+                      accumulate_offset = offset;
+                  }
+              }
+              errs() << "..................................................\n";
+          }
+      }
   }
 }
 

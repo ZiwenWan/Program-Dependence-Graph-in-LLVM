@@ -82,10 +82,6 @@ namespace pdg {
 
         std::set<pdg::InstructionWrapper *> getAllRelevantGEP(llvm::Argument *arg, std::set<llvm::Function *> seen_funcs);
 
-        void printParameterTreeForFunc(llvm::Module &M);
-
-        void printArgUseInfo(llvm::Module &M, std::set<std::string> funcNameList);
-
         void collectGlobalInstList();
 
         void categorizeInstInFunc(llvm::Function *func);
@@ -105,6 +101,10 @@ namespace pdg {
         ArgUseInfoMap initializeArgUseMapForAllFuncs(llvm::Module &M);
 
         std::map<std::string, bool> getArgUseInfoMap(llvm::Function &func);
+
+        void printParameterTreeForFunc(llvm::Module &M, std::set<std::string> funcList);
+
+        void printArgUseInfo(llvm::Module &M, std::set<std::string> funcNameList);
 
         void printArgumentDependentInsts(llvm::Argument *arg);
 
