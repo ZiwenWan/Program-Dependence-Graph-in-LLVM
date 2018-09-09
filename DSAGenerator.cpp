@@ -1,4 +1,5 @@
 #include "DSAGenerator.h"
+#include <vector>
 
 using namespace llvm;
 

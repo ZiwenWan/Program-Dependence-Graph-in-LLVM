@@ -11,7 +11,6 @@ using namespace std;
 char pdg::ProgramDependencyGraph::ID = 0;
 
 static std::set<Type*> recursive_types;
-//static std::set<Type*> unseparated_types;
 
 tree<pdg::InstructionWrapper*>::iterator pdg::ProgramDependencyGraph::getInstInsertLoc(pdg::ArgumentWrapper *argW, TypeWrapper *tyW, TreeType treeTy) {
     tree<pdg::InstructionWrapper*>::iterator insert_loc;
@@ -209,9 +208,9 @@ void pdg::ProgramDependencyGraph::buildFormalParameterTrees(llvm::Function *call
     DEBUG(dbgs() << "Function: " << callee->getName() << " " << *callee->getFunctionType() << "\n");
     // errs() << "Function: " << callee->getName() << " " << *callee->getFunctionType() << "\n";
 
+    int field_pos = 0;
     for(; argI != argE; ++argI){
-        int field_pos = 0;
-        buildFormalTree((*argI)->getArg(), FORMAL_IN_TREE, field_pos++);
+        buildFormalTree((*argI)->getArg(), FORMAL_IN_TREE, field_pos);
         DEBUG(dbgs() << " F formalInTree size = " << (*argI)->getTree(FORMAL_IN_TREE).size() << "&&\n");
         //we use this copy way just for saving time for the tree construction
         (*argI)->copyTree((*argI)->getTree(FORMAL_IN_TREE), FORMAL_OUT_TREE);
@@ -537,7 +536,7 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(ArgumentWrapp
           seenInstW.insert(DNodeW2);
 
           if (DNodeW2->getInstruction() == nullptr) {
-            errs() << "Type Node" << "\n";
+            DEBUG(dbgs() << "Type Node" << "\n");
             continue;
           }
 
@@ -1108,6 +1107,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
 
   DEBUG(dbgs() << "ProgramDependencyGraph::runOnModule" << '\n');
   module = &M;
+
   constructFuncMap(M);
   collectGlobalInstList();
   int funcs = 0;
@@ -1116,11 +1116,11 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
     DEBUG(dbgs() << "Module Size: " << M.size() << "\n");
     Function *F = dyn_cast<Function>(FF);
 
-#ifdef TEST_IDL 
-    if (funcList.find(F->getName()) == funcList.end()) {
-        continue;
-    }
-#endif
+// #ifdef TEST_IDL 
+//     if (funcList.find(F->getName()) == funcList.end()) {
+//         continue;
+//     }
+//#endif
 
     if (F->isDeclaration()) {
       DEBUG(dbgs() << (*F).getName() << " is defined outside!"
@@ -1147,7 +1147,6 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
         continue;
       }
     }
-
   }   // end for(Module...
 
   for (Module::iterator FF = M.begin(); FF != M.end(); ++FF) {
@@ -1185,23 +1184,22 @@ pdg::ProgramDependencyGraph::getStructLayout(llvm::Module &M,
   DataLayout DL = M.getDataLayout();
   llvm::Type *curNodeTy = curTyNode->getFieldType();
 
-  // check if the pointer type is actually a struct pointer 
+  // the parent must be struct pointer type or struct type.
   PointerType *pt = dyn_cast<PointerType>(curNodeTy);
   if (curNodeTy->isPointerTy()) {
     if (!pt->getElementType()->isStructTy()) {
       return nullptr;
     }
   } else {
-      // if current type is not pointer type, check if the current type is a strut type
       if (!curNodeTy->isStructTy()) {
           return nullptr;
       }
   }
-
+    
   StructType *st = nullptr;
 
   if (curNodeTy->isPointerTy()) {
-    // cast the pointed type to struct type.(we know it's a struct pointer at this point)
+    // cast the pointer type to struct type.(we know it's a struct pointer at this point)
     st = dyn_cast<StructType>(pt->getElementType());
   } else {
     st = dyn_cast<StructType>(curNodeTy);
@@ -1212,7 +1210,6 @@ pdg::ProgramDependencyGraph::getStructLayout(llvm::Module &M,
 }
 
 void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std::set<std::string> funcList) {
-    
   //typedef std::map<unsigned, std::pair<std::string, DIType *>> offsetNames;
   std::map<Function *, std::map<unsigned, DSAGenerator::offsetNames>> funcArgOffsetNames = getAnalysis<DSAGenerator>().getFuncArgOffsetNames();
 
@@ -1240,8 +1237,8 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
           for (auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
                treeIter != argW->getTree(FORMAL_IN_TREE).end(); ++treeIter)
           {
-              int prev_offset = 0;
-              int accumulate_offset = 0;
+              uint64_t prev_offset = 0;
+              uint64_t accumulate_offset = 0;
               int curDepth = 0;
               int tmpDepth = argW->getTree(FORMAL_IN_TREE).depth(treeIter);
               // make sure we are fetching the code at the same level in the
@@ -1266,8 +1263,6 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
               {
                   errs() << "** Root type node **"
                          << "\n";
-                  errs() << "field name: " << argOffsetNames[0].first << "\n";
-                  errs() << "Visited status: " << curTyNode->getVisited() << "\n";
                   errs() << "Visited Type: " << curTyNode->getAccessType() << "\n";
                   continue;
               }
@@ -1283,11 +1278,15 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
                              << "\n";
                       continue;
                   }
-
+        
+                  uint64_t offset = 0;
                   // field offset relative to parent
-                  int offset = stLayout->getElementOffset(curTyNode->getFieldId());
+                  // TODO: one problem here is that when getElementOffset is fed with index of 0, we get wrong offset. So, need to manully check if the fed index is 0. 
+                  if (curTyNode->getFieldId() != 0) {
+                      offset = stLayout->getElementOffset((unsigned)curTyNode->getFieldId());
+                  }
+                  errs() << "Offset: " << offset << "\n";
                   errs() << "sub field name: " << argOffsetNames[prev_offset + offset].first << "\n";
-                  errs() << "Visit status: " << curTyNode->getVisited() << "\n";
                   errs() << "Visited Type: " << curTyNode->getAccessType() << "\n";
                   if (tmpDepth == curDepth)
                   {
@@ -1367,7 +1366,7 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llv
       }
 
       if (llvm::CallInst *call_inst = dyn_cast<llvm::CallInst>(adjacentInst)) {
-        errs() << *adjacentInst << "\n";
+        DEBUG(dbgs() << *adjacentInst << "\n");
         if (isa<llvm::DbgDeclareInst>(call_inst)) {
             continue;
         }

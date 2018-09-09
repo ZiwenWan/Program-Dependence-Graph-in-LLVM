@@ -125,7 +125,7 @@ namespace pdg{
             this->field_type = field_type;
             this->field_id = field_id;
             this->BB = nullptr;
-            this->parent_type = parent_type;
+            this->parent_type = nullptr;
             this->Inst = inst;
             // changed by shen
             this->value = arg;
@@ -218,7 +218,7 @@ namespace pdg{
             this->Func = Func;
             this->type = type;
             this->BB = nullptr;
-            this->Inst = Inst;
+            this->Inst = nullptr;
             this->value = Inst; // changed from nullptr to Inst, 12.14
             this->arg = nullptr;
             this->field_id = field_id;
