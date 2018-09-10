@@ -1177,10 +1177,37 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
   return false;
 }
 
+unsigned pdg::ProgramDependencyGraph::getStructElementNum(llvm::Module &M, InstructionWrapper *curTyNode) {
+  DataLayout DL = M.getDataLayout();
+  llvm::Type *curNodeTy = curTyNode->getFieldType();
+
+  // the parent must be struct pointer type or struct type.
+  PointerType *pt = dyn_cast<PointerType>(curNodeTy);
+  if (curNodeTy->isPointerTy()) {
+    if (!pt->getElementType()->isStructTy()) {
+      return -1;
+    }
+  } else {
+      if (!curNodeTy->isStructTy()) {
+          return -1;
+      }
+  }
+    
+  StructType *st = nullptr;
+
+  if (curNodeTy->isPointerTy()) {
+    // cast the pointer type to struct type.(we know it's a struct pointer at this point)
+    st = dyn_cast<StructType>(pt->getElementType());
+  } else {
+    st = dyn_cast<StructType>(curNodeTy);
+  }
+
+    return st->getNumElements();
+}
+
 const StructLayout *
 pdg::ProgramDependencyGraph::getStructLayout(llvm::Module &M,
                                              InstructionWrapper *curTyNode) {
-
   DataLayout DL = M.getDataLayout();
   llvm::Type *curNodeTy = curTyNode->getFieldType();
 
@@ -1208,6 +1235,7 @@ pdg::ProgramDependencyGraph::getStructLayout(llvm::Module &M,
   const StructLayout *StL = DL.getStructLayout(st);
   return StL;
 }
+
 
 void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std::set<std::string> funcList) {
   //typedef std::map<unsigned, std::pair<std::string, DIType *>> offsetNames;
@@ -1272,20 +1300,30 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
               if (parentType->isPointerTy())
               {
                   const StructLayout *stLayout = getStructLayout(M, *parentIter);
+                  unsigned numEle = getStructElementNum(M, *parentIter);
+                  
                   if (stLayout == nullptr)
                   {
                       errs() << "Struct Layout is nullptr. Continue"
                              << "\n";
                       continue;
                   }
-        
+
+                  if (curTyNode->getFieldId() < 0) {
+                    break;
+                  }
+
+                  if (curTyNode->getFieldId() >= numEle) {
+                    break;
+                  }
+
                   uint64_t offset = 0;
                   // field offset relative to parent
-                  // TODO: one problem here is that when getElementOffset is fed with index of 0, we get wrong offset. So, need to manully check if the fed index is 0. 
+                  // TODO: one problem here is that when getElementOffset is fed with index of 0, we get wrong offset. 
+                  // So, need to manully check if the fed index is 0. 
                   if (curTyNode->getFieldId() != 0) {
-                      offset = stLayout->getElementOffset((unsigned)curTyNode->getFieldId());
+                      offset = stLayout->getElementOffset(curTyNode->getFieldId());
                   }
-                  errs() << "Offset: " << offset << "\n";
                   errs() << "sub field name: " << argOffsetNames[prev_offset + offset].first << "\n";
                   errs() << "Visited Type: " << curTyNode->getAccessType() << "\n";
                   if (tmpDepth == curDepth)

@@ -75,9 +75,9 @@ namespace pdg {
 
         int connectCallerAndCallee(InstructionWrapper *CInstW, llvm::Function *callee);
 
-        const StructLayout* getStructLayout(llvm::Module &M, InstructionWrapper *curTyNode);
+        unsigned getStructElementNum(llvm::Module &M, InstructionWrapper *curTyNode);
 
-        void printArgUseInfoWithRecursiveFunc(llvm::Function *func);
+        const StructLayout* getStructLayout(llvm::Module &M, InstructionWrapper *curTyNode);
 
         std::set<pdg::InstructionWrapper *> getAllRelevantGEP(llvm::Argument *arg, std::set<llvm::Function *> seen_funcs);
 

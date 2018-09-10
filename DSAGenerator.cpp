@@ -233,11 +233,11 @@ bool DSAGenerator::runOnModule(Module &M) {
         // collect dgb inst for
         Function *F = dyn_cast<Function>(FF);
 
-#ifdef TEST_IDL 
-        if (funcList.find(F->getName()) == funcList.end()) {
-            continue;
-        }
-#endif
+// #ifdef TEST_IDL 
+//         if (funcList.find(F->getName()) == funcList.end()) {
+//             continue;
+//         }
+// #endif
 
         if (F->isDeclaration()) {
             continue;

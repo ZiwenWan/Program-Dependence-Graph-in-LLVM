@@ -84,7 +84,7 @@ static void dev2_open(struct device *dev){
 
 static struct device dev2 = {
         .name   = "device_2",
-        .open   = dev1_open,
+        .open   = dev2_open,
 };
 /***********************************/
 
