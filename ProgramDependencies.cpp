@@ -582,7 +582,7 @@ void pdg::ProgramDependencyGraph::linkTypeNodeWithGEPInst(
 
     typeNodeW->setAccessType(gepAccessType);
     // need to update all parent node's information
-    auto parentIter = tree<InstructionWrapper *>::parent(formal_in_TI);
+    // auto parentIter = tree<InstructionWrapper *>::parent(formal_in_TI);
     // while (parentIter != nullptr) {
     //   InstructionWrapper *parentInstW = (*parentIter);
     //   parentInstW->setAccessType(gepAccessType);
@@ -674,7 +674,33 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(llvm::Function *
     } // end for arg iteration...
 }
 
-bool pdg::ProgramDependencyGraph::ifFuncTypeMatch(llvm::FunctionType *funcTy, llvm::FunctionType *indirectFuncCallTy) {
+bool pdg::ProgramDependencyGraph::isArgTypeMatchOrContain(llvm::Argument *arg1, llvm::Argument *arg2) {
+    llvm::Type *arg1_type = arg1->getType();
+    llvm::Type *arg2_type = arg2->getType();
+
+    if (arg1_type == arg2_type) {
+        return true;
+    }
+
+    // incase a struct pointer
+    if (arg1_type->isPointerTy()) {
+        arg1_type = (dyn_cast<llvm::PointerType>(arg1_type))->getElementType();
+    }
+
+    if (arg1_type->isStructTy()) {
+        if (llvm::StructType *st = dyn_cast<llvm::StructType>(arg1_type)) {
+            for (unsigned i = 0; i < st->getNumElements(); ++i) {
+                if (st->getElementType(i) == arg2_type) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+bool pdg::ProgramDependencyGraph::isFuncTypeMatch(llvm::FunctionType *funcTy, llvm::FunctionType *indirectFuncCallTy) {
     if (funcTy->getNumParams() != indirectFuncCallTy->getNumParams()) {
         return false;
     }
@@ -711,7 +737,7 @@ std::vector<llvm::Function *> pdg::ProgramDependencyGraph::collectIndirectCallCa
         }
         
         // compare the indirect call function type with each function
-        if (ifFuncTypeMatch(curFuncType, funcType)) {
+        if (isFuncTypeMatch(curFuncType, funcType)) {
         //    errs() << "Current Function Name: " << curFunc->getName() << "\n";
         //    errs() << "Current Func Type: " << *curFuncType << "\n";
         //    errs() << "CmpFuncType: " << *funcType << "\n";
@@ -1419,7 +1445,8 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llv
           for (llvm::Function *indirectCallCandidate : indirectCallCandidates) {
               for (auto argIter = indirectCallCandidate->arg_begin(); argIter != indirectCallCandidate->arg_end(); ++argIter) {
                   llvm::Argument *tmp_arg = &*argIter;
-                  if (tmp_arg->getType() == arg->getType()) {
+                  // TODO: implement a better parameter matching algorithm
+                  if (isArgTypeMatchOrContain(arg, tmp_arg)) {
                       std::set<InstructionWrapper *> tmp_geps = getAllRelevantGEP(tmp_arg, seen_funcs);
                       relevantGEPs.insert(tmp_geps.begin(), tmp_geps.end());
                   }
@@ -1429,7 +1456,7 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llv
           // direct call
           for (auto argIter = callee->arg_begin(); argIter != callee->arg_end(); ++argIter) {
               llvm::Argument *tmp_arg = &*argIter;
-              if (tmp_arg->getType() == arg->getType()) {
+              if (isArgTypeMatchOrContain(arg, tmp_arg)) {
                 // here decide which arg of call instruction should be tracked
                 std::set<InstructionWrapper *> tmp_geps = getAllRelevantGEP(tmp_arg, seen_funcs);
                 relevantGEPs.insert(tmp_geps.begin(), tmp_geps.end());
@@ -1504,6 +1531,7 @@ void pdg::ProgramDependencyGraph::printArgUseInfo(
                    << "\n";
             continue;
           }
+
           int offset = stLayout->getElementOffset(curTyNode->getFieldId());
           errs() << printinfo
                  << "sub field: " << argOffsetNames[prev_offset + offset].first

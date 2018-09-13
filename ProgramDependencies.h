@@ -94,7 +94,9 @@ namespace pdg {
 
         bool addNodeDependencies(InstructionWrapper *instW1);
 
-        bool ifFuncTypeMatch(FunctionType *funcTy, FunctionType *indirectFuncCallTy);
+        bool isArgTypeMatchOrContain(llvm::Argument *arg1, llvm::Argument *arg2);
+
+        bool isFuncTypeMatch(FunctionType *funcTy, FunctionType *indirectFuncCallTy);
 
         // --- get arg use information using worklist algorithm
         ArgUseInfoMap initializeArgUseMapForAllFuncs(llvm::Module &M);
