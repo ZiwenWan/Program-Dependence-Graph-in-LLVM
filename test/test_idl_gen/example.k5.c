@@ -71,7 +71,7 @@ struct device * lookup_device(char * search_name)
 
 /*************Device 1**************/
 static void dev1_open(struct device *dev){
-    device_reset(&dev->devop_init_registered);
+	dev->devop_init_registered = 1;
 }
 
 static struct device dev1 = {
@@ -98,6 +98,7 @@ int main() {
     printf("Add device to the list:\n");
     register_device(&dev1);
     register_device(&dev2);
+    device_reset(&dev1.devop_init_registered);
 
     dev = lookup_device("device_1");
     open(dev);
