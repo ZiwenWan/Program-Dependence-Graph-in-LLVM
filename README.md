@@ -11,7 +11,7 @@ The program dependency is consisted of two part
 Control Dependency Graph is built based on the PostDominantTree Pass in LLVM. 
 
 ## Data Dependency Graph
-Data Dependency Graph is consisted of Def-use chain and flow dependency analysis. 
+Data Dependency Graph consists of def-use chain and flow dependency analysis. 
 Currently, the flow dependency analysis module has not been upgraded.  
 
 ## How to use
