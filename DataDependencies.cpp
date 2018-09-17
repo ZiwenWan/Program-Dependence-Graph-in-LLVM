@@ -40,7 +40,7 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
   std::vector<Instruction *> _flowdep_set;
   std::list<StoreInst *> StoreVec = funcMap[func]->getStoreInstList();
   // for each Load Instruction, find related Store Instructions(alias considered)
-  LoadInst *LI = dyn_cast<LoadInst>(pLoadInst);
+  LoadInst* LI = dyn_cast<LoadInst>(pLoadInst);
 
   MemoryLocation LI_Loc = MemoryLocation::get(LI);
 //  for (int j = 0; j < StoreVec.size(); j++) {
@@ -57,8 +57,8 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
 
 void pdg::DataDependencyGraph::collectImplicitRAWDepList(llvm::Instruction *inst) {
   llvm::StoreInst *SI = dyn_cast<llvm::StoreInst>(inst);
+  // get the destination value
   Value *storeTo = SI->getOperand(1); 
-  
   for (auto user : storeTo->users())
   {
     if (llvm::Instruction *tmpInst = dyn_cast<llvm::Instruction>(user))

@@ -18,14 +18,6 @@
 #include "llvm/Support/raw_ostream.h"
 
 namespace pdg {
-//    llvm::ModRefInfo GetLocation(const llvm::Instruction *Inst,
-//                                        llvm::MemoryLocation &Loc,
-//                                        llvm::AliasAnalysis *AA);
-//
-//    llvm::ModRefInfo GetLocation(const llvm::Instruction *Inst,
-//                                 llvm::MemoryLocation &Loc,
-//                                 llvm::AliasAnalysis *AA);
-
     typedef DependencyGraph<InstructionWrapper> DataDepGraph;
 
     static std::vector<InstructionWrapper *> gp_list;
@@ -67,7 +59,6 @@ namespace pdg {
         virtual llvm::StringRef getPassName() const {
             return "Data Dependency Graph";
         }
-
 
         virtual void print(llvm::raw_ostream &OS, const llvm::Module *M = 0) const;
 

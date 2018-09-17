@@ -47,6 +47,8 @@ namespace pdg {
 
         tree<InstructionWrapper*>::iterator getInstInsertLoc(ArgumentWrapper *argW, TypeWrapper *tyW, TreeType treeType);
 
+        bool isBasicTypeOrPtr(Type* ty);
+
         void insertArgToTree(TypeWrapper *tyW, ArgumentWrapper *pArgW, TreeType treeTy, tree<InstructionWrapper*>::iterator insertLoc);
 
         int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, int field_pos );
@@ -66,6 +68,10 @@ namespace pdg {
         void drawDependencyTree(Function *func);
 
         std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> getParameterTreeNodeWithCorrespondGEP(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator formal_in_TI);
+
+        InstructionWrapper* getStartStoreInst(llvm::Argument *arg);
+
+        int getArgOpType(llvm::Argument *arg);
 
         int getGEPOpType(InstructionWrapper *GEPInstW);
 
