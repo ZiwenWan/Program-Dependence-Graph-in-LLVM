@@ -509,7 +509,7 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(ArgumentWrapp
   return treeNodeGepPairs;
 }
 
-pdg::InstructionWrapper* pdg::ProgramDependencyGraph::getStartStoreInst(llvm::Argument *arg)
+pdg::InstructionWrapper* pdg::ProgramDependencyGraph::getInitialStoreInst(llvm::Argument *arg)
 {
     for (auto userIter = arg->user_begin(); userIter != arg->user_end(); ++userIter) {
         if (llvm::StoreInst *st = dyn_cast<StoreInst>(*userIter)) {
@@ -521,7 +521,7 @@ pdg::InstructionWrapper* pdg::ProgramDependencyGraph::getStartStoreInst(llvm::Ar
 
 int pdg::ProgramDependencyGraph::getArgOpType(llvm::Argument *arg)
 {
-    InstructionWrapper *start_stW = getStartStoreInst(arg);
+    InstructionWrapper *start_stW = instMap[getArgStoreInst(arg)];
     if (start_stW == nullptr) {
         errs() << "Cannot find start stored inst";
         return AccessType::NOACCESS;
@@ -564,8 +564,7 @@ int pdg::ProgramDependencyGraph::getArgOpType(llvm::Argument *arg)
     return AccessType::NOACCESS;
 }
 
-// determine whether the GEP instruction is used by a load/store instruction
-// later.
+// determine whether the GEP instruction is used by a load/store instruction later.
 int pdg::ProgramDependencyGraph::getGEPOpType(InstructionWrapper *GEPInstW)
 {
     // by default, set the GEP as not access
@@ -645,14 +644,15 @@ void pdg::ProgramDependencyGraph::linkTypeNodeWithGEPInst(
         continue;
     }
 
-    int gepAccessType = getGEPOpType(gepNodeW);
-    int old_type = typeNodeW->getAccessType();
+    // int gepAccessType = getGEPOpType(gepNodeW);
+    // int old_type = typeNodeW->getAccessType();
     
-    if (gepAccessType < old_type) {
-      continue; // if access info not changed, continue processing
-    }
+    // if (gepAccessType < old_type) {
+    //     // if access info not changed, continue processing
+    //     continue; 
+    // }
 
-    typeNodeW->setAccessType(gepAccessType);
+    // typeNodeW->setAccessType(gepAccessType);
     // need to update all parent node's information
     // auto parentIter = tree<InstructionWrapper *>::parent(formal_in_TI);
     // while (parentIter != nullptr) {
@@ -676,16 +676,14 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(llvm::Function *
         InstructionWrapper *formal_outW = *(*argI)->getTree(FORMAL_OUT_TREE).begin();
 
         // connect Function's EntryNode with formal in/out tree roots
-        // PDG->addDependency(funcMap[callee]->getEntry(), *instnodes.find(formal_inW), PARAMETER);
-        // PDG->addDependency(funcMap[callee]->getEntry(), *instnodes.find(formal_outW), PARAMETER);
         PDG->addDependency(funcMap[callee]->getEntry(), formal_inW, PARAMETER);
         PDG->addDependency(funcMap[callee]->getEntry(), formal_outW, PARAMETER);
 
         // get R/W information for the argument
-        if (isBasicTypeOrPtr((*argI)->getArg()->getType())) {
-            int _access_type = getArgOpType((*argI)->getArg()); 
-            formal_inW->setAccessType(_access_type);
-        }
+        // if (isBasicTypeOrPtr((*argI)->getArg()->getType())) {
+        //     int _access_type = getArgOpType((*argI)->getArg()); 
+        //     formal_inW->setAccessType(_access_type);
+        // }
 
         // two things: (1) formal-in --> callee's Store; (2) callee's Load --> formal-out
         for (tree<InstructionWrapper *>::iterator
@@ -713,8 +711,7 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(llvm::Function *
                    userIter != (*argI)->getArg()->user_end(); ++userIter) {
                 if (llvm::Instruction *tmpInst =
                         dyn_cast<Instruction>(*userIter)) {
-                  PDG->addDependency(*instnodes.find(*formal_in_TI),
-                                     instMap[tmpInst], DATA_GENERAL);
+                  PDG->addDependency(*instnodes.find(*formal_in_TI), instMap[tmpInst], DATA_GENERAL);
                   (*formal_in_TI)->setVisited(true);
                 }
               }
@@ -1247,14 +1244,16 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
     ddg = &getAnalysis<DataDependencyGraph>(*F);
 
     // for each instruction, copy all ddg and cdg dependencies
-    for (std::set<InstructionWrapper *>::iterator nodeIt =
-             funcInstWList[F].begin();
-         nodeIt != funcInstWList[F].end(); ++nodeIt) {
-      InstructionWrapper *instW1 = *nodeIt;
-      if (!addNodeDependencies(instW1)) {
-        continue;
-      }
+    for (std::set<InstructionWrapper *>::iterator nodeIt = funcInstWList[F].begin();
+         nodeIt != funcInstWList[F].end(); ++nodeIt)
+    {
+        InstructionWrapper *instW1 = *nodeIt;
+        if (!addNodeDependencies(instW1))
+        {
+            continue;
+        }
     }
+
   }   // end for(Module...
 
   for (Module::iterator FF = M.begin(); FF != M.end(); ++FF) {
@@ -1266,11 +1265,12 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
       }
   }
 
-// calculate adding dependency time
-//   auto t1 = std::chrono::high_resolution_clock::now();
-//   auto t2 = std::chrono::high_resolution_clock::now();
-//   auto int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
-//   errs() << "Adding dependency time: " << int_ms.count() << "\n";
+  for (Module::iterator FF = M.begin(); FF != M.end(); ++FF) {
+      llvm::Function *F = dyn_cast<llvm::Function>(FF);
+      // after building all dependencies, also collect read/write information in function
+      getReadWriteInfo(F);
+  }
+
 
   DEBUG(dbgs() << "\n\n PDG construction completed! ^_^\n\n");
   DEBUG(dbgs() << "funcs = " << funcs << "\n");
@@ -1283,6 +1283,187 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
 
   cleanupGlobalVars();
   return false;
+}
+
+// functions for computing R/W info for each typenode.
+int pdg::ProgramDependencyGraph::getArgType(llvm::Argument *arg) {
+    llvm::Type *type = arg->getType();
+
+    if (!isa<PointerType>(type))
+    {
+        if (type->isSingleValueType())
+        {
+            return SINGLE_VALUE_TYPE;
+        }
+
+        if (type->isAggregateType())
+        {
+            return AGGREGATE_VALUE_TYPE;
+        }
+    }
+
+    if (PointerType *pt = dyn_cast<PointerType>(type)) {
+        type = pt->getElementType();
+        if (type->isSingleValueType())
+        {
+            return SINGLE_VALUE_PTR_TYPE;
+        }
+
+        if (type->isAggregateType())
+        {
+            return AGGREGATE_VALUE_PTR_TYPE;
+        }
+    }
+
+    return UNKNOWN_TYPE;
+}
+
+#if 0
+std::vector<InstructionWrapper*> pdg::ProgramDependencyGraph::getAllAlias(InstructionWrapper* instW) {
+    std::vector<InstructionWrapper*> equivalentInstWs;
+    std::queue<InstructionWrapper*> instWQueue;
+    instWQueue.push(instW);
+
+    while (!instWQueue.empty()) {
+        DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(instW);
+        DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
+        for (auto dependencyPair : dataDList) {
+            if (dependencyPair.second == DATA_RAW) {
+                // firstly get the load instruction has RAW with initial store inst
+                InstructionWrapper* depLoadInstW = dependencyPair.first;
+                // then search the store inst that use the load value as source type
+                // the store target of the store inst is the alias
+                DependencyNode<InstructionWrapper>::DependencyLinkList load_inst_dataDList = PDG->getNodeByData(depLoadInstW);
+                dataDList = dataDNode->getDependencyList();
+                for (auto load_inst_dep_pair : load_inst_dataDList) {
+                    InstructionWrapper* depInstW = load_inst_dep_pair.first;
+                    llvm::Instruction* depInst = depInstW->getInstruction();
+                    if (depInst != nullptr && isa<StoreInst>(depInst)) {
+                        equivalentInstWs.push(depInstW);                                                   
+                    }
+                }
+            }
+        }
+    }
+
+    return equivalentInstWs;
+}
+#endif
+
+void pdg::ProgramDependencyGraph::mergeTypeTree(tree<InstructionWrapper*>::iterator mergeTo, tree<InstructionWrapper*>::iterator mergeFrom) {
+
+}
+
+void pdg::ProgramDependencyGraph::mergeAsSubTree(tree<InstructionWrapper*>::iterator mergeTo, tree<InstructionWrapper*>::iterator mergeFrom) {
+
+}
+
+int pdg::ProgramDependencyGraph::getAccessTypeForInstW(InstructionWrapper* instW) {
+    DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(instW);
+    DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
+    int accessType = pdg::NOACCESS;
+    for (auto depPair : dataDList)
+    {
+        InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
+        int depType = depPair.second;
+        if (depType == DATA_READ_FROM_REV)
+        {
+            accessType = pdg::READ_FIELD;
+        }
+        if (depType == pdg::DATA_WRITE_TO_REV)
+        {
+            accessType = pdg::WRITE_FIELD;
+            break;
+        }
+    }
+
+    return accessType;
+}
+
+std::set<pdg::InstructionWrapper*> pdg::ProgramDependencyGraph::collectAliasInst(ArgumentWrapper* argW) {
+    // track value for the pointer typenode
+    Instruction *alloca_inst = getArgAllocaInst(argW->getArg());
+	InstructionWrapper *alloca_instW = instMap[alloca_inst];
+    Instruction *store_inst = getArgStoreInst(argW->getArg());
+    std::set<InstructionWrapper*> aliasInstWSet;
+    return aliasInstWSet;
+}
+
+void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper* argW) {
+    // here, our foucus is all gep instruction. 
+    // during connecting formal tree and function, the dependency between typenode and instructions
+    // are already built. In this function, we only need to detect intra function dependencies. 
+    // Therefore, we only look at the read/write for the GEP.
+    // start by iterating through the type tree. 
+    auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
+    for (; treeIter != argW->getTree(FORMAL_IN_TREE).end(); ++treeIter) {
+        // get typenode - gep pair
+        std::vector<std::pair<pdg::InstructionWrapper*, pdg::InstructionWrapper*>> tyNodeGEPPairs = getParameterTreeNodeWithCorrespondGEP(argW, treeIter);
+        for (auto tyNodeGEPPair : tyNodeGEPPairs)  {
+            InstructionWrapper* typeNodeW = tyNodeGEPPair.first;
+            InstructionWrapper* gepInstW = tyNodeGEPPair.second;
+            // get read/writ information for the GEP, and store to the typenode
+            int accessType = getAccessTypeForInstW(gepInstW);
+        }
+    }
+}
+
+void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *argW) {
+    Instruction *store_inst = getArgStoreInst(argW->getArg());
+    DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(instMap[store_inst]);
+    DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList(); 
+    std::set<InstructionWrapper*> aliasLoadInstWs;
+    for (auto DepPair : dataDList) {
+        if (DepPair.second == DATA_RAW) {
+            aliasLoadInstWs.insert(const_cast<InstructionWrapper*>(DepPair.first->getData()));
+        }
+    }
+
+    auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
+    int accessType = pdg::NOACCESS;
+
+    // collect Read/Write Info
+    for (InstructionWrapper* instW : aliasLoadInstWs) {
+        int _accessType = getAccessTypeForInstW(instW);
+        if (_accessType == pdg::READ_FIELD)
+        {
+            accessType = _accessType;
+        }
+        if (_accessType == pdg::WRITE_FIELD)
+        {
+            accessType = _accessType;
+            break;
+        }
+    }
+
+    (*treeIter)->setAccessType(accessType);
+    // formal in tree root
+    // ++treeIter; // move the iterator point to underlying buffer typenode
+
+    // actually, no need to track underlying buffer. The underlying buffer only means 
+    // value that is pointed to. It essentially a value. We are tracking memory, which
+    // is the pointer.
+}
+
+void pdg::ProgramDependencyGraph::getReadWriteInfo(Function *func)
+{
+
+    FunctionWrapper *funcW = funcMap[func];
+    for (ArgumentWrapper *argW : funcW->getArgWList())
+    {
+        int argType = getArgType(argW->getArg());
+        switch (argType)
+        {
+        case pdg::SINGLE_VALUE_PTR_TYPE:
+            getReadWriteInfoSingleValPtr(argW);
+            break;
+        case pdg::AGGREGATE_VALUE_PTR_TYPE:
+            getReadWriteInfoAggregatePtr(argW);
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 unsigned pdg::ProgramDependencyGraph::getStructElementNum(llvm::Module &M, InstructionWrapper *curTyNode) {
@@ -1445,22 +1626,6 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
   }
 }
 
-// void pdg::ProgramDependencyGraph::printArgUseInfoWithRecursiveFunc(llvm::Function *func) {
-//     for (auto argW : funcMap[func]->getArgWList()) { 
-//       std::set<InstructionWrapper *> relevantGEPs = getAllRelevantGEP(argW->getArg());
-//       for (auto treeIter = argW->getTree(FORMAL_IN_TREE).begin() ; treeIter != argW->getTree(FORMAL_IN_TREE).end(); ++treeIter) {
-//         std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> treeNodeWithCorrespondGEP = getParameterTreeNodeWithCorrespondGEP(relevantGEPs, treeIter);
-//         for (auto instWPair : treeNodeWithCorrespondGEP) {
-//             InstructionWrapper *typeNodeW = instWPair.first; 
-//             InstructionWrapper *gepInstW = instWPair.second;
-//             errs() << "-------------------------------\n";
-//             errs() << *(gepInstW->getInstruction()) << "\n";
-//             errs() << typeNodeW->getAccessType() << "\n"; 
-//         }
-//       }
-//     }
-// }
-
 std::set<pdg::InstructionWrapper *>
 pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llvm::Function *> seen_funcs) {
   std::queue<InstructionWrapper *> instQueue;
@@ -1508,11 +1673,13 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg, std::set<llv
 
       if (llvm::GetElementPtrInst *gepInst = dyn_cast<llvm::GetElementPtrInst>(adjacentInst)) {
         relevantGEPs.insert(adjacentInstW);
+        errs() << *adjacentInstW->getInstruction() << "\n";
         continue;
       }
 
       if (llvm::CallInst *call_inst = dyn_cast<llvm::CallInst>(adjacentInst)) {
         DEBUG(dbgs() << *adjacentInst << "\n");
+        errs() << *adjacentInst << "\n";
         if (isa<llvm::DbgDeclareInst>(call_inst)) {
             continue;
         }
@@ -1632,52 +1799,6 @@ void pdg::ProgramDependencyGraph::printArgUseInfo(
       errs() << "==================================================\n\n";
     }
   }
-}
-
-void pdg::ProgramDependencyGraph::printArgumentDependentInsts(llvm::Argument *arg)
-{
-    std::queue<InstructionWrapper *> instQueue;
-    std::set<InstructionWrapper *> seen_instW;
-    std::set<InstructionWrapper *> relevantGEPs;
-
-    // initialize queue
-    for (auto UB = arg->user_begin(); UB != arg->user_end(); ++UB)
-    {
-        if (llvm::Instruction *userInst = dyn_cast<llvm::Instruction>(*UB))
-        {
-            instQueue.push(instMap[userInst]);
-            seen_instW.insert(instMap[userInst]);
-        }
-    }
-
-    while (!instQueue.empty())
-    {
-        InstructionWrapper *curInstW = instQueue.front();
-        instQueue.pop();
-        DependencyNode<InstructionWrapper> *DNode = PDG->getNodeByData(curInstW);
-        for (int i = 0; i < DNode->getDependencyList().size(); i++)
-        {
-            InstructionWrapper *adjacentInstW = const_cast<InstructionWrapper *>(DNode->getDependencyList()[i].first->getData());
-
-            // if already seen this instructionW or the adjacentInstW is not valid(not encounter so far), skip
-            if (adjacentInstW == nullptr or seen_instW.find(adjacentInstW) != seen_instW.end())
-            {
-                continue;
-            }
-
-            llvm::Instruction *adjacentInst = adjacentInstW->getInstruction();
-
-            if (adjacentInst == nullptr)
-            {
-                continue;
-            }
-
-            errs() << *adjacentInst << "\n";
-            instQueue.push(adjacentInstW);
-            seen_instW.insert(adjacentInstW);
-        }
-    }
-
 }
 
 void pdg::ProgramDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const {

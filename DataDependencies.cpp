@@ -19,19 +19,39 @@ void pdg::DataDependencyGraph::constructFuncMapAndCreateFunctionEntry() {
   }
 }
 
+void pdg::DataDependencyGraph::collectReadFromDependency(llvm::Instruction *inst)
+{
+  if (LoadInst *li = dyn_cast<LoadInst>(inst))
+  {
+    if (Instruction *pInst = dyn_cast<Instruction>(li->getPointerOperand()))
+    {
+      DDG->addDependency(instMap[inst], instMap[pInst], DATA_READ_FROM);
+      DDG->addDependency(instMap[pInst], instMap[inst], DATA_READ_FROM_REV);
+    }
+  }
+}
+
 void pdg::DataDependencyGraph::collectDefUseDependency(llvm::Instruction *inst) {
   // check for def-use dependencies
   for (Instruction::const_op_iterator cuit = inst->op_begin();
        cuit != inst->op_end(); ++cuit) {
     if (Instruction *pInst = dyn_cast<Instruction>(*cuit)) {
       // add info flow from the instruction to current instruction
-      DDG->addDependency(instMap[pInst], instMap[inst], DATA_DEF_USE);
+        DDG->addDependency(instMap[pInst], instMap[inst], DATA_DEF_USE);
     }
   }
 }
 
 void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst) {
-  if(isa<CallInst>(inst)) {
+  if(CallInst* callInst = dyn_cast<CallInst>(inst)) {
+    for (auto arg_iter = callInst->arg_begin(); arg_iter != callInst->arg_end(); ++arg_iter)
+    {
+      if (Instruction *tmpInst = dyn_cast<Instruction>(&*arg_iter))
+      {
+        DDG->addDependency(instMap[tmpInst], instMap[inst], DATA_CALL_PARA); 
+        DDG->addDependency(instMap[inst], instMap[tmpInst], DATA_CALL_PARA_REV); 
+      }
+    }
     DEBUG(dbgs() << "This is a call Inst (DDG)" << "\n");
   }
 }
@@ -58,8 +78,16 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
 void pdg::DataDependencyGraph::collectImplicitRAWDepList(llvm::Instruction *inst) {
   llvm::StoreInst *SI = dyn_cast<llvm::StoreInst>(inst);
   // get the destination value
-  Value *storeTo = SI->getOperand(1); 
-  for (auto user : storeTo->users())
+  Value *storePtr = SI->getPointerOperand(); 
+  Value *storeVal = SI->getValueOperand();
+
+  Instruction* storePtrInst = dyn_cast<Instruction>(storePtr);
+  if (Instruction* storeValInst = dyn_cast<Instruction>(storeVal)) {
+    DDG->addDependency(instMap[storeValInst], instMap[storePtrInst], DATA_WRITE_TO);
+    DDG->addDependency(instMap[storePtrInst], instMap[storeValInst], DATA_WRITE_TO_REV);
+  } 
+
+  for (auto user : storePtr->users())
   {
     if (llvm::Instruction *tmpInst = dyn_cast<llvm::Instruction>(user))
     {
@@ -118,6 +146,7 @@ void pdg::DataDependencyGraph::collectDataDependencyInFunc() {
     collectCallInstDependency(pInstruction);
 
     if (isa<llvm::LoadInst>(pInstruction)) {
+      collectReadFromDependency(pInstruction);
       collectRAWDependency(pInstruction);
       collectNonLocalDependency(pInstruction);
     }

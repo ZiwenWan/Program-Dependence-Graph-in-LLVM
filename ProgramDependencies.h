@@ -69,7 +69,7 @@ namespace pdg {
 
         std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> getParameterTreeNodeWithCorrespondGEP(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator formal_in_TI);
 
-        InstructionWrapper* getStartStoreInst(llvm::Argument *arg);
+        InstructionWrapper* getInitialStoreInst(llvm::Argument *arg);
 
         int getArgOpType(llvm::Argument *arg);
 
@@ -80,6 +80,28 @@ namespace pdg {
         void connectFunctionAndFormalTrees(Function *callee);
 
         int connectCallerAndCallee(InstructionWrapper *CInstW, llvm::Function *callee);
+
+        // functions for getting R/W info for all typenodes
+
+        llvm::Instruction* getArgAllocaInst(llvm::Argument *arg);
+
+        llvm::Instruction* getArgStoreInst(llvm::Argument *arg);
+
+        void mergeTypeTree(tree<InstructionWrapper*>::iterator mergeTo, tree<InstructionWrapper*>::iterator mergeFrom);
+
+        void mergeAsSubTree(tree<InstructionWrapper*>::iterator mergeTo, tree<InstructionWrapper*>::iterator mergeFrom);
+
+        std::set<InstructionWrapper*> collectAliasInst(ArgumentWrapper* argW);
+
+        int getArgType(llvm::Argument *arg);
+
+        int getAccessTypeForInstW(InstructionWrapper *instW);
+
+        void getReadWriteInfoSingleValPtr(ArgumentWrapper *argW);
+
+        void getReadWriteInfoAggregatePtr(ArgumentWrapper *argW);
+
+        void getReadWriteInfo(llvm::Function* F);
 
         unsigned getStructElementNum(llvm::Module &M, InstructionWrapper *curTyNode);
 
@@ -104,17 +126,11 @@ namespace pdg {
 
         bool isFuncTypeMatch(FunctionType *funcTy, FunctionType *indirectFuncCallTy);
 
-        // --- get arg use information using worklist algorithm
-        ArgUseInfoMap initializeArgUseMapForAllFuncs(llvm::Module &M);
-
-        std::map<std::string, bool> getArgUseInfoMap(llvm::Function &func);
-
         void printParameterTreeForFunc(llvm::Module &M, std::set<std::string> funcList);
 
         void printArgUseInfo(llvm::Module &M, std::set<std::string> funcNameList);
 
-        void printArgumentDependentInsts(llvm::Argument *arg);
-
+        //void printArgumentDependentInsts(llvm::Argument *arg);
         //void printSensitiveFunctions();
         bool runOnModule(llvm::Module &M);
 

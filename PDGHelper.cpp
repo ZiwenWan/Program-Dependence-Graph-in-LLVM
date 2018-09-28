@@ -38,6 +38,37 @@ void pdg::constructFuncMap(Module &M) {
         }
 }
 
+llvm::Instruction* pdg::getArgStoreInst(Argument *arg)
+{
+    for (auto UI = arg->user_begin(); UI != arg->user_end(); ++UI)
+    {
+        if (isa<StoreInst>(*UI))
+        {
+            Instruction* st = dyn_cast<Instruction>(*UI); 
+            return st;
+        }
+    }
+    return nullptr;
+}
+
+llvm::Instruction* pdg::getArgAllocaInst(Argument *arg)
+{
+    Instruction *inst = getArgStoreInst(arg);
+    if (inst == nullptr)
+    {
+        return nullptr;
+    }
+
+    StoreInst *st = dyn_cast<StoreInst>(inst);
+    if (isa<AllocaInst>(st->getPointerOperand()))
+    {
+        Instruction* ai = dyn_cast<Instruction>(st->getPointerOperand());
+        return ai;
+    }
+
+    return nullptr;
+}
+
 void pdg::cleanupGlobalVars() {
     funcMap.clear();
     callMap.clear();

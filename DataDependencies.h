@@ -48,6 +48,8 @@ namespace pdg {
 
         void collectRAWDependency(llvm::Instruction *inst);
 
+        void collectReadFromDependency(llvm::Instruction *inst);
+
         void collectNonLocalDependency(llvm::Instruction *inst);
 
         void collectDataDependencyInFunc();

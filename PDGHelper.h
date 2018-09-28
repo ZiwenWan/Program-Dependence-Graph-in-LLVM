@@ -9,6 +9,10 @@ namespace pdg {
 
     void constructFuncMap(Module &M);
 
+    llvm::Instruction* getArgStoreInst(Argument *arg); 
+
+    llvm::Instruction* getArgAllocaInst(Argument *arg); 
+
     void cleanupGlobalVars();
 }
 #endif //PROJECT_PDGHELPER_H

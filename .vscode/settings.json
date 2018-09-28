@@ -23,6 +23,9 @@
         "deque": "cpp",
         "iterator": "cpp",
         "list": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "bitset": "cpp",
+        "memory": "cpp",
+        "utility": "cpp"
     }
 }
