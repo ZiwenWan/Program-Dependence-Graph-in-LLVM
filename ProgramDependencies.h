@@ -95,7 +95,9 @@ namespace pdg {
 
         int getArgType(llvm::Argument *arg);
 
-        int getAccessTypeForInstW(InstructionWrapper *instW);
+        int getAccessTypeForInstW(InstructionWrapper* instW);
+
+        int getAccessTypeForGEPInstW(InstructionWrapper* instW);
 
         void getReadWriteInfoSingleValPtr(ArgumentWrapper *argW);
 
