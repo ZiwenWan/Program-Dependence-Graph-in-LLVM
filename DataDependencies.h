@@ -15,6 +15,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
+#include "llvm/Analysis/CFLSteensAliasAnalysis.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace pdg {
@@ -42,7 +43,7 @@ namespace pdg {
 
         void collectCallInstDependency(llvm::Instruction *inst);
 
-        void collectImplicitRAWDepList(llvm::Instruction *pLoadInst);
+        void collectWriteToDependency(llvm::Instruction *pLoadInst);
 
         std::vector<llvm::Instruction *> getRAWDepList(llvm::Instruction *pLoadInst);
 
@@ -67,6 +68,7 @@ namespace pdg {
     private:
         llvm::Function *func;
         AliasAnalysis *AA;
+        CFLSteensAAResult *steenAA;
         MemoryDependenceResults *MD;
     };
 }

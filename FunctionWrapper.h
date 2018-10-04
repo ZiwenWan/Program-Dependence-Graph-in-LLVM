@@ -46,6 +46,7 @@ namespace pdg {
         tree<InstructionWrapper *> actualInTree;
         tree<InstructionWrapper *> actualOutTree;
         std::set<InstructionWrapper *> GEPList;
+        std::set<InstructionWrapper *> relevantCallInsts;
     public:
         ArgumentWrapper(Argument *arg) {
             this->arg = arg;
@@ -83,9 +84,21 @@ namespace pdg {
 
         void copyTree(const tree<InstructionWrapper *> &srcTree, TreeType treeTy);
 
+        void addRelevantCallInsts(InstructionWrapper* instW) {
+            if (instW == nullptr || !isa<CallInst>(instW->getInstruction())) {
+                return;
+            }
+            relevantCallInsts.insert(instW);
+        }
+
         std::set<InstructionWrapper *> &getGEPList() {
             return GEPList;
         }
+
+        std::set<InstructionWrapper *> getRelevantCallInsts() {
+            return relevantCallInsts;
+        }
+
     };
 
     class CallWrapper {

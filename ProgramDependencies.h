@@ -27,6 +27,12 @@
  * Program Dependencies Graph
  */
 namespace pdg {
+    enum ArgumentContainType {
+        NOTCONTAINED = 0,
+        CONTAINED,
+        EQUAL
+    };
+
     typedef DependencyGraph<InstructionWrapper> ProgramDepGraph;
 
     class ProgramDependencyGraph : public llvm::ModulePass {
@@ -87,11 +93,9 @@ namespace pdg {
 
         llvm::Instruction* getArgStoreInst(llvm::Argument *arg);
 
-        void mergeTypeTree(tree<InstructionWrapper*>::iterator mergeTo, tree<InstructionWrapper*>::iterator mergeFrom);
+        void mergeTypeTreeReadAndWriteInfo(ArgumentWrapper* argW, tree<InstructionWrapper*>::iterator mergeTo, tree<InstructionWrapper*>::iterator mergeFrom);
 
-        void mergeAsSubTree(tree<InstructionWrapper*>::iterator mergeTo, tree<InstructionWrapper*>::iterator mergeFrom);
-
-        std::set<InstructionWrapper*> collectAliasInst(ArgumentWrapper* argW);
+        std::set<InstructionWrapper*> getAliasPtrForArgInFunc(ArgumentWrapper* argW);
 
         int getArgType(llvm::Argument *arg);
 
@@ -99,17 +103,21 @@ namespace pdg {
 
         int getAccessTypeForGEPInstW(InstructionWrapper* instW);
 
+        void collectRelevantCallInstsForArg(ArgumentWrapper* argW, InstructionWrapper* instW);
+
         void getReadWriteInfoSingleValPtr(ArgumentWrapper *argW);
 
         void getReadWriteInfoAggregatePtr(ArgumentWrapper *argW);
 
-        void getReadWriteInfo(llvm::Function* F);
+        void getIntraFuncReadWriteInfo(llvm::Function* F);
+
+        void getInterFuncReadWriteInfo(llvm::Function* F);
 
         unsigned getStructElementNum(llvm::Module &M, InstructionWrapper *curTyNode);
 
         const StructLayout* getStructLayout(llvm::Module &M, InstructionWrapper *curTyNode);
 
-        std::set<pdg::InstructionWrapper *> getAllRelevantGEP(llvm::Argument *arg, std::set<llvm::Function *> seen_funcs);
+        std::set<pdg::InstructionWrapper *> getAllRelevantGEP(llvm::Argument *arg);
 
         void collectGlobalInstList();
 
@@ -124,7 +132,7 @@ namespace pdg {
 
         bool addNodeDependencies(InstructionWrapper *instW1);
 
-        bool isArgTypeMatchOrContain(llvm::Argument *arg1, llvm::Argument *arg2);
+        int getArgMatchType(llvm::Argument *arg1, llvm::Argument *arg2);
 
         bool isFuncTypeMatch(FunctionType *funcTy, FunctionType *indirectFuncCallTy);
 

@@ -38,13 +38,8 @@ namespace pdg{
         DATA_GENERAL,
         DATA_DEF_USE,
         DATA_RAW,
-        DATA_RAW_REV,
-        DATA_READ_FROM,
-        DATA_READ_FROM_REV,
-        DATA_WRITE_TO,
-        DATA_WRITE_TO_REV,
+        DATA_READ,
         DATA_CALL_PARA,
-        DATA_CALL_PARA_REV,
         PARAMETER,
         STRUCT_FIELDS
     };
@@ -71,8 +66,8 @@ namespace pdg{
         POINTER_RW,
         PARAMETER_FIELD,
         ENTRY,
-        GLOBAL_VALUE,
-        STRUCT_FIELD
+        STRUCT_FIELD,
+        GLOBAL_VALUE
     };
 
     class InstructionWrapper {
