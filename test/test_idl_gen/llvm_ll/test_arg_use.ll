@@ -112,7 +112,7 @@ define i32 @main() #0 !dbg !88 {
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* %7, i8* getelementptr inbounds ([10 x i8], [10 x i8]* @.str.3, i32 0, i32 0), i64 10, i32 1, i1 false), !dbg !96
   %8 = getelementptr inbounds %struct.person, %struct.person* %3, i32 0, i32 2, !dbg !95
   store %struct.clothes* %2, %struct.clothes** %8, align 8, !dbg !95
-  call void @printAge(%struct.person* %3), !dbg !97
+  call void @agePtr(%struct.person* %3), !dbg !97
   ret i32 0, !dbg !98
 }
 
@@ -225,5 +225,5 @@ attributes #3 = { argmemonly nounwind }
 !94 = !DILocation(line: 46, column: 12, scope: !88)
 !95 = !DILocation(line: 46, column: 16, scope: !88)
 !96 = !DILocation(line: 46, column: 22, scope: !88)
-!97 = !DILocation(line: 48, column: 5, scope: !88)
-!98 = !DILocation(line: 49, column: 5, scope: !88)
+!97 = !DILocation(line: 49, column: 5, scope: !88)
+!98 = !DILocation(line: 50, column: 5, scope: !88)

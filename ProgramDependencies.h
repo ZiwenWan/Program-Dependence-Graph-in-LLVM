@@ -113,6 +113,8 @@ namespace pdg {
 
         void getInterFuncReadWriteInfo(llvm::Function* F);
 
+        void mergeArgWReadWriteInfo(ArgumentWrapper* callerArgW, ArgumentWrapper* calleeArgW);
+
         unsigned getStructElementNum(llvm::Module &M, InstructionWrapper *curTyNode);
 
         const StructLayout* getStructLayout(llvm::Module &M, InstructionWrapper *curTyNode);

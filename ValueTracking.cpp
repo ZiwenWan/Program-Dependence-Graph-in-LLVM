@@ -183,58 +183,78 @@ void pdg::ProgramDependencyGraph::getIntraFuncReadWriteInfo(Function *func)
     }
 }
 
+void pdg::ProgramDependencyGraph::mergeArgWReadWriteInfo(ArgumentWrapper* callerArgW, ArgumentWrapper* calleeArgW) {
+    int argMatchType = getArgMatchType(callerArgW->getArg(), calleeArgW->getArg());
+    auto calleeFuncArgTreeIter = calleeArgW->getTree(FORMAL_IN_TREE).begin();
+    if (argMatchType == pdg::ArgumentContainType::EQUAL)
+    {
+        // if the argument type matches exactly, we
+        mergeTypeTreeReadAndWriteInfo(callerArgW, callerArgW->getTree(FORMAL_IN_TREE).begin(), calleeFuncArgTreeIter);
+    }
+    if (argMatchType == pdg::ArgumentContainType::CONTAINED)
+    {
+        // here, we move the iterator to the sube tree passed to the other function, and then start from
+        // that sub tree, we merge information recursively.
+        std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> tyNodeWithGEP = getParameterTreeNodeWithCorrespondGEP(callerArgW, callerArgW->getTree(FORMAL_IN_TREE).begin());
+        for (auto tyNodeGEPPair : tyNodeWithGEP)
+        {
+            auto treeIter = callerArgW->getTree(FORMAL_IN_TREE).begin();
+            auto treeIterEnd = callerArgW->getTree(FORMAL_IN_TREE).end();
+            while (treeIter != treeIterEnd)
+            {
+                if ((*treeIter) != tyNodeGEPPair.first)
+                {
+                    break;
+                }
+                ++treeIter;
+            }
+
+            if (treeIter == treeIterEnd)
+            {
+                return;
+            }
+            mergeTypeTreeReadAndWriteInfo(callerArgW, treeIter, calleeFuncArgTreeIter);
+        }
+    }
+}
+
 void pdg::ProgramDependencyGraph::getInterFuncReadWriteInfo(llvm::Function* func) {
     FunctionWrapper *funcW = funcMap[func];
     errs() << "Start getting inter func arg use for func: " << func->getName() << "\n";
-    for (ArgumentWrapper* argW : funcW->getArgWList())
+    for (ArgumentWrapper* callerArgW : funcW->getArgWList())
     {
-        for (InstructionWrapper* callInstW : argW->getRelevantCallInsts()) {
-            // handle indirect call first
+        for (InstructionWrapper* callInstW : callerArgW->getRelevantCallInsts()) {
             llvm::Instruction* callInst = callInstW->getInstruction();
             if (callInst == nullptr) {
-                return;
+                return; 
             }
 
+            CallInst* CI = dyn_cast<CallInst>(callInst);
+            llvm::Function* calledFunc = CI->getCalledFunction();
+            // handle indirect call first, indirect call yield nullptr when 
+            // being called on get called function
+            if (calledFunc == nullptr) {
+                // for handling indrect call, we simply collect all possible candidates here, and 
+                // iterate through them, while merging argW use info.
+                Type *t = CI->getCalledValue()->getType();
+                FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
+                std::vector<llvm::Function*> indirect_call_candidates = collectIndirectCallCandidates(funcTy);
+                for (llvm::Function* indirect_call : indirect_call_candidates) {
+                    FunctionWrapper* calleeFuncW = funcMap[indirect_call];
+                    for (ArgumentWrapper* calleeArgW : calleeFuncW->getArgWList()) {
+                        mergeArgWReadWriteInfo(callerArgW, calleeArgW);
+                    }
+                }
+            }
             // start processing direct call
             // here, what we do basically is iterating through all related call instructions
             // find correspond argument wrapper, and merge the read and write information. 
-            llvm::Function* calledFunc = dyn_cast<CallInst>(callInst)->getCalledFunction();
             if (calledFunc != nullptr)
             {
-                FunctionWrapper *calledFuncW = funcMap[calledFunc];
-                for (ArgumentWrapper *calledFuncArgW : calledFuncW->getArgWList())
+                FunctionWrapper *calleeFuncW = funcMap[calledFunc];
+                for (ArgumentWrapper *calleeArgW : calleeFuncW->getArgWList())
                 {
-                    int argMatchType = getArgMatchType(argW->getArg(), calledFuncArgW->getArg());
-                    auto calledFuncArgTreeIter = calledFuncArgW->getTree(FORMAL_IN_TREE).begin();
-                    errs() << "Arg match type: " << calledFunc->getName() << "--" << argMatchType << "\n";
-                    if (argMatchType == pdg::ArgumentContainType::EQUAL)
-                    {
-                        // if the argument type matches exactly, we
-                        mergeTypeTreeReadAndWriteInfo(argW, argW->getTree(FORMAL_IN_TREE).begin(), calledFuncArgTreeIter);
-                    }
-                    if (argMatchType == pdg::ArgumentContainType::CONTAINED)
-                    {
-                        // here, we move the iterator to the sube tree passed to the other function, and then start from 
-                        // that sub tree, we merge information recursively.
-                        std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> tyNodeWithGEP = getParameterTreeNodeWithCorrespondGEP(argW, argW->getTree(FORMAL_IN_TREE).begin());
-                        for (auto tyNodeGEPPair : tyNodeWithGEP) {
-                            auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
-                            auto treeIterEnd = argW->getTree(FORMAL_IN_TREE).end();
-                            while (treeIter != treeIterEnd )
-                            {
-                                if ((*treeIter) != tyNodeGEPPair.first) {
-                                    break;
-                                }
-                                ++treeIter;
-                            }
-
-                            if (treeIter == treeIterEnd)
-                            {
-                                return;
-                            }
-                            mergeTypeTreeReadAndWriteInfo(argW, treeIter, calledFuncArgTreeIter);
-                        }
-                    }
+                    mergeArgWReadWriteInfo(callerArgW, calleeArgW);
                 }
             }
         }

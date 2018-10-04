@@ -77,19 +77,6 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
   return _flowdep_set;
 }
 
-void pdg::DataDependencyGraph::collectWriteToDependency(llvm::Instruction *inst) {
-  llvm::StoreInst *SI = dyn_cast<llvm::StoreInst>(inst);
-  // get the destination value
-  Value *storePtr = SI->getPointerOperand(); 
-  Value *storeVal = SI->getValueOperand();
-
-  Instruction* storePtrInst = dyn_cast<Instruction>(storePtr);
-  if (Instruction* storeValInst = dyn_cast<Instruction>(storeVal)) {
-    DDG->addDependency(instMap[storePtrInst], instMap[storeValInst], DATA_WRITE);
-  } 
-}
-
-
 void pdg::DataDependencyGraph::collectRAWDependency(llvm::Instruction *inst) {
   // dealing with dependencies in a function
   std::vector<llvm::Instruction *> flowdep_set = getRAWDepList(inst);
@@ -138,10 +125,6 @@ void pdg::DataDependencyGraph::collectDataDependencyInFunc() {
       collectReadFromDependency(pInstruction);
       collectRAWDependency(pInstruction);
       collectNonLocalDependency(pInstruction);
-    }
-
-    if (isa<llvm::StoreInst>(pInstruction)) {
-      collectWriteToDependency(pInstruction);
     }
   }
 }

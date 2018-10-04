@@ -1192,11 +1192,11 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
   std::map<Function *, std::map<unsigned, DSAGenerator::offsetNames>> funcArgOffsetNames = getAnalysis<DSAGenerator>().getFuncArgOffsetNames();
   for (llvm::Function &func : M) {
 
-#ifdef TEST_IDL 
-    if (funcList.find(func.getName()) == funcList.end()) {
-        continue;
-    }
-#endif
+// #ifdef TEST_IDL 
+//     if (funcList.find(func.getName()) == funcList.end()) {
+//         continue;
+//     }
+// #endif
 
       if (func.isDeclaration())
       {
@@ -1240,7 +1240,7 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
               {
                   errs() << "** Root type node **"
                          << "\n";
-                  errs() << "Visited Type: " << curTyNode->getAccessType() << "\n";
+                  errs() << "Access Type: " << curTyNode->getAccessType() << "\n";
                   continue;
               }
 
@@ -1274,7 +1274,7 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
                       offset = stLayout->getElementOffset(curTyNode->getFieldId());
                   }
                   errs() << "sub field name: " << argOffsetNames[prev_offset + offset].first << "\n";
-                  errs() << "Visited Type: " << curTyNode->getAccessType() << "\n";
+                  errs() << "Access Type: " << curTyNode->getAccessType() << "\n";
                   if (tmpDepth == curDepth)
                   {
                       accumulate_offset = offset;
