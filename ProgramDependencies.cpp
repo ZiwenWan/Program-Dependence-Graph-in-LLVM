@@ -1061,7 +1061,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     for (Module::iterator FF = M.begin(); FF != M.end(); ++FF)
     {
         llvm::Function *F = dyn_cast<llvm::Function>(FF);
-        if (F->isDeclaration()) {
+        if (F->isDeclaration()) { 
             continue;
         }
         getInterFuncReadWriteInfo(F);
@@ -1104,19 +1104,6 @@ int pdg::ProgramDependencyGraph::getArgType(llvm::Argument *arg) {
     }
 
     return UNKNOWN_TYPE;
-}
-
-void pdg::ProgramDependencyGraph::mergeTypeTreeReadAndWriteInfo(ArgumentWrapper* argW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom)
-{
-    for (; mergeTo != argW->getTree(FORMAL_IN_TREE).end(); ++mergeTo, ++mergeFrom)
-    {
-        if ((*mergeFrom)->getAccessType() > (*mergeTo)->getAccessType())
-        {
-            errs() << "Merging info: " << (*mergeFrom)->getVisited() << "-" << (*mergeTo)->getVisited() << "\n";
-            // here, we only copy the write state
-            (*mergeTo)->setAccessType((*mergeFrom)->getAccessType());
-        }
-    }
 }
 
 unsigned pdg::ProgramDependencyGraph::getStructElementNum(llvm::Module &M, InstructionWrapper *curTyNode)

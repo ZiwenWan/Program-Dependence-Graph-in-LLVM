@@ -46,6 +46,10 @@ void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst
 {
   if (CallInst *callInst = dyn_cast<CallInst>(inst))
   {
+    if (callInst->getCalledFunction() != nullptr && callInst->getCalledFunction()->isDeclaration())
+    {
+      return;
+    }
     for (auto arg_iter = callInst->arg_begin(); arg_iter != callInst->arg_end(); ++arg_iter)
     {
       if (Instruction *tmpInst = dyn_cast<Instruction>(&*arg_iter))
@@ -53,8 +57,7 @@ void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst
         DDG->addDependency(instMap[tmpInst], instMap[inst], DATA_CALL_PARA);
       }
     }
-    DEBUG(dbgs() << "This is a call Inst (DDG)"
-                 << "\n");
+    DEBUG(dbgs() << "This is a call Inst (DDG)" << "\n");
   }
 }
 

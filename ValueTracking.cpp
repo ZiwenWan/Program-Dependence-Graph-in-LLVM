@@ -124,10 +124,16 @@ int pdg::ProgramDependencyGraph::getAccessTypeForInstW(InstructionWrapper* instW
         {
             accessType = pdg::READ_FIELD;
         }
-        if (depType == pdg::DATA_DEF_USE && isa<StoreInst>(depInstW->getInstruction()))
+        if (depType == pdg::DATA_DEF_USE)
         {
-            accessType = pdg::WRITE_FIELD;
-            break;
+            if (StoreInst *st = dyn_cast<StoreInst>(depInstW->getInstruction()))
+            {
+                if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction())
+                {
+                    accessType = pdg::WRITE_FIELD;
+                    break;
+                }
+            }
         }
     }
 
@@ -145,11 +151,16 @@ int pdg::ProgramDependencyGraph::getAccessTypeForGEPInstW(InstructionWrapper* in
         {
             accessType = pdg::READ_FIELD;
         }
-        if (depType == pdg::DATA_DEF_USE && isa<StoreInst>(depInstW->getInstruction()))
+        if (depType == pdg::DATA_DEF_USE)
         {
-            errs() << "Write: " << *depInstW->getInstruction() << "\n";
-            accessType = pdg::WRITE_FIELD;
-            break;
+            if (StoreInst *st = dyn_cast<StoreInst>(depInstW->getInstruction()))
+            {
+                if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction())
+                {
+                    accessType = pdg::WRITE_FIELD;
+                    break;
+                }
+            }
         }
     }
     return accessType;
@@ -183,12 +194,27 @@ void pdg::ProgramDependencyGraph::getIntraFuncReadWriteInfo(Function *func)
     }
 }
 
+void pdg::ProgramDependencyGraph::mergeTypeTreeReadAndWriteInfo(ArgumentWrapper* argW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom)
+{
+    for (; mergeTo != argW->getTree(FORMAL_IN_TREE).end(); ++mergeTo, ++mergeFrom)
+    {
+        if ((*mergeFrom)->getAccessType() > (*mergeTo)->getAccessType())
+        {
+            errs() << "Merging info: " << (*mergeFrom)->getAccessType() << " - " << (*mergeTo)->getAccessType() << "\n";
+            // here, we only copy the write state
+            (*mergeTo)->setAccessType((*mergeFrom)->getAccessType());
+        }
+    }
+}
+
 void pdg::ProgramDependencyGraph::mergeArgWReadWriteInfo(ArgumentWrapper* callerArgW, ArgumentWrapper* calleeArgW) {
     int argMatchType = getArgMatchType(callerArgW->getArg(), calleeArgW->getArg());
-    auto calleeFuncArgTreeIter = calleeArgW->getTree(FORMAL_IN_TREE).begin();
+    tree<InstructionWrapper*>::iterator calleeFuncArgTreeIter = calleeArgW->getTree(FORMAL_IN_TREE).begin();
+
     if (argMatchType == pdg::ArgumentContainType::EQUAL)
     {
-        // if the argument type matches exactly, we
+        errs() << "Merging func arg use info: " << callerArgW->getArg()->getParent()->getName() << " - " << calleeArgW->getArg()->getParent()->getName() << "\n";
+        // if the argument type matches exactly, simply merge the whole tree
         mergeTypeTreeReadAndWriteInfo(callerArgW, callerArgW->getTree(FORMAL_IN_TREE).begin(), calleeFuncArgTreeIter);
     }
     if (argMatchType == pdg::ArgumentContainType::CONTAINED)
@@ -238,6 +264,7 @@ void pdg::ProgramDependencyGraph::getInterFuncReadWriteInfo(llvm::Function* func
                 // iterate through them, while merging argW use info.
                 Type *t = CI->getCalledValue()->getType();
                 FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
+                errs() << "Collecting indirect call in func: " << func->getName() << "\n";
                 std::vector<llvm::Function*> indirect_call_candidates = collectIndirectCallCandidates(funcTy);
                 for (llvm::Function* indirect_call : indirect_call_candidates) {
                     FunctionWrapper* calleeFuncW = funcMap[indirect_call];
@@ -280,6 +307,7 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *
         if (_accessType == pdg::WRITE_FIELD)
         {
             accessType = _accessType;
+            break;
         }
     }
 
@@ -297,8 +325,29 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
     // during connecting formal tree and function, the dependency between typenode and instructions
     // are already built. In this function, we only need to detect intra function dependencies.
     // Therefore, we only look at the read/write for the GEP.
-    // start by iterating through the type tree.
+    // firstly, need to process the root node firstly
     auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
+    std::set<InstructionWrapper *> aliasPtrInstWs = getAliasPtrForArgInFunc(argW);
+    // for each alias ptr, we collect read and write to that location.
+    // then, merging all information together.
+    int accessType = pdg::NOACCESS;
+    for (InstructionWrapper *instW : aliasPtrInstWs)
+    {
+        int _accessType = getAccessTypeForInstW(instW);
+        if (_accessType == pdg::READ_FIELD)
+        {
+            accessType = _accessType;
+        }
+        if (_accessType == pdg::WRITE_FIELD)
+        {
+            accessType = _accessType;
+            break;
+        }
+    }
+
+    (*treeIter)->setAccessType(accessType);
+    // then, start processing each field
+    // iterating through the type tree.
     for (; treeIter != argW->getTree(FORMAL_IN_TREE).end(); ++treeIter)
     {
         // get typenode - gep pair
