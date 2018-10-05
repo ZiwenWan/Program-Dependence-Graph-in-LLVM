@@ -52,7 +52,7 @@ void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst
     }
     for (auto arg_iter = callInst->arg_begin(); arg_iter != callInst->arg_end(); ++arg_iter)
     {
-      if (Instruction *tmpInst = dyn_cast<Instruction>(&*arg_iter))
+      if (Instruction* tmpInst = dyn_cast<Instruction>(&*arg_iter))
       {
         DDG->addDependency(instMap[tmpInst], instMap[inst], DATA_CALL_PARA);
       }

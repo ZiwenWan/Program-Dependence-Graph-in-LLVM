@@ -23,22 +23,33 @@ tree<pdg::InstructionWrapper*>::iterator pdg::ProgramDependencyGraph::getInstIns
     return insert_loc;
 }
 
-bool pdg::ProgramDependencyGraph::isBasicTypeOrPtr(llvm::Type* ty) {
-    if (ty == nullptr) {
+bool pdg::ProgramDependencyGraph::isBasicTypeOrPtr(llvm::Type *ty)
+{
+    if (ty == nullptr)
+    {
         return false;
     }
 
-    if (ty->isPointerTy()) {
+    if (ty->isPointerTy())
+    {
         ty = dyn_cast<PointerType>(ty)->getElementType();
     }
 
     return ty->isSingleValueType();
 }
 
-pdg::ArgumentWrapper* getArgWrapperFromFunction(pdg::FunctionWrapper *funcW, Argument *arg){
-    for(std::list<pdg::ArgumentWrapper*>::iterator argWI = funcW->getArgWList().begin(),
-                argWE = funcW->getArgWList().end(); argWI != argWE; ++argWI){
-        if( (*argWI)->getArg() == arg)
+pdg::ArgumentWrapper* pdg::ProgramDependencyGraph::getArgWByIdx(pdg::FunctionWrapper* funcW, int argWIdx)
+{
+    return (funcW->getArgWList())[argWIdx];
+}
+
+pdg::ArgumentWrapper* getArgWrapperFromFunction(pdg::FunctionWrapper *funcW, Argument *arg)
+{
+    for (std::vector<pdg::ArgumentWrapper *>::iterator argWI = funcW->getArgWList().begin(),
+                                                     argWE = funcW->getArgWList().end();
+         argWI != argWE; ++argWI)
+    {
+        if ((*argWI)->getArg() == arg)
             return *argWI;
     }
     return nullptr;
@@ -186,7 +197,7 @@ void pdg::ProgramDependencyGraph::buildFormalTree(Argument *arg, TreeType treeTy
     }
 
     //find the right arg, and set tree root
-    std::list<pdg::ArgumentWrapper *>::iterator argWLoc;
+    std::vector<pdg::ArgumentWrapper *>::iterator argWLoc;
     //find root node for formal trees(funcMap)
     for (auto argWI = funcMap[arg->getParent()]->getArgWList().begin(); argWI != funcMap[arg->getParent()]->getArgWList().end(); ++argWI)
     {
@@ -268,7 +279,7 @@ void pdg::ProgramDependencyGraph::buildActualParameterTrees(CallInst *CI) {
 
 void pdg::ProgramDependencyGraph::drawFormalParameterTree(Function *func,
                                                           TreeType treeTy) {
-    for (std::list<ArgumentWrapper *>::iterator
+    for (std::vector<ArgumentWrapper *>::iterator
                  argI = funcMap[func]->getArgWList().begin(),
                  argE = funcMap[func]->getArgWList().end();
          argI != argE; ++argI) {
@@ -294,7 +305,7 @@ void pdg::ProgramDependencyGraph::drawFormalParameterTree(Function *func,
 void pdg::ProgramDependencyGraph::drawActualParameterTree(CallInst *CI,
                                                           TreeType treeTy) {
     int ARG_POS = 0;
-    for (list<ArgumentWrapper *>::iterator
+    for (std::vector<ArgumentWrapper *>::iterator
                  argI = callMap[CI]->getArgWList().begin(),
                  argE = callMap[CI]->getArgWList().end();
          argI != argE; ++argI) {
@@ -359,7 +370,7 @@ int pdg::ProgramDependencyGraph::connectCallerAndCallee(InstructionWrapper *Inst
     // connect caller InstW with ACTUAL IN/OUT parameter trees
     CallInst *CI = dyn_cast<CallInst>(InstW->getInstruction());
 
-    for (std::list<ArgumentWrapper *>::iterator
+    for (std::vector<ArgumentWrapper *>::iterator
                  argI = callMap[CI]->getArgWList().begin(),
                  argE = callMap[CI]->getArgWList().end();
          argI != argE; ++argI) {
@@ -382,17 +393,17 @@ int pdg::ProgramDependencyGraph::connectCallerAndCallee(InstructionWrapper *Inst
     }
 
     // old way, process four trees at the same time, remove soon
-    list<ArgumentWrapper *>::iterator formal_argI;
+    std::vector<ArgumentWrapper *>::iterator formal_argI;
     formal_argI = funcMap[callee]->getArgWList().begin();
 
-    list<ArgumentWrapper *>::iterator formal_argE;
+    std::vector<ArgumentWrapper *>::iterator formal_argE;
     formal_argE = funcMap[callee]->getArgWList().end();
 
-    list<ArgumentWrapper *>::iterator actual_argI;
+    std::vector<ArgumentWrapper *>::iterator actual_argI;
     actual_argI = callMap[CI]->getArgWList().begin();
 
-    list<ArgumentWrapper *>::iterator actual_argE;
-    callMap[CI]->getArgWList().end();
+    std::vector<ArgumentWrapper *>::iterator actual_argE;
+    actual_argE = callMap[CI]->getArgWList().end();
 
     // increase formal/actual tree iterator simutaneously
     for (; formal_argI != formal_argE; ++formal_argI, ++actual_argI) {
@@ -457,7 +468,6 @@ std::vector<std::pair<pdg::InstructionWrapper *, pdg::InstructionWrapper *>>
 pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator formal_in_TI) {
   // find all GEP elements, including GEP in nested call through function call. Avoid repeat function
   std::set<InstructionWrapper *> RelevantGEPList = getAllRelevantGEP(argW->getArg());
-
   std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> treeNodeGepPairs;
   for (auto GEPInstW : RelevantGEPList) {
     int operand_num = GEPInstW->getInstruction()->getNumOperands();
@@ -468,8 +478,7 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(ArgumentWrapp
       // make sure type is matched
       llvm::Type *parent_type = (*formal_in_TI)->getParentType();
       if (!isa<GetElementPtrInst>(GEPInstW->getInstruction()) || parent_type == nullptr)
-        continue;
-
+          continue;
       auto GEP = dyn_cast<GetElementPtrInst>(GEPInstW->getInstruction());
       llvm::Type *GEPResTy = GEP->getResultElementType();
       llvm::Type *GEPSrcTy = GEP->getSourceElementType();
@@ -490,16 +499,18 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(ArgumentWrapp
       }
 
       // check the src type in GEP inst is equal to parent_type (GET FROM)
-      bool match = (GEPSrcTy == parent_type);
       // check if the offset is equal
       int field_offset = (*formal_in_TI)->getFieldId();
       // if (field_idx+1 == relative_idx && GEPResTy == TreeNodeTy && match) {
-      if (field_idx == field_offset && GEPResTy == TreeNodeTy && match) {
-        // also add this GEP to the list of GEP that directly access
-        // parameter.
-        // errs() << "[" << GEPInstW->getInstruction()->getFunction()->getName() << "]";
-        // errs() << *GEPInstW->getInstruction() << "\n";
-        treeNodeGepPairs.push_back(std::make_pair(*instnodes.find(*formal_in_TI), GEPInstW));
+      bool srcTypeMatch = GEPSrcTy == parent_type;
+      bool resTypeMatch = GEPResTy == TreeNodeTy; 
+      bool offsetMatch = field_idx == field_offset;
+      if (offsetMatch && resTypeMatch && srcTypeMatch) {
+        // also add this GEP to the list of GEP that directly access parameter.
+        treeNodeGepPairs.push_back(std::make_pair(*formal_in_TI, GEPInstW));
+        errs() << "Pushing: " << *GEP << "\n";
+        errs() << "Size: " << treeNodeGepPairs.size() << "\n";
+        return treeNodeGepPairs;
       }
     }
   }
@@ -607,7 +618,7 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(llvm::Function *
         return;
     }
 
-    for (list<ArgumentWrapper *>::iterator argI = funcMap[callee]->getArgWList().begin(),
+    for (vector<ArgumentWrapper *>::iterator argI = funcMap[callee]->getArgWList().begin(),
                                            argE = funcMap[callee]->getArgWList().end();
          argI != argE; ++argI)
     {
@@ -885,8 +896,8 @@ bool pdg::ProgramDependencyGraph::processingCallInst(InstructionWrapper *instW) 
       }
 
       // link typenode inst with argument inst
-      std::list<ArgumentWrapper *> argList = funcMap[callee]->getArgWList();
-      for (ArgumentWrapper *argW : argList) {
+      std::vector<ArgumentWrapper *> argList = funcMap[callee]->getArgWList();
+      for (ArgumentWrapper* argW : argList) {
         tree<InstructionWrapper *>::iterator TI =
             argW->getTree(FORMAL_IN_TREE).begin();
         tree<InstructionWrapper *>::iterator TE =
@@ -1282,9 +1293,9 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg) {
 
     for (auto depPair : dataDList) {
         int depType = depPair.second;
-        if (depType == DATA_RAW) {
-            InstructionWrapper* loadInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-            instWQ.push(loadInstW);
+        if (depType == DATA_ALIAS) {
+            InstructionWrapper* depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
+            instWQ.push(depInstW);
         }
     }
 

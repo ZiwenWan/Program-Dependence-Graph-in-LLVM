@@ -104,7 +104,7 @@ namespace pdg {
     class CallWrapper {
     private:
         CallInst *CI;
-        std::list<ArgumentWrapper *> argWList;
+        std::vector<ArgumentWrapper *> argWList;
 
     public:
         CallWrapper(CallInst *CI) {
@@ -133,7 +133,7 @@ namespace pdg {
 
         CallInst *getCallInstruction() { return CI; }
 
-        std::list<ArgumentWrapper *> &getArgWList() { return argWList; }
+        std::vector<ArgumentWrapper *> &getArgWList() { return argWList; }
     };
 
     // FunctionWrapper
@@ -146,7 +146,7 @@ namespace pdg {
       std::list<llvm::LoadInst *> loadInstList;
       std::list<llvm::Instruction *> returnInstList;
       std::list<llvm::CallInst *> callInstList;
-      std::list<ArgumentWrapper *> argWList;
+      std::vector<ArgumentWrapper *> argWList;
       std::set<llvm::Function *> dependent_funcs;
       std::set<llvm::Value *> ptrSet;
 
@@ -180,7 +180,7 @@ namespace pdg {
 
       InstructionWrapper *getEntry() { return entryW; }
 
-      std::list<ArgumentWrapper *> &getArgWList() { return argWList; }
+      std::vector<ArgumentWrapper *> &getArgWList() { return argWList; }
 
       std::list<llvm::StoreInst *> &getStoreInstList() { return storeInstList; }
 

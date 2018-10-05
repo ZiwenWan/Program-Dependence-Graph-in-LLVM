@@ -55,6 +55,10 @@ namespace pdg {
 
         bool isBasicTypeOrPtr(Type* ty);
 
+        int getCallParamIdx(InstructionWrapper* instW, InstructionWrapper* callInstW);
+
+        ArgumentWrapper* getArgWByIdx(pdg::FunctionWrapper* funcW, int argWIdx);
+
         void insertArgToTree(TypeWrapper *tyW, ArgumentWrapper *pArgW, TreeType treeTy, tree<InstructionWrapper*>::iterator insertLoc);
 
         int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, int field_pos );

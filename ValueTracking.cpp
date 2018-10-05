@@ -207,85 +207,172 @@ void pdg::ProgramDependencyGraph::mergeTypeTreeReadAndWriteInfo(ArgumentWrapper*
 }
 
 void pdg::ProgramDependencyGraph::mergeArgWReadWriteInfo(ArgumentWrapper* callerArgW, ArgumentWrapper* calleeArgW) {
+    // firstly detect if the argument type is actually matching.
+    // if not, then do nothing
+
     int argMatchType = getArgMatchType(callerArgW->getArg(), calleeArgW->getArg());
+
     tree<InstructionWrapper*>::iterator calleeFuncArgTreeIter = calleeArgW->getTree(FORMAL_IN_TREE).begin();
 
+    // Equal type case: 
     if (argMatchType == pdg::ArgumentContainType::EQUAL)
     {
         errs() << "Merging func arg use info: " << callerArgW->getArg()->getParent()->getName() << " - " << calleeArgW->getArg()->getParent()->getName() << "\n";
         // if the argument type matches exactly, simply merge the whole tree
         mergeTypeTreeReadAndWriteInfo(callerArgW, callerArgW->getTree(FORMAL_IN_TREE).begin(), calleeFuncArgTreeIter);
     }
+
+    // Subfield case:
     if (argMatchType == pdg::ArgumentContainType::CONTAINED)
     {
         // here, we move the iterator to the sube tree passed to the other function, and then start from
         // that sub tree, we merge information recursively.
-        std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> tyNodeWithGEP = getParameterTreeNodeWithCorrespondGEP(callerArgW, callerArgW->getTree(FORMAL_IN_TREE).begin());
-        for (auto tyNodeGEPPair : tyNodeWithGEP)
+        auto callerArgWTI = callerArgW->getTree(FORMAL_IN_TREE).begin();
+        auto callerArgWTIE = callerArgW->getTree(FORMAL_IN_TREE).end();
+        for (; callerArgWTI != callerArgWTIE; ++callerArgWTI)
         {
-            auto treeIter = callerArgW->getTree(FORMAL_IN_TREE).begin();
-            auto treeIterEnd = callerArgW->getTree(FORMAL_IN_TREE).end();
-            while (treeIter != treeIterEnd)
-            {
-                if ((*treeIter) != tyNodeGEPPair.first)
-                {
-                    break;
-                }
-                ++treeIter;
+            auto tyNodeWithGEPs = getParameterTreeNodeWithCorrespondGEP(callerArgW, callerArgWTI);
+            if (tyNodeWithGEPs.size() == 0) {
+                continue;
             }
 
-            if (treeIter == treeIterEnd)
+            for (auto tyNodeGEPPair : tyNodeWithGEPs)
             {
-                return;
+                tree<InstructionWrapper *>::iterator treeIter = callerArgW->getTree(FORMAL_IN_TREE).begin();
+                tree<InstructionWrapper *>::iterator treeIterEnd = callerArgW->getTree(FORMAL_IN_TREE).end();
+                while (treeIter != treeIterEnd)
+                {
+                    if ((*treeIter) == tyNodeGEPPair.first)
+                    {
+                        break;
+                    }
+                    ++treeIter;
+                }
+
+                if (treeIter == treeIterEnd)
+                {
+                    return;
+                }
+
+                mergeTypeTreeReadAndWriteInfo(callerArgW, treeIter, calleeFuncArgTreeIter);
+                break;
             }
-            mergeTypeTreeReadAndWriteInfo(callerArgW, treeIter, calleeFuncArgTreeIter);
         }
     }
+}
+
+int pdg::ProgramDependencyGraph::getCallParamIdx(InstructionWrapper* instW, InstructionWrapper* callInstW)
+{
+    Instruction *inst = instW->getInstruction();
+    Instruction *callInst = callInstW->getInstruction();
+    if (inst == nullptr || callInst == nullptr)
+    {
+        return -1;
+    }
+
+    if (CallInst *CI = dyn_cast<CallInst>(callInst))
+    {
+        int paraIdx = 0;
+        for (auto arg_iter = CI->arg_begin(); arg_iter != CI->arg_end(); ++arg_iter)
+        {
+            if (Instruction *tmpInst = dyn_cast<Instruction>(&*arg_iter))
+            {
+                if (tmpInst == inst)
+                {
+                    return paraIdx;
+                }
+            }
+            paraIdx++;
+        }
+    }
+    return -1;
 }
 
 void pdg::ProgramDependencyGraph::getInterFuncReadWriteInfo(llvm::Function* func) {
-    FunctionWrapper *funcW = funcMap[func];
-    errs() << "Start getting inter func arg use for func: " << func->getName() << "\n";
-    for (ArgumentWrapper* callerArgW : funcW->getArgWList())
-    {
-        for (InstructionWrapper* callInstW : callerArgW->getRelevantCallInsts()) {
-            llvm::Instruction* callInst = callInstW->getInstruction();
-            if (callInst == nullptr) {
-                return; 
-            }
-
-            CallInst* CI = dyn_cast<CallInst>(callInst);
-            llvm::Function* calledFunc = CI->getCalledFunction();
-            // handle indirect call first, indirect call yield nullptr when 
-            // being called on get called function
-            if (calledFunc == nullptr) {
-                // for handling indrect call, we simply collect all possible candidates here, and 
-                // iterate through them, while merging argW use info.
-                Type *t = CI->getCalledValue()->getType();
-                FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
-                errs() << "Collecting indirect call in func: " << func->getName() << "\n";
-                std::vector<llvm::Function*> indirect_call_candidates = collectIndirectCallCandidates(funcTy);
-                for (llvm::Function* indirect_call : indirect_call_candidates) {
-                    FunctionWrapper* calleeFuncW = funcMap[indirect_call];
-                    for (ArgumentWrapper* calleeArgW : calleeFuncW->getArgWList()) {
-                        mergeArgWReadWriteInfo(callerArgW, calleeArgW);
-                    }
-                }
-            }
-            // start processing direct call
-            // here, what we do basically is iterating through all related call instructions
-            // find correspond argument wrapper, and merge the read and write information. 
-            if (calledFunc != nullptr)
+    FunctionWrapper* funcW = funcMap[func];
+    for (ArgumentWrapper* argW : funcW->getArgWList()) {
+        std::set<InstructionWrapper*> aliasPtrInstWs = getAliasPtrForArgInFunc(argW);
+        for (InstructionWrapper* aliasPtrInstW : aliasPtrInstWs) {
+            DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(aliasPtrInstW);
+            DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
+            for (auto depPair : dataDList)
             {
-                FunctionWrapper *calleeFuncW = funcMap[calledFunc];
-                for (ArgumentWrapper *calleeArgW : calleeFuncW->getArgWList())
+                int depType = depPair.second;
+                if (depType == DATA_CALL_PARA)
                 {
-                    mergeArgWReadWriteInfo(callerArgW, calleeArgW);
+                    InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
+                    int callParaIdx = getCallParamIdx(aliasPtrInstW, depInstW);
+                    CallInst *calleeInst = dyn_cast<CallInst>(depInstW->getInstruction());
+                    Function* calleeFunc = calleeInst->getCalledFunction();
+
+                    if (calleeFunc == nullptr)
+                    {
+                        Type *t = calleeInst->getCalledValue()->getType();
+                        FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
+                        errs() << "Collecting indirect call in func: " << func->getName() << "\n";
+                        std::vector<llvm::Function *> indirect_call_candidates = collectIndirectCallCandidates(funcTy);
+                        for (llvm::Function *indirect_call : indirect_call_candidates)
+                        {
+                            FunctionWrapper *calleeFuncW = funcMap[indirect_call];
+                            ArgumentWrapper *calleeArgW = getArgWByIdx(calleeFuncW, callParaIdx);
+                            mergeArgWReadWriteInfo(argW, calleeArgW);
+                        }
+                    }
+                    else
+                    {
+                        FunctionWrapper *calleeFuncW = funcMap[calleeFunc];
+                        ArgumentWrapper *calleeArgW = getArgWByIdx(calleeFuncW, callParaIdx);
+                        mergeArgWReadWriteInfo(argW, calleeArgW);
+                    }
                 }
             }
         }
     }
 }
+
+// void pdg::ProgramDependencyGraph::getInterFuncReadWriteInfo(llvm::Function* func) {
+//     FunctionWrapper *funcW = funcMap[func];
+//     errs() << "Start getting inter func arg use for func: " << func->getName() << "\n";
+//     for (ArgumentWrapper* callerArgW : funcW->getArgWList())
+//     {
+//         for (InstructionWrapper* callInstW : callerArgW->getRelevantCallInsts()) {
+//             llvm::Instruction* callInst = callInstW->getInstruction();
+//             if (callInst == nullptr) {
+//                 return; 
+//             }
+
+//             CallInst* CI = dyn_cast<CallInst>(callInst);
+//             llvm::Function* calledFunc = CI->getCalledFunction();
+//             // handle indirect call first, indirect call yield nullptr when 
+//             // being called on get called function
+//             if (calledFunc == nullptr) {
+//                 // for handling indrect call, we simply collect all possible candidates here, and 
+//                 // iterate through them, while merging argW use info.
+//                 Type *t = CI->getCalledValue()->getType();
+//                 FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
+//                 errs() << "Collecting indirect call in func: " << func->getName() << "\n";
+//                 std::vector<llvm::Function*> indirect_call_candidates = collectIndirectCallCandidates(funcTy);
+//                 for (llvm::Function* indirect_call : indirect_call_candidates) {
+//                     FunctionWrapper* calleeFuncW = funcMap[indirect_call];
+//                     for (ArgumentWrapper* calleeArgW : calleeFuncW->getArgWList()) {
+//                         mergeArgWReadWriteInfo(callerArgW, calleeArgW);
+//                     }
+//                 }
+//             }
+//             // start processing direct call
+//             // here, what we do basically is iterating through all related call instructions
+//             // find correspond argument wrapper, and merge the read and write information. 
+//             if (calledFunc != nullptr)
+//             {
+//                 FunctionWrapper *calleeFuncW = funcMap[calledFunc];
+//                 for (ArgumentWrapper *calleeArgW : calleeFuncW->getArgWList())
+//                 {
+//                     mergeArgWReadWriteInfo(callerArgW, calleeArgW);
+//                 }
+//             }
+//         }
+//     }
+// }
 
 void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *argW)
 {
@@ -361,7 +448,7 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
     for (; treeIter != argW->getTree(FORMAL_IN_TREE).end(); ++treeIter)
     {
         // get typenode - gep pair
-        std::vector<std::pair<pdg::InstructionWrapper *, pdg::InstructionWrapper *>> tyNodeGEPPairs = getParameterTreeNodeWithCorrespondGEP(argW, treeIter);
+        auto tyNodeGEPPairs = getParameterTreeNodeWithCorrespondGEP(argW, treeIter);
         for (auto tyNodeGEPPair : tyNodeGEPPairs)
         {
             InstructionWrapper *typeNodeW = tyNodeGEPPair.first;
@@ -405,9 +492,6 @@ int pdg::ProgramDependencyGraph::getArgMatchType(llvm::Argument *arg1, llvm::Arg
 
             if (arg2_type->isPointerTy())
             {
-                errs() << arg1->getParent()->getName() << " - " << arg2->getParent()->getName() << "\n";
-                errs() << arg1_element_type->getTypeID() << "\n";
-                errs() << arg2_type->getTypeID() << "\n";
                 bool pointed_type_match = ((dyn_cast<PointerType>(arg2_type))->getElementType() == arg1_element_type);
                 type_match = type_match || pointed_type_match;
             }
