@@ -96,13 +96,12 @@ pdg::ProgramDependencyGraph::getAliasPtrForArgInFunc(ArgumentWrapper *argW)
     DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
 
     std::set<InstructionWrapper*> aliasPtr;
-    // collect alias load instructions
+    // collect alias instructions, including store and load instructions
     for (auto depPair : dataDList) {
         int depType = depPair.second;
         InstructionWrapper* depInstW = const_cast<InstructionWrapper*>(depPair.first->getData());
-        if (depType == DATA_RAW) {
+        if (depType == DATA_ALIAS) {
             aliasPtr.insert(depInstW);
-            collectRelevantCallInstsForArg(argW, depInstW);
         }
     }
 
@@ -299,7 +298,14 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *
     // then, merging all information together.
     for (InstructionWrapper *instW : aliasPtrInstWs)
     {
+        // alais has a store, means the same locations is accessed
+        if (isa<StoreInst>(instW->getInstruction())) {
+            accessType = pdg::WRITE_FIELD;
+            break;
+        }
+
         int _accessType = getAccessTypeForInstW(instW);
+
         if (_accessType == pdg::READ_FIELD)
         {
             accessType = _accessType;
@@ -333,6 +339,10 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
     int accessType = pdg::NOACCESS;
     for (InstructionWrapper *instW : aliasPtrInstWs)
     {
+        if (isa<StoreInst>(instW->getInstruction())) {
+            accessType = pdg::WRITE_FIELD;
+            break;
+        }
         int _accessType = getAccessTypeForInstW(instW);
         if (_accessType == pdg::READ_FIELD)
         {
@@ -395,7 +405,10 @@ int pdg::ProgramDependencyGraph::getArgMatchType(llvm::Argument *arg1, llvm::Arg
 
             if (arg2_type->isPointerTy())
             {
-                bool pointed_type_match = (dyn_cast<PointerType>(arg2_type))->getElementType() == arg1_element_type;
+                errs() << arg1->getParent()->getName() << " - " << arg2->getParent()->getName() << "\n";
+                errs() << arg1_element_type->getTypeID() << "\n";
+                errs() << arg2_type->getTypeID() << "\n";
+                bool pointed_type_match = ((dyn_cast<PointerType>(arg2_type))->getElementType() == arg1_element_type);
                 type_match = type_match || pointed_type_match;
             }
 

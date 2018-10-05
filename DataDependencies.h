@@ -55,6 +55,8 @@ namespace pdg {
 
         void collectDataDependencyInFunc();
 
+        void collectAliasInst();
+
         virtual bool runOnFunction(llvm::Function &F);
 
         virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const;

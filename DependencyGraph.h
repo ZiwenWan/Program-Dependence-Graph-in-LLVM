@@ -39,6 +39,7 @@ namespace pdg{
         DATA_DEF_USE,
         DATA_RAW,
         DATA_READ,
+        DATA_ALIAS,
         DATA_CALL_PARA,
         PARAMETER,
         STRUCT_FIELDS

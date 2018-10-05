@@ -80,6 +80,65 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
   return _flowdep_set;
 }
 
+void pdg::DataDependencyGraph::collectAliasInst()
+{
+  std::list<StoreInst *> storeVec = funcMap[func]->getStoreInstList();
+  std::list<LoadInst *> loadVec = funcMap[func]->getLoadInstList();
+
+  // collect store
+  for (StoreInst *si1 : storeVec)
+  {
+    for (StoreInst *si2 : storeVec)
+    {
+      if (si1 == si2)
+      {
+        continue;
+      }
+      MemoryLocation s1_loc = MemoryLocation::get(si1);
+      MemoryLocation s2_loc = MemoryLocation::get(si2);
+
+      AliasResult AA_result = steenAA->query(s1_loc, s2_loc);
+      if (AA_result != NoAlias)
+      {
+        DDG->addDependency(instMap[si1], instMap[si2], DATA_ALIAS);
+      }
+    }
+  }
+
+  for (StoreInst *si : storeVec)
+  {
+    for (LoadInst *li : loadVec)
+    {
+      MemoryLocation s_loc = MemoryLocation::get(si);
+      MemoryLocation l_loc = MemoryLocation::get(li);
+      AliasResult AA_result = steenAA->query(s_loc, l_loc);
+      if (AA_result != NoAlias)
+      {
+        DDG->addDependency(instMap[si], instMap[li], DATA_ALIAS);
+        DDG->addDependency(instMap[li], instMap[si], DATA_ALIAS);
+      }
+    }
+  }
+
+  for (LoadInst *li1 : loadVec)
+  {
+    for (LoadInst *li2 : loadVec)
+    {
+      if (li1 == li2)
+      {
+        continue;
+      }
+      MemoryLocation li1_loc = MemoryLocation::get(li1);
+      MemoryLocation li2_loc = MemoryLocation::get(li2);
+      AliasResult AA_result = steenAA->query(li1_loc, li2_loc);
+      if (AA_result != NoAlias)
+      {
+        DDG->addDependency(instMap[li1], instMap[li2], DATA_ALIAS);
+      }
+    }
+  }
+}
+
 void pdg::DataDependencyGraph::collectRAWDependency(llvm::Instruction *inst) {
   // dealing with dependencies in a function
   std::vector<llvm::Instruction *> flowdep_set = getRAWDepList(inst);
@@ -142,6 +201,7 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
   constructFuncMapAndCreateFunctionEntry();
   constructInstMap(F);
   collectDataDependencyInFunc();
+  collectAliasInst();
   return false;
 }
 
