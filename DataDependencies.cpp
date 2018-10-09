@@ -85,26 +85,6 @@ void pdg::DataDependencyGraph::collectAliasInst()
   std::list<StoreInst *> storeVec = funcMap[func]->getStoreInstList();
   std::list<LoadInst *> loadVec = funcMap[func]->getLoadInstList();
 
-  // collect store
-  for (StoreInst *si1 : storeVec)
-  {
-    for (StoreInst *si2 : storeVec)
-    {
-      if (si1 == si2)
-      {
-        continue;
-      }
-      MemoryLocation s1_loc = MemoryLocation::get(si1);
-      MemoryLocation s2_loc = MemoryLocation::get(si2);
-
-      AliasResult AA_result = steenAA->query(s1_loc, s2_loc);
-      if (AA_result != NoAlias)
-      {
-        DDG->addDependency(instMap[si1], instMap[si2], DATA_ALIAS);
-      }
-    }
-  }
-
   for (StoreInst *si : storeVec)
   {
     for (LoadInst *li : loadVec)
@@ -120,6 +100,7 @@ void pdg::DataDependencyGraph::collectAliasInst()
     }
   }
 
+  // add alias info for two load instructions
   for (LoadInst *li1 : loadVec)
   {
     for (LoadInst *li2 : loadVec)

@@ -330,50 +330,6 @@ void pdg::ProgramDependencyGraph::getInterFuncReadWriteInfo(llvm::Function* func
     }
 }
 
-// void pdg::ProgramDependencyGraph::getInterFuncReadWriteInfo(llvm::Function* func) {
-//     FunctionWrapper *funcW = funcMap[func];
-//     errs() << "Start getting inter func arg use for func: " << func->getName() << "\n";
-//     for (ArgumentWrapper* callerArgW : funcW->getArgWList())
-//     {
-//         for (InstructionWrapper* callInstW : callerArgW->getRelevantCallInsts()) {
-//             llvm::Instruction* callInst = callInstW->getInstruction();
-//             if (callInst == nullptr) {
-//                 return; 
-//             }
-
-//             CallInst* CI = dyn_cast<CallInst>(callInst);
-//             llvm::Function* calledFunc = CI->getCalledFunction();
-//             // handle indirect call first, indirect call yield nullptr when 
-//             // being called on get called function
-//             if (calledFunc == nullptr) {
-//                 // for handling indrect call, we simply collect all possible candidates here, and 
-//                 // iterate through them, while merging argW use info.
-//                 Type *t = CI->getCalledValue()->getType();
-//                 FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
-//                 errs() << "Collecting indirect call in func: " << func->getName() << "\n";
-//                 std::vector<llvm::Function*> indirect_call_candidates = collectIndirectCallCandidates(funcTy);
-//                 for (llvm::Function* indirect_call : indirect_call_candidates) {
-//                     FunctionWrapper* calleeFuncW = funcMap[indirect_call];
-//                     for (ArgumentWrapper* calleeArgW : calleeFuncW->getArgWList()) {
-//                         mergeArgWReadWriteInfo(callerArgW, calleeArgW);
-//                     }
-//                 }
-//             }
-//             // start processing direct call
-//             // here, what we do basically is iterating through all related call instructions
-//             // find correspond argument wrapper, and merge the read and write information. 
-//             if (calledFunc != nullptr)
-//             {
-//                 FunctionWrapper *calleeFuncW = funcMap[calledFunc];
-//                 for (ArgumentWrapper *calleeArgW : calleeFuncW->getArgWList())
-//                 {
-//                     mergeArgWReadWriteInfo(callerArgW, calleeArgW);
-//                 }
-//             }
-//         }
-//     }
-// }
-
 void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *argW)
 {
     auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
@@ -385,10 +341,14 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *
     // then, merging all information together.
     for (InstructionWrapper *instW : aliasPtrInstWs)
     {
-        // alais has a store, means the same locations is accessed
-        if (isa<StoreInst>(instW->getInstruction())) {
-            accessType = pdg::WRITE_FIELD;
-            break;
+        // alais has a store, means the same locations is accessed. We mark the argW as 
+        // being written
+        if (StoreInst* st = dyn_cast<StoreInst>(instW->getInstruction())) {
+            if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction() ) {
+                errs() << "Testing " << argW->getArg()->getParent()->getName() << *instW->getInstruction() << "\n";
+                accessType = pdg::WRITE_FIELD;
+                break;
+            }
         }
 
         int _accessType = getAccessTypeForInstW(instW);
@@ -426,10 +386,14 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
     int accessType = pdg::NOACCESS;
     for (InstructionWrapper *instW : aliasPtrInstWs)
     {
-        if (isa<StoreInst>(instW->getInstruction())) {
-            accessType = pdg::WRITE_FIELD;
-            break;
+        // same here as single ptr 
+        if (StoreInst* st = dyn_cast<StoreInst>(instW->getInstruction())) {
+            if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction() ) {
+                accessType = pdg::WRITE_FIELD;
+                break;
+            }
         }
+        
         int _accessType = getAccessTypeForInstW(instW);
         if (_accessType == pdg::READ_FIELD)
         {
