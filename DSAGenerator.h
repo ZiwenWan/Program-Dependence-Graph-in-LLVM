@@ -30,6 +30,8 @@ public:
 
     typedef std::map<unsigned, std::pair<std::string, DIType *>> offsetNames;
 
+    std::map<std::string, offsetNames> seenStructs;
+
     // store argument offset correspond to arg field names. (pointer type)
     std::map<Function*, std::map<unsigned, offsetNames>> funcArgOffsetMap;
 
@@ -41,11 +43,13 @@ public:
         //DSAGenerator *DSA = new DSAGenerator();
     }
 
-    DIType* getLowestDINode(DIType *Ty);
+    DIType* getLowestDINode(DIType* Ty);
 
     std::map<Function*, std::map<unsigned, offsetNames>> getFuncArgOffsetNames() {
         return funcArgOffsetMap;
     }
+
+    std::string getStructName(DIType* Ty);
 
     void getAllNames(DIType *Ty, std::set<std::string> seen_names, offsetNames &of, unsigned prev_off, std::string baseName, std::string indent, StringRef argName, std::string &structName);
 
