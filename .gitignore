@@ -32,3 +32,8 @@ Temporary Items
 build/
 cmake-build-debug/
 .idea/
+
+# test output files
+*.ll
+*.bc
+*.dot
