@@ -45,6 +45,7 @@ int main() {
     Clothes c = {"red", 3.40f};
     Person p = { 20, "Jack", &c };
 
-    printAge(&p);
+    //printAge(&p);
+    agePtr(&p);
     return 0;    
 }

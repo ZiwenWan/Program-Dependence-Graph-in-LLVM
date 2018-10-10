@@ -15,17 +15,10 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
+#include "llvm/Analysis/CFLSteensAliasAnalysis.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace pdg {
-//    llvm::ModRefInfo GetLocation(const llvm::Instruction *Inst,
-//                                        llvm::MemoryLocation &Loc,
-//                                        llvm::AliasAnalysis *AA);
-//
-//    llvm::ModRefInfo GetLocation(const llvm::Instruction *Inst,
-//                                 llvm::MemoryLocation &Loc,
-//                                 llvm::AliasAnalysis *AA);
-
     typedef DependencyGraph<InstructionWrapper> DataDepGraph;
 
     static std::vector<InstructionWrapper *> gp_list;
@@ -50,15 +43,19 @@ namespace pdg {
 
         void collectCallInstDependency(llvm::Instruction *inst);
 
-        void collectImplicitRAWDepList(llvm::Instruction *pLoadInst);
+        void collectWriteToDependency(llvm::Instruction *pLoadInst);
 
         std::vector<llvm::Instruction *> getRAWDepList(llvm::Instruction *pLoadInst);
 
         void collectRAWDependency(llvm::Instruction *inst);
 
+        void collectReadFromDependency(llvm::Instruction *inst);
+
         void collectNonLocalDependency(llvm::Instruction *inst);
 
         void collectDataDependencyInFunc();
+
+        void collectAliasInst();
 
         virtual bool runOnFunction(llvm::Function &F);
 
@@ -68,12 +65,12 @@ namespace pdg {
             return "Data Dependency Graph";
         }
 
-
         virtual void print(llvm::raw_ostream &OS, const llvm::Module *M = 0) const;
 
     private:
         llvm::Function *func;
         AliasAnalysis *AA;
+        CFLSteensAAResult *steenAA;
         MemoryDependenceResults *MD;
     };
 }

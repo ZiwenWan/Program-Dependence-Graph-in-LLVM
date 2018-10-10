@@ -21,6 +21,7 @@ add_library(pdg MODULE
     PDGHelper.cpp
     FunctionWrapper.cpp
     DSAGenerator.cpp
+    ValueTracking.cpp
 )
 
 

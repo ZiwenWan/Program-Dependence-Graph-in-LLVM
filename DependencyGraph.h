@@ -38,12 +38,23 @@ namespace pdg{
         DATA_GENERAL,
         DATA_DEF_USE,
         DATA_RAW,
+        DATA_READ,
+        DATA_ALIAS,
+        DATA_CALL_PARA,
         PARAMETER,
         STRUCT_FIELDS
     };
 
     enum ControlType {
         TRUE = 0x4, FALSE = 0x8, OTHER = 0xc
+    };
+
+    enum ArgumentType {
+        UNKNOWN_TYPE = 0,
+        SINGLE_VALUE_TYPE,
+        SINGLE_VALUE_PTR_TYPE,
+        AGGREGATE_VALUE_TYPE,
+        AGGREGATE_VALUE_PTR_TYPE
     };
 
     enum InstWrapperType {
@@ -56,8 +67,8 @@ namespace pdg{
         POINTER_RW,
         PARAMETER_FIELD,
         ENTRY,
-        GLOBAL_VALUE,
-        STRUCT_FIELD
+        STRUCT_FIELD,
+        GLOBAL_VALUE
     };
 
     class InstructionWrapper {
@@ -304,7 +315,7 @@ namespace pdg{
 
             DependencyLink link = DependencyLink(pNode, type);
 
-            // Avoid double links.
+            // Avoid repeated links.
             if (std::find(mDependencies.begin(), mDependencies.end(), link) ==
                 mDependencies.end()) {
                 mDependencies.push_back(link);

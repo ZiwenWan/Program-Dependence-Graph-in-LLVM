@@ -10,6 +10,7 @@ add_llvm_loadable_module( LLVMPDG
     FunctionWrapper.cpp
     DepPrinter.cpp
     DSAGenerator.cpp
+    ValueTracking.cpp
     DEPENDS
     intrinsics_gen
     PLUGIN_TOOL

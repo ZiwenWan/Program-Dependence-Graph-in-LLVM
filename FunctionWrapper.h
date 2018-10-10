@@ -46,6 +46,7 @@ namespace pdg {
         tree<InstructionWrapper *> actualInTree;
         tree<InstructionWrapper *> actualOutTree;
         std::set<InstructionWrapper *> GEPList;
+        std::set<InstructionWrapper *> relevantCallInsts;
     public:
         ArgumentWrapper(Argument *arg) {
             this->arg = arg;
@@ -83,15 +84,27 @@ namespace pdg {
 
         void copyTree(const tree<InstructionWrapper *> &srcTree, TreeType treeTy);
 
+        void addRelevantCallInsts(InstructionWrapper* instW) {
+            if (instW == nullptr || !isa<CallInst>(instW->getInstruction())) {
+                return;
+            }
+            relevantCallInsts.insert(instW);
+        }
+
         std::set<InstructionWrapper *> &getGEPList() {
             return GEPList;
         }
+
+        std::set<InstructionWrapper *> getRelevantCallInsts() {
+            return relevantCallInsts;
+        }
+
     };
 
     class CallWrapper {
     private:
         CallInst *CI;
-        std::list<ArgumentWrapper *> argWList;
+        std::vector<ArgumentWrapper *> argWList;
 
     public:
         CallWrapper(CallInst *CI) {
@@ -120,7 +133,7 @@ namespace pdg {
 
         CallInst *getCallInstruction() { return CI; }
 
-        std::list<ArgumentWrapper *> &getArgWList() { return argWList; }
+        std::vector<ArgumentWrapper *> &getArgWList() { return argWList; }
     };
 
     // FunctionWrapper
@@ -133,7 +146,7 @@ namespace pdg {
       std::list<llvm::LoadInst *> loadInstList;
       std::list<llvm::Instruction *> returnInstList;
       std::list<llvm::CallInst *> callInstList;
-      std::list<ArgumentWrapper *> argWList;
+      std::vector<ArgumentWrapper *> argWList;
       std::set<llvm::Function *> dependent_funcs;
       std::set<llvm::Value *> ptrSet;
 
@@ -167,7 +180,7 @@ namespace pdg {
 
       InstructionWrapper *getEntry() { return entryW; }
 
-      std::list<ArgumentWrapper *> &getArgWList() { return argWList; }
+      std::vector<ArgumentWrapper *> &getArgWList() { return argWList; }
 
       std::list<llvm::StoreInst *> &getStoreInstList() { return storeInstList; }
 

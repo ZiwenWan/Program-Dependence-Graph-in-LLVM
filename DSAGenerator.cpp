@@ -28,6 +28,21 @@ DIType* DSAGenerator::getLowestDINode(DIType *Ty) {
     return Ty;
 }
 
+std::string DSAGenerator::getStructName(DIType *Ty) {
+    DIType* baseTy = getLowestDINode(Ty);
+    if (!baseTy)
+    {
+        return "";
+    }
+
+    if (baseTy->getTag() == dwarf::DW_TAG_structure_type)
+    {
+        return baseTy->getName().str();
+    }
+
+    return "";
+}
+
 void DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, offsetNames &of, unsigned prev_off, std::string baseName, std::string indent, StringRef argName, std::string &structName) {
     std::string printinfo = moduleName + "[getAllNames]: ";
     DIType *baseTy = getLowestDINode(Ty);
@@ -131,9 +146,17 @@ DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned a
                     if (F->getName() == "passF") errs() << "BEGIN WATCH\n";
                     errs() << printinfo << "CALL getAllNames on line 266 with these params:\n";
                     errs() << printinfo << "argName = " << argName << "\n";
+                    std::string baseStructName = getStructName(Ty);
+
+                    if (seenStructs.find(baseStructName) != seenStructs.end()) {
+                        offNames = seenStructs[baseStructName];
+                        continue;
+                    }
+
                     std::set<std::string> seen_names;
                     getAllNames(Ty, seen_names, offNames, 0, "", "  ", argName, structName);
                     seen_names.clear();
+                    seenStructs[structName] = offNames;
                     errs() << printinfo << "structName = " << structName << "\n";
                 }
             }

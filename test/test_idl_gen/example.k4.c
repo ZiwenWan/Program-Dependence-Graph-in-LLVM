@@ -50,7 +50,7 @@ int open(struct device *dev){
 }
 
 void device_reset(int * dev_init){
-    *dev_init=0;
+    *dev_init = 0;
 }
 
 struct device * lookup_device(char * search_name)

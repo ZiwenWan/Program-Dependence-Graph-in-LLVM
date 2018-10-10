@@ -7,6 +7,7 @@ char pdg::DataDependencyGraph::ID = 0;
 
 void pdg::DataDependencyGraph::initializeMemoryDependencyPasses() {
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
+  steenAA = &getAnalysis<CFLSteensAAWrapperPass>().getResult();
   MD = &getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
 }
 
@@ -19,19 +20,43 @@ void pdg::DataDependencyGraph::constructFuncMapAndCreateFunctionEntry() {
   }
 }
 
+void pdg::DataDependencyGraph::collectReadFromDependency(llvm::Instruction *inst)
+{
+  if (LoadInst *li = dyn_cast<LoadInst>(inst))
+  {
+    if (Instruction *pInst = dyn_cast<Instruction>(li->getPointerOperand()))
+    {
+      DDG->addDependency(instMap[pInst], instMap[inst], DATA_READ);
+    }
+  }
+}
+
 void pdg::DataDependencyGraph::collectDefUseDependency(llvm::Instruction *inst) {
   // check for def-use dependencies
   for (Instruction::const_op_iterator cuit = inst->op_begin();
        cuit != inst->op_end(); ++cuit) {
     if (Instruction *pInst = dyn_cast<Instruction>(*cuit)) {
       // add info flow from the instruction to current instruction
-      DDG->addDependency(instMap[pInst], instMap[inst], DATA_DEF_USE);
+        DDG->addDependency(instMap[pInst], instMap[inst], DATA_DEF_USE);
     }
   }
 }
 
-void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst) {
-  if(isa<CallInst>(inst)) {
+void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst)
+{
+  if (CallInst *callInst = dyn_cast<CallInst>(inst))
+  {
+    if (callInst->getCalledFunction() != nullptr && callInst->getCalledFunction()->isDeclaration())
+    {
+      return;
+    }
+    for (auto arg_iter = callInst->arg_begin(); arg_iter != callInst->arg_end(); ++arg_iter)
+    {
+      if (Instruction* tmpInst = dyn_cast<Instruction>(&*arg_iter))
+      {
+        DDG->addDependency(instMap[tmpInst], instMap[inst], DATA_CALL_PARA);
+      }
+    }
     DEBUG(dbgs() << "This is a call Inst (DDG)" << "\n");
   }
 }
@@ -40,14 +65,14 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
   std::vector<Instruction *> _flowdep_set;
   std::list<StoreInst *> StoreVec = funcMap[func]->getStoreInstList();
   // for each Load Instruction, find related Store Instructions(alias considered)
-  LoadInst *LI = dyn_cast<LoadInst>(pLoadInst);
+  LoadInst* LI = dyn_cast<LoadInst>(pLoadInst);
 
   MemoryLocation LI_Loc = MemoryLocation::get(LI);
 //  for (int j = 0; j < StoreVec.size(); j++) {
   for (StoreInst* SI : StoreVec) {
 //    StoreInst *SI = dyn_cast<StoreInst>(StoreVec[j]);
     MemoryLocation SI_Loc = MemoryLocation::get(SI);
-    AliasResult AA_result = AA->alias(LI_Loc, SI_Loc);
+    AliasResult AA_result = steenAA->alias(LI_Loc, SI_Loc);
     if (AA_result != NoAlias) {
       _flowdep_set.push_back(SI);
     }
@@ -55,21 +80,45 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
   return _flowdep_set;
 }
 
-void pdg::DataDependencyGraph::collectImplicitRAWDepList(llvm::Instruction *inst) {
-  llvm::StoreInst *SI = dyn_cast<llvm::StoreInst>(inst);
-  Value *storeTo = SI->getOperand(1); 
-  
-  for (auto user : storeTo->users())
+void pdg::DataDependencyGraph::collectAliasInst()
+{
+  std::list<StoreInst *> storeVec = funcMap[func]->getStoreInstList();
+  std::list<LoadInst *> loadVec = funcMap[func]->getLoadInstList();
+
+  for (StoreInst *si : storeVec)
   {
-    if (llvm::Instruction *tmpInst = dyn_cast<llvm::Instruction>(user))
+    for (LoadInst *li : loadVec)
     {
-      // here, store happens. Latter on, if the register being written by store inst
-      // is used by other instruction, not only read
-      DDG->addDependency(instMap[inst], instMap[tmpInst], DATA_RAW);
+      MemoryLocation s_loc = MemoryLocation::get(si);
+      MemoryLocation l_loc = MemoryLocation::get(li);
+      AliasResult AA_result = steenAA->alias(s_loc, l_loc);
+      if (AA_result != NoAlias)
+      {
+        DDG->addDependency(instMap[si], instMap[li], DATA_ALIAS);
+        DDG->addDependency(instMap[li], instMap[si], DATA_ALIAS);
+      }
+    }
+  }
+
+  // add alias info for two load instructions
+  for (LoadInst *li1 : loadVec)
+  {
+    for (LoadInst *li2 : loadVec)
+    {
+      if (li1 == li2)
+      {
+        continue;
+      }
+      MemoryLocation li1_loc = MemoryLocation::get(li1);
+      MemoryLocation li2_loc = MemoryLocation::get(li2);
+      AliasResult AA_result = steenAA->alias(li1_loc, li2_loc);
+      if (AA_result != NoAlias)
+      {
+        DDG->addDependency(instMap[li1], instMap[li2], DATA_ALIAS);
+      }
     }
   }
 }
-
 
 void pdg::DataDependencyGraph::collectRAWDependency(llvm::Instruction *inst) {
   // dealing with dependencies in a function
@@ -79,8 +128,6 @@ void pdg::DataDependencyGraph::collectRAWDependency(llvm::Instruction *inst) {
     DEBUG(dbgs() << "Debugging flowdep_set:" << "\n");
     DEBUG(dbgs() << *flowdep_set[i] << "\n");
     DDG->addDependency(instMap[flowdep_set[i]], instMap[inst], DATA_RAW);
-    //DDG->addDependency(instMap[inst], instMap[flowdep_set[i]], DATA_RAW);
-    //errs() << "Finish adding dep for:" << *flowdep_set[i]<< "\n";
   }
 
   flowdep_set.clear();
@@ -118,12 +165,9 @@ void pdg::DataDependencyGraph::collectDataDependencyInFunc() {
     collectCallInstDependency(pInstruction);
 
     if (isa<llvm::LoadInst>(pInstruction)) {
+      collectReadFromDependency(pInstruction);
       collectRAWDependency(pInstruction);
       collectNonLocalDependency(pInstruction);
-    }
-
-    if (isa<llvm::StoreInst>(pInstruction)) {
-      collectImplicitRAWDepList(pInstruction);
     }
   }
 }
@@ -138,12 +182,14 @@ bool pdg::DataDependencyGraph::runOnFunction(llvm::Function &F) {
   constructFuncMapAndCreateFunctionEntry();
   constructInstMap(F);
   collectDataDependencyInFunc();
+  collectAliasInst();
   return false;
 }
 
 void pdg::DataDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<AAResultsWrapperPass>();
   AU.addRequired<MemoryDependenceWrapperPass>();
+  AU.addRequired<CFLSteensAAWrapperPass>();
   AU.setPreservesAll();
 }
 
@@ -154,6 +200,6 @@ void pdg::DataDependencyGraph::print(raw_ostream &OS, const Module *) const {
 static RegisterPass<pdg::DataDependencyGraph>
         DDG("ddg", "Data Dependency Graph Construction", false, true);
 
-//pdg::DataDependencyGraph *CreateDataDependencyGraphPass() {
-//  return new pdg::DataDependencyGraph();
-//}
+pdg::DataDependencyGraph *CreateDataDependencyGraphPass() {
+ return new pdg::DataDependencyGraph();
+}
