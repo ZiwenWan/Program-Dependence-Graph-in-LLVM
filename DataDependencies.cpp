@@ -72,7 +72,7 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
   for (StoreInst* SI : StoreVec) {
 //    StoreInst *SI = dyn_cast<StoreInst>(StoreVec[j]);
     MemoryLocation SI_Loc = MemoryLocation::get(SI);
-    AliasResult AA_result = steenAA->query(LI_Loc, SI_Loc);
+    AliasResult AA_result = steenAA->alias(LI_Loc, SI_Loc);
     if (AA_result != NoAlias) {
       _flowdep_set.push_back(SI);
     }
@@ -91,7 +91,7 @@ void pdg::DataDependencyGraph::collectAliasInst()
     {
       MemoryLocation s_loc = MemoryLocation::get(si);
       MemoryLocation l_loc = MemoryLocation::get(li);
-      AliasResult AA_result = steenAA->query(s_loc, l_loc);
+      AliasResult AA_result = steenAA->alias(s_loc, l_loc);
       if (AA_result != NoAlias)
       {
         DDG->addDependency(instMap[si], instMap[li], DATA_ALIAS);
@@ -111,7 +111,7 @@ void pdg::DataDependencyGraph::collectAliasInst()
       }
       MemoryLocation li1_loc = MemoryLocation::get(li1);
       MemoryLocation li2_loc = MemoryLocation::get(li2);
-      AliasResult AA_result = steenAA->query(li1_loc, li2_loc);
+      AliasResult AA_result = steenAA->alias(li1_loc, li2_loc);
       if (AA_result != NoAlias)
       {
         DDG->addDependency(instMap[li1], instMap[li2], DATA_ALIAS);

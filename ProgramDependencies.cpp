@@ -1302,26 +1302,32 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
 
 std::set<pdg::InstructionWrapper *>
 pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg) {
-    llvm::Instruction* arg_st = getArgStoreInst(arg);
-    DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(instMap[arg_st]);
-    DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
-    std::queue<InstructionWrapper *> instWQ;
+    std::vector<Instruction*> initialStoreInsts = getArgStoreInsts(arg);
 
-    for (auto depPair : dataDList) {
-        int depType = depPair.second;
-        if (depType == DATA_ALIAS) {
-            InstructionWrapper* depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-            instWQ.push(depInstW);
+    std::queue<InstructionWrapper *> instWQ;
+    for (Instruction *storeInst : initialStoreInsts)
+    {
+        DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(instMap[storeInst]);
+        DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
+        for (auto depPair : dataDList)
+        {
+            int depType = depPair.second;
+            if (depType == DATA_ALIAS)
+            {
+                InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
+                instWQ.push(depInstW);
+            }
         }
     }
+
 
     std::set<InstructionWrapper*> relevantGEPs;
     while (!instWQ.empty()) {
         InstructionWrapper* instW = instWQ.front();
         instWQ.pop();
 
-        dataDNode = PDG->getNodeByData(instW);
-        dataDList = dataDNode->getDependencyList();
+        DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(instW);
+        DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
         for (auto depPair : dataDList)
         {
             int depType = depPair.second;

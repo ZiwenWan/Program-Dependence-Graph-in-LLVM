@@ -79,7 +79,7 @@ namespace pdg {
 
         std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> getParameterTreeNodeWithCorrespondGEP(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator formal_in_TI);
 
-        InstructionWrapper* getInitialStoreInst(llvm::Argument *arg);
+        //std::vector<InstructionWrapper*> getInitialStoreInsts(llvm::Argument *arg);
 
         int getArgOpType(llvm::Argument *arg);
 
@@ -95,7 +95,7 @@ namespace pdg {
 
         llvm::Instruction* getArgAllocaInst(llvm::Argument *arg);
 
-        llvm::Instruction* getArgStoreInst(llvm::Argument *arg);
+        std::vector<llvm::Instruction*> getArgStoreInsts(llvm::Argument *arg);
 
         void mergeTypeTreeReadAndWriteInfo(ArgumentWrapper* argW, tree<InstructionWrapper*>::iterator mergeTo, tree<InstructionWrapper*>::iterator mergeFrom);
 
