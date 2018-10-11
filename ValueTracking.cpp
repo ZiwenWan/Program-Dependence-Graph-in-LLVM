@@ -423,6 +423,7 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
     // then, merging all information together.
     for (InstructionWrapper *instW : aliasPtrInstWs)
     {
+        errs() << *instW->getInstruction() << "\n";
         // same here as single ptr 
         if (StoreInst* st = dyn_cast<StoreInst>(instW->getInstruction())) {
             if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction() ) {
