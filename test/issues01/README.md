@@ -42,7 +42,7 @@ Access Type: Write
 ```
 From the above we can tell that `devop_init_registered` is undergoing a write access, which happens in the `new_fun` function.  
 
-## Issue 3 - Main function
+## Issue 2 - Main function
 *[STATUS: TO RESOLVE]*
 
 The main function does not report any read/write info. This may not be required at this stage, but we can reserve it for future discussion. 
