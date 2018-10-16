@@ -1,9 +1,9 @@
-#H2 Files used for testing:
+## Files used for testing:
 
 Input : `kernel_example.c`
 Output: `kernel_example.fieldaccess`
 
-#H2 Issue 1 - Receiving a struct field as an argument.
+## Issue 1 - Receiving a struct field as an argument.
 *[STATUS: TO RESOLVE]*
 
 The read/write info for `new_fun` is shown as follows.
@@ -42,12 +42,12 @@ Access Type: Write
 ```
 From the above we can tell that `devop_init_registered` is undergoing a write access, which happens in the `new_fun` function.  
 
-#H2 Issue 3 - Main function
+## Issue 3 - Main function
 *[STATUS: TO RESOLVE]*
 
 The main function does not report any read/write info. This may not be required at this stage, but we can reserve it for future discussion. 
 
-#H3 Commands used for testing
+### Commands used for testing
 
 The following command was used to generate the .bc file from the
 input .c file in the `build` folder. (No optimizations were used.)
