@@ -133,7 +133,8 @@ int DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, offs
         // of[0] = std::pair<std::string, DIType *>(argName.str(), bas);//This may be overwriting the correct name of the first member of the structure.
         //TODO need to see whether this case (this else if situation) needs to be handled at all.
     }
-    else {
+    else
+    {
         errs() << "Find unknown types\n";
         structName = "";
         // same here, unkonwn type could be function pointer etc. In this case, we assume it will have a child created
@@ -141,7 +142,8 @@ int DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, offs
     return visit_order;
 }
 
-DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned argNumber, StringRef argName, std::string& structName) {
+DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned argNumber, StringRef argName, std::string &structName)
+{
     std::string printinfo = moduleName + "[getArgFieldNames]: ";
     offsetNames offNames;
     //didn't find any such case
@@ -152,12 +154,16 @@ DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned a
 
     SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
     F->getAllMetadata(MDs);
-    for (auto &MD : MDs) {
-        if (MDNode *N = MD.second) {
-            if (DISubprogram *subprogram = dyn_cast<DISubprogram>(N)) {
+    for (auto &MD : MDs)
+    {
+        if (MDNode *N = MD.second)
+        {
+            if (DISubprogram *subprogram = dyn_cast<DISubprogram>(N))
+            {
                 auto *subRoutine = subprogram->getType();
                 //XXX:if a function takes in no arguments, how can we assume it is of type void?
-                if (!subRoutine->getTypeArray()[0]) {
+                if (!subRoutine->getTypeArray()[0])
+                {
                     errs() << printinfo << "return type \"void\" for Function : " << F->getName().str() << "\n";
                 }
 
@@ -169,21 +175,25 @@ DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned a
                 /// prevent array out of bounds exception (segfault)
 
                 //did not encounter this case with dummy.c
-                if (argNumber >= TypeRef.size()) {
+                if (argNumber >= TypeRef.size())
+                {
                     errs() << printinfo << "TypeArray request out of bounds. Are parameters coerced??\n";
                     goto done;
                 }
 
-                if (const auto &ArgTypeRef = TypeRef[argNumber]) {
+                if (const auto &ArgTypeRef = TypeRef[argNumber])
+                {
                     // Resolve the type
                     DIType *Ty = ArgTypeRef.resolve();
                     // Handle Pointer type
-                    if (F->getName() == "passF") errs() << "BEGIN WATCH\n";
+                    if (F->getName() == "passF")
+                        errs() << "BEGIN WATCH\n";
                     errs() << printinfo << "CALL getAllNames on line 266 with these params:\n";
                     errs() << printinfo << "argName = " << argName << "\n";
                     std::string baseStructName = getStructName(Ty);
 
-                    if (seenStructs.find(baseStructName) != seenStructs.end()) {
+                    if (seenStructs.find(baseStructName) != seenStructs.end())
+                    {
                         offNames = seenStructs[baseStructName];
                         continue;
                     }
@@ -199,14 +209,17 @@ DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned a
         }
     }
 
-    done:
+done:
     return offNames;
 }
 
-std::vector<DbgDeclareInst *> DSAGenerator::getDbgDeclareInstInFunction(Function *F) {
+std::vector<DbgDeclareInst *> DSAGenerator::getDbgDeclareInstInFunction(Function *F)
+{
     std::vector<DbgDeclareInst *> dbg_decl_inst;
-    for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
-        if (!isa<CallInst>(*I)) {
+    for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I)
+    {
+        if (!isa<CallInst>(*I))
+        {
             continue;
         }
         Instruction *pInstruction = dyn_cast<Instruction>(&*I);

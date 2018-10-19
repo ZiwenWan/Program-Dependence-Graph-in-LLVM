@@ -91,6 +91,15 @@ void pdg::DataDependencyGraph::collectAliasInst()
     {
       MemoryLocation s_loc = MemoryLocation::get(si);
       MemoryLocation l_loc = MemoryLocation::get(li);
+
+      Type *storePtrType = si->getPointerOperandType();
+      Type *loadPtrType = li->getPointerOperandType();
+
+      if (storePtrType != loadPtrType)
+      {
+        continue;
+      }
+
       AliasResult AA_result = steenAA->alias(s_loc, l_loc);
       if (AA_result != NoAlias)
       {
@@ -111,6 +120,15 @@ void pdg::DataDependencyGraph::collectAliasInst()
       }
       MemoryLocation li1_loc = MemoryLocation::get(li1);
       MemoryLocation li2_loc = MemoryLocation::get(li2);
+
+      Type *li1LocTy = li1->getPointerOperandType();
+      Type *li2LocTy = li2->getPointerOperandType();
+
+      if (li1 != li2)
+      {
+        continue;
+      }
+
       AliasResult AA_result = steenAA->alias(li1_loc, li2_loc);
       if (AA_result != NoAlias)
       {
