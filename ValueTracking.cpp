@@ -66,24 +66,6 @@ std::vector<llvm::Instruction*> pdg::ProgramDependencyGraph::getArgStoreInsts(Ar
     return initialStoreInsts;
 }
 
-// llvm::Instruction* pdg::ProgramDependencyGraph::getArgAllocaInst(Argument *arg)
-// {
-//     Instruction *inst = getArgStoreInst(arg);
-//     if (inst == nullptr)
-//     {
-//         return nullptr;
-//     }
-
-//     StoreInst *st = dyn_cast<StoreInst>(inst);
-//     if (isa<AllocaInst>(st->getPointerOperand()))
-//     {
-//         Instruction* ai = dyn_cast<Instruction>(st->getPointerOperand());
-//         return ai;
-//     }
-
-//     return nullptr;
-// }
-
 void pdg::ProgramDependencyGraph::collectRelevantCallInstsForArg(ArgumentWrapper* argW, InstructionWrapper* instW) {
     DependencyNode<InstructionWrapper>* dataDNode = PDG->getNodeByData(instW);
     DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
@@ -181,7 +163,6 @@ int pdg::ProgramDependencyGraph::getAccessTypeForGEPInstW(InstructionWrapper* in
 
 void pdg::ProgramDependencyGraph::getIntraFuncReadWriteInfo(Function *func)
 {
-
     FunctionWrapper *funcW = funcMap[func];
     for (ArgumentWrapper *argW : funcW->getArgWList())
     {
@@ -371,7 +352,7 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *
         // being written
         if (StoreInst* st = dyn_cast<StoreInst>(instW->getInstruction())) {
             if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction() ) {
-                errs() << "Testing " << argW->getArg()->getParent()->getName() << *instW->getInstruction() << "\n";
+                //errs() << "Testing " << argW->getArg()->getParent()->getName() << *instW->getInstruction() << "\n";
                 accessType = pdg::WRITE_FIELD;
                 break;
             }
@@ -414,6 +395,7 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
             if (!isa<Instruction>(st->getValueOperand())) {
                 accessType = pdg::WRITE_FIELD;
                 (*treeIter)->setAccessType(accessType);
+                break;
             }
         }
     }
@@ -423,7 +405,6 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
     // then, merging all information together.
     for (InstructionWrapper *instW : aliasPtrInstWs)
     {
-        errs() << *instW->getInstruction() << "\n";
         // same here as single ptr 
         if (StoreInst* st = dyn_cast<StoreInst>(instW->getInstruction())) {
             if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction() ) {
@@ -458,13 +439,14 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
             // get read/writ information for the GEP, and store to the typenode
             int gepAccessType = getAccessTypeForGEPInstW(gepInstW);
             int old_type = typeNodeW->getAccessType();
-
+            errs() << *(gepInstW->getInstruction()) << "\n";
             if (gepAccessType <= old_type)
             {
                 // if access info not changed, continue processing
                 continue;
             }
-            typeNodeW->setAccessType(gepAccessType);
+            //typeNodeW->setAccessType(gepAccessType);
+            (*treeIter)->setAccessType(gepAccessType);
         }
     }
 }

@@ -42,6 +42,8 @@ namespace pdg {
         ProgramDepGraph *PDG;
         static llvm::AliasAnalysis *Global_AA;
 
+        typedef std::map<unsigned, std::pair<std::string, DIType *>> offsetNames;
+
         ProgramDependencyGraph() : llvm::ModulePass(ID) {
             PDG = new ProgramDepGraph();
         }
@@ -51,7 +53,7 @@ namespace pdg {
             delete PDG;
         }
 
-        tree<InstructionWrapper*>::iterator getInstInsertLoc(ArgumentWrapper *argW, TypeWrapper *tyW, TreeType treeType);
+        tree<InstructionWrapper*>::iterator getInstInsertLoc(ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeType);
 
         bool isBasicTypeOrPtr(Type* ty);
 
@@ -61,7 +63,7 @@ namespace pdg {
 
         void insertArgToTree(TypeWrapper *tyW, ArgumentWrapper *pArgW, TreeType treeTy, tree<InstructionWrapper*>::iterator insertLoc);
 
-        int buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, int field_pos );
+        int buildFormalTypeTree(Argument *arg, InstructionWrapper *tyW, TreeType treeTy, int field_pos );
 
         void buildFormalTree(Argument *arg, TreeType treeTy, int field_pos);
 
@@ -119,7 +121,7 @@ namespace pdg {
 
         void mergeArgWReadWriteInfo(ArgumentWrapper* callerArgW, ArgumentWrapper* calleeArgW);
 
-        unsigned getStructElementNum(llvm::Module &M, InstructionWrapper *curTyNode);
+        unsigned getStructElementNum(llvm::Module &M, llvm::Type* curTyNode);
 
         const StructLayout* getStructLayout(llvm::Module &M, InstructionWrapper *curTyNode);
 
@@ -141,6 +143,8 @@ namespace pdg {
         int getArgMatchType(llvm::Argument *arg1, llvm::Argument *arg2);
 
         bool isFuncTypeMatch(FunctionType *funcTy, FunctionType *indirectFuncCallTy);
+
+        int printFieldAccessInfo(tree<InstructionWrapper*>::iterator treeIter, offsetNames argOffsetNames, int prev_offset, std::vector<std::string> accessTypeName);
 
         void printParameterTreeForFunc(llvm::Module &M, std::set<std::string> funcList);
 

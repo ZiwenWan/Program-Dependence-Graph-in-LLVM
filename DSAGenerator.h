@@ -1,3 +1,5 @@
+#ifndef DSAGEN_H_
+#define DSAGEN_H_
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/BasicBlock.h"
@@ -43,6 +45,8 @@ public:
         //DSAGenerator *DSA = new DSAGenerator();
     }
 
+    DIType* getBaseType(DIType* Ty);
+
     DIType* getLowestDINode(DIType* Ty);
 
     std::map<Function*, std::map<unsigned, offsetNames>> getFuncArgOffsetNames() {
@@ -51,7 +55,7 @@ public:
 
     std::string getStructName(DIType* Ty);
 
-    void getAllNames(DIType *Ty, std::set<std::string> seen_names, offsetNames &of, unsigned prev_off, std::string baseName, std::string indent, StringRef argName, std::string &structName);
+    int getAllNames(DIType *Ty, std::set<std::string> seen_names, offsetNames &of, int prev_off, std::string baseName, std::string indent, StringRef argName, std::string &structName);
 
     offsetNames getArgFieldNames(Function *F, unsigned argNumber, StringRef argName, std::string& structName);
 
@@ -67,3 +71,5 @@ public:
         AU.setPreservesAll();
     }
 };
+
+#endif

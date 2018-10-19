@@ -3,10 +3,28 @@
 
 using namespace llvm;
 
-DIType* DSAGenerator::getLowestDINode(DIType *Ty) {
+DIType *DSAGenerator::getBaseType(DIType *Ty)
+{
     if (Ty->getTag() == dwarf::DW_TAG_pointer_type ||
         Ty->getTag() == dwarf::DW_TAG_member ||
-        Ty->getTag() == dwarf::DW_TAG_typedef) {
+        Ty->getTag() == dwarf::DW_TAG_typedef)
+    {
+        DIType *baseTy = dyn_cast<DIDerivedType>(Ty)->getBaseType().resolve();
+        if (!baseTy) {
+            errs() << "Type : NULL - Nothing more to do\n";
+            return NULL;
+        }
+        return baseTy;
+    }
+    return Ty;
+}
+
+DIType *DSAGenerator::getLowestDINode(DIType *Ty)
+{
+    if (Ty->getTag() == dwarf::DW_TAG_pointer_type ||
+        Ty->getTag() == dwarf::DW_TAG_member ||
+        Ty->getTag() == dwarf::DW_TAG_typedef)
+    {
         DIType *baseTy = dyn_cast<DIDerivedType>(Ty)->getBaseType().resolve();
         if (!baseTy) {
             errs() << "Type : NULL - Nothing more to do\n";
@@ -43,55 +61,71 @@ std::string DSAGenerator::getStructName(DIType *Ty) {
     return "";
 }
 
-void DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, offsetNames &of, unsigned prev_off, std::string baseName, std::string indent, StringRef argName, std::string &structName) {
+int DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, offsetNames &of, int visit_order, std::string baseName, std::string indent, StringRef argName, std::string &structName)
+{
     std::string printinfo = moduleName + "[getAllNames]: ";
+    //errs() << rootDer->getName().str() << "\n";
     DIType *baseTy = getLowestDINode(Ty);
     if (!baseTy)
-        return;
+        return 0;
     // If that pointer is a struct
-
-    if (baseTy->getTag() == dwarf::DW_TAG_structure_type) {
-        //*file << "projection <struct " << arg->getType()->getStructName().str() << "" ;
+    if (baseTy->getTag() == dwarf::DW_TAG_structure_type)
+    {
+        errs() << "Find structure type\n";
         structName = baseTy->getName().str();
+        errs() << "Current struct name: " << structName << "\n";
         DICompositeType *compType = dyn_cast<DICompositeType>(baseTy);
         // Go thro struct elements and print them all
-        errs() << "element size: " << compType->getElements().size() << "\n";
-        for (DINode *Op : compType->getElements()) {
+        //std::string curStructName; 
+        //of[visit_order] = std::pair<std::string, DIType *>( new_name, der->getBaseType().resolve());
+        for (DINode *Op : compType->getElements())
+        {
+            //visit_order += 1;
             DIDerivedType *der = dyn_cast<DIDerivedType>(Op);
             unsigned offset = der->getOffsetInBits() >> 3;
 
             // do some type checking. If recursive type call, return
-            std::string curStructName = der->getName().str();
-            if (seen_names.find(curStructName) != seen_names.end()) {
+            std::string curFieldName = der->getName().str();
+            if (seen_names.find(curFieldName) != seen_names.end()) {
                 errs() << "Find repeat struct name. Break Here!"  << "\n";
                 continue;
             }
-            seen_names.insert(curStructName);
-
+            seen_names.insert(curFieldName);
             std::string new_name(baseName);
             if (new_name != "") new_name.append(".");
-            new_name.append(curStructName);
+            new_name.append(curFieldName);
+            errs() << "A new sturct name: " << curFieldName << "\n";
 
             errs() << printinfo << "type information:  " << der->getBaseType().resolve()->getTag() << "\n";
             errs() << printinfo << "Updating [of] on line 192 with following pair:\n";
-            errs() << printinfo << "first item [new_name] " << new_name << "\n";
-
-            of[offset + prev_off] = std::pair<std::string, DIType *>(
-                    new_name, der->getBaseType().resolve());
+            errs() << printinfo << "first item [new_name] " << new_name << " - " << visit_order << "\n";
+            //visit_order += 1;
+            of[visit_order] = std::pair<std::string, DIType *>( new_name, der->getBaseType().resolve());
             /// XXX: crude assumption that we want to peek only into those members
             /// whose sizes are greater than 8 bytes
             if (((der->getSizeInBits() >> 3) > 1)
                 && der->getBaseType().resolve()->getTag()) {
                 std::string tempStructName("");
                 errs() << printinfo <<"RECURSIVELY CALL getAllNames on 200\n";
-
-                getAllNames(dyn_cast<DIType>(der), seen_names, of, prev_off + offset,
+                visit_order = getAllNames(dyn_cast<DIType>(der), seen_names, of, visit_order + 1,
                             new_name, indent, argName, tempStructName);
             }
             errs() << "--------------- " << der->getName().str() << "\n";
         }
-    } else if (DIBasicType *bas = dyn_cast<DIBasicType>(baseTy)) {
+    }
+    else if (isa<DIBasicType>(baseTy))
+    {
+        // here, getting member type instead of pointer type.
+        DIType* oneLevelUpBaseType = getBaseType(Ty);
+        if ( oneLevelUpBaseType->getTag() == dwarf::DW_TAG_pointer_type ) // class member type ... 
+        {
+            errs() << "Adding 2 offset" << "\n";
+            visit_order += 1;
+        }
+
         structName = "";
+        //structName = baseTy->getName().str();
+        //of[visit_order] = std::pair<std::string, DIType *>( new_name, der->getBaseType().resolve());
         //if type tag for the parameter is of pointer_type and DI type is DIBasicType
         //then treat it as a pointer of native type
         errs()<< printinfo << "Updating [of] on line 209 with following pair:\n";
@@ -100,8 +134,11 @@ void DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, off
         //TODO need to see whether this case (this else if situation) needs to be handled at all.
     }
     else {
+        errs() << "Find unknown types\n";
         structName = "";
+        // same here, unkonwn type could be function pointer etc. In this case, we assume it will have a child created
     }
+    return visit_order;
 }
 
 DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned argNumber, StringRef argName, std::string& structName) {
@@ -114,9 +151,7 @@ DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned a
     }
 
     SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
-    //std::vector<MDNode *> MDs = getParameterNodeInFunction(F);
     F->getAllMetadata(MDs);
-    errs() << "MDNODE vector size: " << MDs.size() << "\n";
     for (auto &MD : MDs) {
         if (MDNode *N = MD.second) {
             if (DISubprogram *subprogram = dyn_cast<DISubprogram>(N)) {
@@ -154,7 +189,8 @@ DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned a
                     }
 
                     std::set<std::string> seen_names;
-                    getAllNames(Ty, seen_names, offNames, 0, "", "  ", argName, structName);
+                    //getAllNames(Ty, seen_names, offNames, 0, "", "  ", argName, structName);
+                    getAllNames(Ty, seen_names, offNames, 1, "", "  ", argName, structName);
                     seen_names.clear();
                     seenStructs[structName] = offNames;
                     errs() << printinfo << "structName = " << structName << "\n";
@@ -271,20 +307,20 @@ bool DSAGenerator::runOnModule(Module &M) {
         for (Argument &arg : F->args()) {
             if (arg.getType()->isPointerTy()) {
                 std::string structName;
-#ifdef TEST_IDL
+//#ifdef TEST_IDL
                 errs()<<printinfo << "arg.getArgNo(){ "<<arg.getArgNo()<<" }\n";
                 errs() << printinfo<<"CALL getArgFieldNames on line 521 with these parameters:\n";
                 errs() << printinfo<<"F, s.t F.getName() = "<<F->getName()<<"\n";
                 errs() << printinfo<<"arg.getArgNo() + 1 = "<<arg.getArgNo() + 1<<"\n";
                 errs() << printinfo<<"arg.getName() = "<<arg.getName()<<"\n";
-#endif
+//#endif
                 offsetNames of = getArgFieldNames(F, arg.getArgNo() + 1, arg.getName(), structName);
                 //funcArgOffsetMap[F] = of;
                 argNoToFieldNames[arg.getArgNo()] = of;
-#ifdef TEST_IDL
+//#ifdef TEST_IDL
                 errs() << printinfo<< "structName = " << structName <<"\n";
                 errs() << printinfo<<"CALL dumpOffsetNames on line 523\n";
-#endif
+//#endif
                 //dumpOffsetNames(of);
             }
         }

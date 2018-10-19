@@ -33,7 +33,7 @@
 #include <queue>
 #include <algorithm>
 #include <cstddef>
-
+#include <stdio.h>
 
 /// A node in the tree, combining links to other nodes as well as the actual data.
 template<class T>

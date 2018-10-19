@@ -12,13 +12,10 @@ char pdg::ProgramDependencyGraph::ID = 0;
 
 static std::set<Type*> recursive_types;
 
-tree<pdg::InstructionWrapper*>::iterator pdg::ProgramDependencyGraph::getInstInsertLoc(pdg::ArgumentWrapper *argW, TypeWrapper *tyW, TreeType treeTy) {
-    tree<pdg::InstructionWrapper*>::iterator insert_loc;
-    insert_loc = argW->getTree(treeTy).begin();
-    size_t treeSize = argW->getTree(treeTy).size();
-    while (treeSize > 1) {
+tree<pdg::InstructionWrapper*>::iterator pdg::ProgramDependencyGraph::getInstInsertLoc(pdg::ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy) {
+    tree<pdg::InstructionWrapper*>::iterator insert_loc = argW->getTree(treeTy).begin();
+    while ((*insert_loc) != tyW && insert_loc != argW->getTree(treeTy).end()) {
         insert_loc++;
-        treeSize -= 1;
     }
     return insert_loc;
 }
@@ -65,15 +62,16 @@ void pdg::ProgramDependencyGraph::insertArgToTree(TypeWrapper *tyW, ArgumentWrap
     pArgW->getTree(treeTy).append_child(insertLoc,typeFieldW);
 }
 
-int pdg::ProgramDependencyGraph::buildFormalTypeTree(Argument *arg, TypeWrapper *tyW, TreeType treeTy, int field_pos ) {
+int pdg::ProgramDependencyGraph::buildFormalTypeTree(Argument *arg, InstructionWrapper *tyW, TreeType treeTy, int field_pos ) {
+    
     if(arg == nullptr){
         DEBUG(dbgs() << "In buildTypeTree, incoming arg is a nullptr\n");
         return NULLPTR;
     }
 
-    if (!tyW->getType()->isPointerTy()) {
+    if (!tyW->getFieldType()->isPointerTy()) {
         if(arg != nullptr)
-            DEBUG(dbgs() << tyW->getType() << " is a Non-pointer type. arg = " << *arg << "\n");
+            DEBUG(dbgs() << tyW->getFieldType() << " is a Non-pointer type. arg = " << *arg << "\n");
         else
             DEBUG(dbgs() << "arg is nullptr!\n");
         return SUCCEED;
@@ -88,105 +86,120 @@ int pdg::ProgramDependencyGraph::buildFormalTypeTree(Argument *arg, TypeWrapper 
     }
 
     // setup worklist to avoid recusion processing
-    std::queue<TypeWrapper *> worklist;
+    std::queue<InstructionWrapper *> worklist;
     worklist.push(tyW);
+    // std::set<Type *> recursive_types;
 
     tree<InstructionWrapper*>::iterator insert_loc;
     while (!worklist.empty()) {
-        TypeWrapper *curTyNode = worklist.front();
+        InstructionWrapper* curTyNode = worklist.front();
         worklist.pop();
-        DEBUG(dbgs() << "current type node id: " << curTyNode->getId() << "\n");
         //errs() << "current node type is: " << curTyNode->getType()->getTypeID();
         insert_loc = getInstInsertLoc(pArgW, curTyNode, treeTy);
-
         // this function works on pointer type data.
-        if (!curTyNode->getType()->isPointerTy()) {
+        if (!curTyNode->getFieldType()->isPointerTy()) {
             //insertArgToTree(curTyNode, pArgW, treeTy, insert_loc);
             continue;
         }
 
         // need to process the integer/float pointer differently
-        if (PointerType* pt = dyn_cast<PointerType>(curTyNode->getType())) {
+        if (PointerType* pt = dyn_cast<PointerType>(curTyNode->getFieldType())) {
             if (pt->getElementType()->isSingleValueType())
             {
                 // insert pointer type node
                 // insertArgToTree(curTyNode, pArgW, treeTy, insert_loc);
                 // insert pointed buffer node
+                errs() << "Find single type node\n";
                 llvm::Type *pointedNodeTy = pt->getElementType(); 
                 // by default, the pointed buffer has 0 offset compared to parent
-                InstructionWrapper* pointedTypeFieldW = new InstructionWrapper(arg->getParent(), arg, pointedNodeTy, curTyNode->getType(), 0, PARAMETER_FIELD);
+                InstructionWrapper* pointedTypeFieldW = new InstructionWrapper(arg->getParent(), arg, pointedNodeTy, curTyNode->getFieldType(), 0, PARAMETER_FIELD);
                 instnodes.insert(pointedTypeFieldW);
                 funcInstWList[arg->getParent()].insert(pointedTypeFieldW);
+                errs() << "[" << arg->getParent()->getName() << "]"<< "Appending " << pointedNodeTy->getTypeID() << "\n";
                 pArgW->getTree(treeTy).append_child(insert_loc, pointedTypeFieldW);
+                return SUCCEED;
+            }
+
+            if (!pt->getElementType()->isStructTy()) {
                 return SUCCEED;
             }
         }
 
-        if(recursive_types.find(curTyNode->getType()) != recursive_types.end() ){
-            DEBUG(dbgs() << curTyNode->getType() << " is a recursive type found in historic record!\n ");
+        if(recursive_types.find(curTyNode->getFieldType()) != recursive_types.end() ){
+            DEBUG(dbgs() << curTyNode->getFieldType() << " is a recursive type found in historic record!\n ");
+            errs() << curTyNode->getFieldType() << " is a recursive type found in historic record!\n ";
             return RECURSIVE_TYPE;
         }
 
         //insert_loc = getInstInsertLoc(pArgW, curTyNode, treeTy);
         //if ty is a pointer, its containedType [ty->getContainedType(0)] means the type ty points to
         llvm::Type *parent_type = nullptr;
-        for(unsigned int i = 0; i < curTyNode->getType()->getContainedType(0)->getNumContainedTypes(); i++) {
-            int cur_field_offset = i;
-            // here extracting the contained filed, and insert to tree.
-            // for example: int* -> int, struct -> stcut.field
-            TypeWrapper *tempTyW = new TypeWrapper(curTyNode->getType()->getContainedType(0)->getContainedType(i), cur_field_offset);
-
-            // build a new instWrapper for each single argument and then insert the inst to instnodes.
-            parent_type = curTyNode->getType();
-            InstructionWrapper *typeFieldW = new InstructionWrapper(arg->getParent(), arg, tempTyW->getType(),
-                                                                    parent_type, cur_field_offset, PARAMETER_FIELD);
-            instnodes.insert(typeFieldW);
-            funcInstWList[arg->getParent()].insert(typeFieldW);
-            // start inserting formal tree instructions
-            pArgW->getTree(treeTy).append_child(insert_loc, typeFieldW);
+        //for(unsigned int i = 0; i < curTyNode->getType()->getContainedType(0)->getNumContainedTypes(); i++) {
+        for (unsigned int i = 0; i < dyn_cast<PointerType>(curTyNode->getFieldType())->getElementType()->getNumContainedTypes(); i++)
+        {
             //recursion, e.g. linked list, do backtracking along the path until reaching the root, if we can find an type that appears before,
             //use 1-limit to break the tree construction when insert_loc is not the root, it means we need to do backtracking the check recursion
-            if (pArgW->getTree(treeTy).depth(insert_loc) != 0) {
+            if (pArgW->getTree(treeTy).depth(insert_loc) != 0)
+            {
                 bool recursion_flag = false;
                 tree<InstructionWrapper *>::iterator backTreeIt = pArgW->getTree(treeTy).parent(insert_loc);
-                while (pArgW->getTree(treeTy).depth(backTreeIt) != 0) {
-                    backTreeIt = pArgW->getTree(treeTy).parent(backTreeIt);
-                    if ((*insert_loc)->getFieldType() == (*backTreeIt)->getFieldType()) {
-                        errs() << "Find recursion type!" << "\n";
+                while (pArgW->getTree(treeTy).depth(backTreeIt) != 0)
+                {
+                    if ((*insert_loc)->getFieldType() == (*backTreeIt)->getFieldType())
+                    {
+                        errs() << "Find recursion type!"
+                               << "\n";
                         recursion_flag = true;
                         recursive_types.insert((*insert_loc)->getFieldType());
                         break;
                     }
+                    backTreeIt = pArgW->getTree(treeTy).parent(backTreeIt);
                 }
 
-                if (recursion_flag) {
+                if (recursion_flag)
+                {
                     //process next contained type, because this type brings in a recursion
                     continue;
                 }
             }
 
+            // here extracting the contained filed, and insert to tree. This happens after we make sure the current
+            // node is not recursive
+            // for example: int* -> int, struct -> stcut.field
+            int cur_field_offset = i;
+            parent_type = curTyNode->getFieldType();
+            llvm::Type* childType = curTyNode->getFieldType()->getContainedType(0)->getContainedType(i);
+            InstructionWrapper *typeFieldW = new InstructionWrapper(arg->getParent(), arg, childType, parent_type, cur_field_offset, PARAMETER_FIELD);
+            instnodes.insert(typeFieldW);
+            funcInstWList[arg->getParent()].insert(typeFieldW);
+            // start inserting formal tree instructions
+            errs() << "[" << arg->getParent()->getName() << "]"<< "Appending " << i << " - " << childType->getTypeID() << "\n";
+            pArgW->getTree(treeTy).append_child(insert_loc, typeFieldW);
             //function ptr, FILE*, complex composite struct...
-            if (tempTyW->getType()->isPointerTy()) {
+
+            if (childType->isPointerTy()) {
+                Type* childEleTy = dyn_cast<PointerType>(childType)->getElementType();
                 //if field is a function Ptr
-                if (tempTyW->getType()->getContainedType(0)->isFunctionTy()) {
+                if (childType->isFunctionTy() || childEleTy->isFunctionTy())
+                {
                     string Str;
                     raw_string_ostream OS(Str);
-                    OS << *tempTyW->getType();
+                    OS << childType;
                     continue;
                 }
 
-                if (tempTyW->getType()->getContainedType(0)->isStructTy()) {
+                if (childType->isStructTy() || childEleTy->isStructTy())
+                {
                     string Str;
                     raw_string_ostream OS(Str);
-                    OS << *tempTyW->getType();
+                    OS << childType;
                     //FILE*, bypass, no need to buildTypeTree
                     if ("%struct._IO_FILE*" == OS.str() || "%struct._IO_marker*" == OS.str()) {
                         continue;
                     }
                 }
-
-                worklist.push(tempTyW);
             }
+            worklist.push(typeFieldW);
         }
     }
 
@@ -218,20 +231,20 @@ void pdg::ProgramDependencyGraph::buildFormalTree(Argument *arg, TreeType treeTy
     }
 
     auto treeRoot = (*argWLoc)->getTree(treeTy).set_head(treeTyW);
-    TypeWrapper *tyW = new TypeWrapper(arg->getType(),field_pos++);
+    // TypeWrapper *tyW = new TypeWrapper(arg->getType(),field_pos++);
     string Str;
     raw_string_ostream OS(Str);
-    OS << *tyW->getType();
+    // OS << *tyW->getType();
     //FILE*, bypass, no need to buildTypeTree
     if("%struct._IO_FILE*" == OS.str() || "%struct._IO_marker*" == OS.str()){
         errs() << "OS.str() = " << OS.str() << " FILE* appears, stop buildTypeTree\n";
     }
-    else if(tyW->getType()->isPointerTy() && tyW->getType()->getContainedType(0)->isFunctionTy()){
-        errs() << *arg->getParent()->getFunctionType() << " DEBUG 312: in buildFormalTree: function pointer arg = " << *tyW->getType() << "\n";
+    else if(treeTyW->getFieldType()->isPointerTy() && treeTyW->getFieldType()->getContainedType(0)->isFunctionTy()){
+        errs() << *arg->getParent()->getFunctionType() << " DEBUG 312: in buildFormalTree: function pointer arg = " << *treeTyW->getFieldType() << "\n";
     }
     else {
         //errs() << "start building formal type tree!" << "\n";
-        buildFormalTypeTree(arg, tyW, treeTy, field_pos);
+        buildFormalTypeTree(arg, treeTyW, treeTy, field_pos);
     }
     id = 0;
 }
@@ -482,7 +495,6 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(ArgumentWrapp
   for (auto GEPInstW : RelevantGEPList) {
     int operand_num = GEPInstW->getInstruction()->getNumOperands();
     llvm::Value *last_idx = GEPInstW->getInstruction()->getOperand(operand_num - 1);
-
     // cast the last_idx to int type
     if (llvm::ConstantInt *constInt = dyn_cast<ConstantInt>(last_idx)) {
       // make sure type is matched
@@ -518,8 +530,9 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(ArgumentWrapp
       if (offsetMatch && resTypeMatch && srcTypeMatch) {
         // also add this GEP to the list of GEP that directly access parameter.
         treeNodeGepPairs.push_back(std::make_pair(*formal_in_TI, GEPInstW));
-        errs() << "Pushing: " << *GEP << "\n";
-        errs() << "Size: " << treeNodeGepPairs.size() << "\n";
+        // errs() << argW->getArg()->getParent()->getName() << tree<InstructionWrapper*>::depth(formal_in_TI) << "\n";
+        // errs() << "Pushing: " << *GEP << "\n";
+        // errs() << "Size: " << treeNodeGepPairs.size() << "\n";
         return treeNodeGepPairs;
       }
     }
@@ -527,7 +540,6 @@ pdg::ProgramDependencyGraph::getParameterTreeNodeWithCorrespondGEP(ArgumentWrapp
   
   return treeNodeGepPairs;
 }
-
 
 // determine whether the GEP instruction is used by a load/store instruction later.
 int pdg::ProgramDependencyGraph::getGEPOpType(InstructionWrapper *GEPInstW)
@@ -1073,7 +1085,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
         if (F->isDeclaration()) {
             continue;
         }
-        errs() << "Getting intra function for func: " << F->getName() << "\n";
+        //errs() << "Getting intra function for func: " << F->getName() << "\n";
         // after building all dependencies, also collect read/write information in function
         getIntraFuncReadWriteInfo(F);
     }
@@ -1127,46 +1139,53 @@ int pdg::ProgramDependencyGraph::getArgType(llvm::Argument *arg) {
     return UNKNOWN_TYPE;
 }
 
-unsigned pdg::ProgramDependencyGraph::getStructElementNum(llvm::Module &M, InstructionWrapper *curTyNode)
+unsigned pdg::ProgramDependencyGraph::getStructElementNum(llvm::Module &M, llvm::Type *curNodeTy)
 {
+    if (curNodeTy == nullptr) {
+        return -1;
+    }
     DataLayout DL = M.getDataLayout();
-    llvm::Type *curNodeTy = curTyNode->getFieldType();
-
     // the parent must be struct pointer type or struct type.
-    PointerType *pt = dyn_cast<PointerType>(curNodeTy);
-    if (curNodeTy->isPointerTy())
+    if (PointerType *pt = dyn_cast<PointerType>(curNodeTy))
     {
-        if (!pt->getElementType()->isStructTy())
+
+        if (curNodeTy->isPointerTy())
         {
-            return -1;
+            if (!pt->getElementType()->isStructTy())
+            {
+                return -1;
+            }
         }
-    }
-    else
-    {
-        if (!curNodeTy->isStructTy())
+        else
         {
-            return -1;
+            if (!curNodeTy->isStructTy())
+            {
+                return -1;
+            }
         }
-    }
 
-    StructType *st = nullptr;
+        StructType *st = nullptr;
 
-    if (curNodeTy->isPointerTy())
-    {
-        // cast the pointer type to struct type.(we know it's a struct pointer at this point)
-        st = dyn_cast<StructType>(pt->getElementType());
+        if (curNodeTy->isPointerTy())
+        {
+            // cast the pointer type to struct type.(we know it's a struct pointer at this point)
+            st = dyn_cast<StructType>(pt->getElementType());
+        }
+        else
+        {
+            st = dyn_cast<StructType>(curNodeTy);
+        }
+        return st->getNumElements();
     }
-    else
-    {
-        st = dyn_cast<StructType>(curNodeTy);
-    }
-
-    return st->getNumElements();
+    return -1;
 }
 
 const StructLayout *
-pdg::ProgramDependencyGraph::getStructLayout(llvm::Module &M,
-                                             InstructionWrapper *curTyNode) {
+pdg::ProgramDependencyGraph::getStructLayout(llvm::Module &M, InstructionWrapper *curTyNode) {
+  if (curTyNode == nullptr) {
+      return nullptr;
+  }
+
   DataLayout DL = M.getDataLayout();
   llvm::Type *curNodeTy = curTyNode->getFieldType();
 
@@ -1202,7 +1221,9 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
       "Read",
       "Write"
   };
-  std::map<Function *, std::map<unsigned, DSAGenerator::offsetNames>> funcArgOffsetNames = getAnalysis<DSAGenerator>().getFuncArgOffsetNames();
+  
+  std::map<Function *, std::map<unsigned, offsetNames>> funcArgOffsetNames = getAnalysis<DSAGenerator>().getFuncArgOffsetNames();
+ 
   for (llvm::Function &func : M) {
 // #ifdef TEST_IDL 
 //     if (funcList.find(func.getName()) == funcList.end()) {
@@ -1215,86 +1236,47 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
           continue;
       }
       // get offset - name pair
-      std::map<unsigned, DSAGenerator::offsetNames> argsOffsetNames = funcArgOffsetNames[&func];
+      std::map<unsigned, offsetNames> argsOffsetNames = funcArgOffsetNames[&func];
       // traverse parameter tree, print access information and name for each field
       FunctionWrapper *funcW = funcMap[&func];
+      
       errs() << "\n [For function: " << func.getName() << "] \n";
       for (auto argW : funcW->getArgWList())
       {
-          errs() << "[ " << func.getName() << " ] " << "Tree size: " << argW->getTree(FORMAL_IN_TREE).size() << "\n";
           errs() << "Arg use information for arg no: " << argW->getArg()->getArgNo() << "\n";
-          DSAGenerator::offsetNames argOffsetNames = argsOffsetNames[argW->getArg()->getArgNo()];
-          for (auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
-               treeIter != argW->getTree(FORMAL_IN_TREE).end(); ++treeIter)
-          {
-              uint64_t prev_offset = 0;
-              uint64_t accumulate_offset = 0;
-              int curDepth = 0;
-              int tmpDepth = argW->getTree(FORMAL_IN_TREE).depth(treeIter);
-              // make sure we are fetching the code at the same level in the
-              // parameter tree
-              if (tmpDepth != curDepth)
-              {
-                  // updating the depth to the new level
-                  curDepth = tmpDepth;
-                  prev_offset += accumulate_offset;
-                  accumulate_offset = 0;
-              }
+          errs() << "Size of argW: " << argW->getTree(FORMAL_IN_TREE).size() << "\n";
+          offsetNames argOffsetNames = argsOffsetNames[argW->getArg()->getArgNo()];
 
-              InstructionWrapper *curTyNode = *treeIter;
-              llvm::Type *parentType = curTyNode->getParentType();
+          auto treeI = argW->getTree(FORMAL_IN_TREE).begin();
+          auto treeIE = argW->getTree(FORMAL_IN_TREE).end();
+          int visit_order = 0; 
+          for (;treeI != treeIE; ++treeI) {
+              InstructionWrapper* curTyNode = *treeI;
+              llvm::Type *parentTy = curTyNode->getParentType();
+              llvm::Type *curType = curTyNode->getFieldType();
 
-              // for each node in parameter tree, check its' parent type
-              if (parentType != nullptr)
-              {
-                  DEBUG(dbgs() << "Parent Type: " << curTyNode->getParentType()->getTypeID() << "\n");
-              }
-              else
-              {
-                  errs() << "** Root type node **"
-                         << "\n";
+              errs() << "visit order: " << visit_order << "\n";
+              errs() << "Num of child: " << tree<InstructionWrapper*>::number_of_children(treeI) << "\n";
+              if (parentTy == nullptr) {
+                  errs() << "** Root type node **" << "\n";
+                  errs() << "Field name: " << argOffsetNames[visit_order].first << "\n";
                   errs() << "Access Type: " << accessTypeName[curTyNode->getAccessType()] << "\n";
+                  errs() << ".............................................\n";
+                  visit_order += 1;
                   continue;
               }
 
-              auto parentIter = tree<InstructionWrapper *>::parent(treeIter);
-              
-              if (parentType->isPointerTy())
-              {
-                  const StructLayout *stLayout = getStructLayout(M, *parentIter);
-                  unsigned numEle = getStructElementNum(M, *parentIter);
-                  
-                  if (stLayout == nullptr)
-                  {
-                      errs() << "Struct Layout is nullptr. Continue"
-                             << "\n";
-                      continue;
-                  }
-
-                  if (curTyNode->getFieldId() < 0) {
-                    break;
-                  }
-
-                  if (curTyNode->getFieldId() >= numEle) {
-                    break;
-                  }
-
-                  uint64_t offset = 0;
-                  // field offset relative to parent
-                  // TODO: one problem here is that when getElementOffset is fed with index of 0, we get wrong offset. 
-                  // So, need to manully check if the fed index is 0. 
-                  if (curTyNode->getFieldId() != 0) {
-                      offset = stLayout->getElementOffset(curTyNode->getFieldId());
-                  }
-                  errs() << "sub field name: " << argOffsetNames[prev_offset + offset].first << "\n";
-                  errs() << "Access Type: " << accessTypeName[curTyNode->getAccessType()] << "\n";
-                  if (tmpDepth == curDepth)
-                  {
-                      accumulate_offset = offset;
-                  }
+              if (argOffsetNames.find(visit_order) == argOffsetNames.end()) {
+                visit_order += 1;
+                continue;                  
               }
+
+              errs() << "sub field name: " << argOffsetNames[visit_order].first << "\n";
+              errs() << "Access Type: " << accessTypeName[curTyNode->getAccessType()] << "\n";
               errs() << "..................................................\n";
+              visit_order += 1;
           }
+          errs() << "..................................................\n";
       }
   }
 }
@@ -1302,8 +1284,9 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(llvm::Module &M, std
 std::set<pdg::InstructionWrapper *>
 pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg) {
     std::vector<Instruction*> initialStoreInsts = getArgStoreInsts(arg);
-
+    std::set<InstructionWrapper*> relevantGEPs;
     std::queue<InstructionWrapper *> instWQ;
+    //errs() << arg->getParent()->getName() << "\n";
     for (Instruction *storeInst : initialStoreInsts)
     {
         DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(instMap[storeInst]);
@@ -1315,12 +1298,13 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg) {
             {
                 InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
                 instWQ.push(depInstW);
+                if (isa<GetElementPtrInst>(depInstW->getInstruction())) {
+                    relevantGEPs.insert(depInstW);
+                }
             }
         }
     }
 
-
-    std::set<InstructionWrapper*> relevantGEPs;
     while (!instWQ.empty()) {
         InstructionWrapper* instW = instWQ.front();
         instWQ.pop();
@@ -1349,7 +1333,7 @@ void pdg::ProgramDependencyGraph::printArgUseInfo(
     llvm::Module &M, std::set<std::string> funcNameList) {
   //typedef std::map<unsigned, std::pair<std::string, DIType *>> offsetNames;
   //std::map<Function *, offsetNames> funcArgOffsetNames = getAnalysis<DSAGenerator>().getFuncArgOffsetNames();
-  std::map<Function*, std::map<unsigned, DSAGenerator::offsetNames>> funcArgOffsetNames = getAnalysis<DSAGenerator>().getFuncArgOffsetNames();
+  std::map<Function*, std::map<unsigned, offsetNames>> funcArgOffsetNames = getAnalysis<DSAGenerator>().getFuncArgOffsetNames();
 
   for (llvm::Function &func : M) {
     if (func.isDeclaration()) {
