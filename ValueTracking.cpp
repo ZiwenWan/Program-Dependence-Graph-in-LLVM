@@ -118,9 +118,7 @@ int pdg::ProgramDependencyGraph::getAccessTypeForInstW(InstructionWrapper* instW
         if (depType == DATA_DEF_USE)
         {
             accessType = pdg::READ_FIELD;
-        }
-        if (depType == pdg::DATA_DEF_USE)
-        {
+            // check for store instruction.        
             if (StoreInst *st = dyn_cast<StoreInst>(depInstW->getInstruction()))
             {
                 if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction())
@@ -194,9 +192,9 @@ void pdg::ProgramDependencyGraph::mergeTypeTreeReadAndWriteInfo(ArgumentWrapper*
     {
         if ((*mergeFrom)->getAccessType() > (*mergeTo)->getAccessType())
         {
-            errs() << "Merging info: " << (*mergeFrom)->getAccessType() << " - " << (*mergeTo)->getAccessType() << "\n";
             // here, we only copy the write state
             (*mergeTo)->setAccessType((*mergeFrom)->getAccessType());
+            propergateAccessInfoToParent(argW, mergeTo);
         }
     }
 }
@@ -204,7 +202,6 @@ void pdg::ProgramDependencyGraph::mergeTypeTreeReadAndWriteInfo(ArgumentWrapper*
 void pdg::ProgramDependencyGraph::mergeArgWReadWriteInfo(ArgumentWrapper* callerArgW, ArgumentWrapper* calleeArgW) {
     // firstly detect if the argument type is actually matching.
     // if not, then do nothing
-
     int argMatchType = getArgMatchType(callerArgW->getArg(), calleeArgW->getArg());
 
     tree<InstructionWrapper*>::iterator calleeFuncArgTreeIter = calleeArgW->getTree(FORMAL_IN_TREE).begin();
@@ -300,6 +297,7 @@ void pdg::ProgramDependencyGraph::getInterFuncReadWriteInfo(llvm::Function* func
                     CallInst *calleeInst = dyn_cast<CallInst>(depInstW->getInstruction());
                     Function* calleeFunc = calleeInst->getCalledFunction();
 
+                    // processing indirect call
                     if (calleeFunc == nullptr)
                     {
                         Type *t = calleeInst->getCalledValue()->getType();
@@ -315,6 +313,7 @@ void pdg::ProgramDependencyGraph::getInterFuncReadWriteInfo(llvm::Function* func
                     }
                     else
                     {
+                        // direct call
                         FunctionWrapper *calleeFuncW = funcMap[calleeFunc];
                         ArgumentWrapper *calleeArgW = getArgWByIdx(calleeFuncW, callParaIdx);
                         mergeArgWReadWriteInfo(argW, calleeArgW);
@@ -323,6 +322,23 @@ void pdg::ProgramDependencyGraph::getInterFuncReadWriteInfo(llvm::Function* func
             }
         }
     }
+}
+
+void pdg::ProgramDependencyGraph::propergateAccessInfoToParent(ArgumentWrapper *argW, tree<InstructionWrapper*>::iterator treeI) {
+    int newAccessType  = (*treeI)->getAccessType();
+    if (argW->getTree(FORMAL_IN_TREE).depth(treeI) == 0) {
+        return;
+    }
+
+    auto parentTI = argW->getTree(FORMAL_IN_TREE).parent(treeI);
+    errs() << argW->getTree(FORMAL_IN_TREE).depth(treeI) << "\n";
+    errs() << argW->getTree(FORMAL_IN_TREE).depth(parentTI) << "\n";
+    while (argW->getTree(FORMAL_IN_TREE).depth(parentTI) != 0) {
+        //errs() << "Traversing back to parent\n";
+        (*parentTI)->setAccessType(newAccessType);
+        parentTI = argW->getTree(FORMAL_IN_TREE).parent(parentTI);
+    }
+    (*parentTI)->setAccessType(newAccessType);
 }
 
 void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *argW)
@@ -340,9 +356,8 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *
         }
     }
 
-
     // here, we get all possible alias loads, and alias gep. These pointers set representing
-    // all possible location for the argument.
+    // all possible locations for the argument.
     std::set<InstructionWrapper *> aliasPtrInstWs = getAliasPtrForArgInFunc(argW);
     // for each alias ptr, we collect read and write to that location.
     // then, merging all information together.
@@ -350,13 +365,13 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *
     {
         // alais has a store, means the same locations is accessed. We mark the argW as 
         // being written
-        if (StoreInst* st = dyn_cast<StoreInst>(instW->getInstruction())) {
-            if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction() ) {
-                //errs() << "Testing " << argW->getArg()->getParent()->getName() << *instW->getInstruction() << "\n";
-                accessType = pdg::WRITE_FIELD;
-                break;
-            }
-        }
+        // if (StoreInst* st = dyn_cast<StoreInst>(instW->getInstruction())) {
+        //     if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction() ) {
+        //         //errs() << "Testing " << argW->getArg()->getParent()->getName() << *instW->getInstruction() << "\n";
+        //         accessType = pdg::WRITE_FIELD;
+        //         break;
+        //     }
+        // }
 
         int _accessType = getAccessTypeForInstW(instW);
 
@@ -390,9 +405,12 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
     int accessType = pdg::NOACCESS;
 
     std::vector<Instruction*> initialStoreInsts = getArgStoreInsts(argW->getArg());
-    for (Instruction* storeInst : initialStoreInsts) {
-        if (StoreInst* st = dyn_cast<StoreInst>(storeInst)) {
-            if (!isa<Instruction>(st->getValueOperand())) {
+    for (Instruction *storeInst : initialStoreInsts)
+    {
+        if (StoreInst *st = dyn_cast<StoreInst>(storeInst))
+        {
+            if (!isa<Instruction>(st->getValueOperand()))
+            {
                 accessType = pdg::WRITE_FIELD;
                 (*treeIter)->setAccessType(accessType);
                 break;
@@ -405,14 +423,16 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
     // then, merging all information together.
     for (InstructionWrapper *instW : aliasPtrInstWs)
     {
-        // same here as single ptr 
-        if (StoreInst* st = dyn_cast<StoreInst>(instW->getInstruction())) {
-            if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction() ) {
+        // same here as single ptr
+        if (StoreInst *st = dyn_cast<StoreInst>(instW->getInstruction()))
+        {
+            if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction())
+            {
                 accessType = pdg::WRITE_FIELD;
                 break;
             }
         }
-        
+
         int _accessType = getAccessTypeForInstW(instW);
         if (_accessType == pdg::READ_FIELD)
         {
@@ -426,6 +446,7 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
     }
 
     (*treeIter)->setAccessType(accessType);
+    //propergateAccessInfoToParent(argW, treeIter);
     // then, start processing each field
     // iterating through the type tree.
     for (; treeIter != argW->getTree(FORMAL_IN_TREE).end(); ++treeIter)
@@ -447,6 +468,7 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
             }
             //typeNodeW->setAccessType(gepAccessType);
             (*treeIter)->setAccessType(gepAccessType);
+            propergateAccessInfoToParent(argW, treeIter);
         }
     }
 }

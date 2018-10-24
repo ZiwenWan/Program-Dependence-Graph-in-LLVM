@@ -12,8 +12,9 @@ void func1(char *name) {
 }
 
 void func2(int* age) {
-    int* tmp_age = age;
-    printf("%d\n", *tmp_age);
+    age += 1;
+    /* int* tmp_age = age; */
+    /* printf("%d\n", *tmp_age); */
 }
 
 void func3(int age) {

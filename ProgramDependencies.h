@@ -91,9 +91,11 @@ namespace pdg {
 
         void connectFunctionAndFormalTrees(Function *callee);
 
-        int connectCallerAndCallee(InstructionWrapper *CInstW, llvm::Function *callee);
+        int connectCallerAndCallee(InstructionWrapper* CInstW, llvm::Function* callee);
 
         // functions for getting R/W info for all typenodes
+
+        void propergateAccessInfoToParent(ArgumentWrapper* argW, tree<InstructionWrapper*>::iterator treeI);
 
         llvm::Instruction* getArgAllocaInst(llvm::Argument *arg);
 

@@ -1286,7 +1286,7 @@ pdg::ProgramDependencyGraph::getAllRelevantGEP(llvm::Argument *arg) {
     std::vector<Instruction*> initialStoreInsts = getArgStoreInsts(arg);
     std::set<InstructionWrapper*> relevantGEPs;
     std::queue<InstructionWrapper *> instWQ;
-    //errs() << arg->getParent()->getName() << "\n";
+
     for (Instruction *storeInst : initialStoreInsts)
     {
         DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(instMap[storeInst]);
