@@ -1,7 +1,7 @@
 ; ModuleID = 'example.k5.c'
 source_filename = "example.k5.c"
-target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
-target triple = "x86_64-apple-macosx10.14.0"
+target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-unknown-linux-gnu"
 
 %struct.node = type { %struct.device*, %struct.node* }
 %struct.device = type { void (%struct.device*)*, i8*, i32 }
@@ -14,188 +14,199 @@ target triple = "x86_64-apple-macosx10.14.0"
 @.str.2 = private unnamed_addr constant [9 x i8] c"device_1\00", align 1
 @.str.3 = private unnamed_addr constant [9 x i8] c"device_2\00", align 1
 
-; Function Attrs: noinline nounwind optnone ssp uwtable
-define void @init(%struct.node*) #0 !dbg !34 {
-  %2 = alloca %struct.node*, align 8
-  store %struct.node* %0, %struct.node** %2, align 8
-  call void @llvm.dbg.declare(metadata %struct.node** %2, metadata !37, metadata !38), !dbg !39
-  store %struct.node* null, %struct.node** %2, align 8, !dbg !40
-  ret void, !dbg !41
+; Function Attrs: noinline nounwind optnone uwtable
+define void @init(%struct.node* %head) #0 !dbg !33 {
+entry:
+  %head.addr = alloca %struct.node*, align 8
+  store %struct.node* %head, %struct.node** %head.addr, align 8
+  call void @llvm.dbg.declare(metadata %struct.node** %head.addr, metadata !36, metadata !DIExpression()), !dbg !37
+  store %struct.node* null, %struct.node** %head.addr, align 8, !dbg !38
+  ret void, !dbg !39
 }
 
 ; Function Attrs: nounwind readnone speculatable
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
-; Function Attrs: noinline nounwind optnone ssp uwtable
-define void @register_device(%struct.device*) #0 !dbg !42 {
-  %2 = alloca %struct.device*, align 8
-  %3 = alloca %struct.node*, align 8
-  store %struct.device* %0, %struct.device** %2, align 8
-  call void @llvm.dbg.declare(metadata %struct.device** %2, metadata !43, metadata !38), !dbg !44
-  call void @llvm.dbg.declare(metadata %struct.node** %3, metadata !45, metadata !38), !dbg !46
-  %4 = call i8* @malloc(i64 16) #4, !dbg !47
-  %5 = bitcast i8* %4 to %struct.node*, !dbg !48
-  store %struct.node* %5, %struct.node** %3, align 8, !dbg !46
-  %6 = load %struct.device*, %struct.device** %2, align 8, !dbg !49
-  %7 = load %struct.node*, %struct.node** %3, align 8, !dbg !50
-  %8 = getelementptr inbounds %struct.node, %struct.node* %7, i32 0, i32 0, !dbg !51
-  store %struct.device* %6, %struct.device** %8, align 8, !dbg !52
-  %9 = load %struct.node*, %struct.node** @device_list_head, align 8, !dbg !53
-  %10 = load %struct.node*, %struct.node** %3, align 8, !dbg !54
-  %11 = getelementptr inbounds %struct.node, %struct.node* %10, i32 0, i32 1, !dbg !55
-  store %struct.node* %9, %struct.node** %11, align 8, !dbg !56
-  %12 = load %struct.node*, %struct.node** %3, align 8, !dbg !57
-  store %struct.node* %12, %struct.node** @device_list_head, align 8, !dbg !58
-  ret void, !dbg !59
+; Function Attrs: noinline nounwind optnone uwtable
+define void @register_device(%struct.device* %dev) #0 !dbg !40 {
+entry:
+  %dev.addr = alloca %struct.device*, align 8
+  %new_node = alloca %struct.node*, align 8
+  store %struct.device* %dev, %struct.device** %dev.addr, align 8
+  call void @llvm.dbg.declare(metadata %struct.device** %dev.addr, metadata !41, metadata !DIExpression()), !dbg !42
+  call void @llvm.dbg.declare(metadata %struct.node** %new_node, metadata !43, metadata !DIExpression()), !dbg !44
+  %call = call noalias i8* @malloc(i64 16) #5, !dbg !45
+  %0 = bitcast i8* %call to %struct.node*, !dbg !46
+  store %struct.node* %0, %struct.node** %new_node, align 8, !dbg !44
+  %1 = load %struct.device*, %struct.device** %dev.addr, align 8, !dbg !47
+  %2 = load %struct.node*, %struct.node** %new_node, align 8, !dbg !48
+  %dev1 = getelementptr inbounds %struct.node, %struct.node* %2, i32 0, i32 0, !dbg !49
+  store %struct.device* %1, %struct.device** %dev1, align 8, !dbg !50
+  %3 = load %struct.node*, %struct.node** @device_list_head, align 8, !dbg !51
+  %4 = load %struct.node*, %struct.node** %new_node, align 8, !dbg !52
+  %next = getelementptr inbounds %struct.node, %struct.node* %4, i32 0, i32 1, !dbg !53
+  store %struct.node* %3, %struct.node** %next, align 8, !dbg !54
+  %5 = load %struct.node*, %struct.node** %new_node, align 8, !dbg !55
+  store %struct.node* %5, %struct.node** @device_list_head, align 8, !dbg !56
+  ret void, !dbg !57
 }
 
-; Function Attrs: allocsize(0)
-declare i8* @malloc(i64) #2
+; Function Attrs: nounwind
+declare noalias i8* @malloc(i64) #2
 
-; Function Attrs: noinline nounwind optnone ssp uwtable
-define i32 @open(%struct.device*) #0 !dbg !60 {
-  %2 = alloca %struct.device*, align 8
-  store %struct.device* %0, %struct.device** %2, align 8
-  call void @llvm.dbg.declare(metadata %struct.device** %2, metadata !63, metadata !38), !dbg !64
-  %3 = load %struct.device*, %struct.device** %2, align 8, !dbg !65
-  %4 = getelementptr inbounds %struct.device, %struct.device* %3, i32 0, i32 0, !dbg !66
-  %5 = load void (%struct.device*)*, void (%struct.device*)** %4, align 8, !dbg !66
-  %6 = load %struct.device*, %struct.device** %2, align 8, !dbg !67
-  call void %5(%struct.device* %6), !dbg !65
-  %7 = load %struct.device*, %struct.device** %2, align 8, !dbg !68
-  %8 = getelementptr inbounds %struct.device, %struct.device* %7, i32 0, i32 1, !dbg !69
-  %9 = load i8*, i8** %8, align 8, !dbg !69
-  %10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str, i32 0, i32 0), i8* %9), !dbg !70
-  ret i32 1, !dbg !71
+; Function Attrs: noinline nounwind optnone uwtable
+define i32 @open(%struct.device* %dev) #0 !dbg !58 {
+entry:
+  %dev.addr = alloca %struct.device*, align 8
+  store %struct.device* %dev, %struct.device** %dev.addr, align 8
+  call void @llvm.dbg.declare(metadata %struct.device** %dev.addr, metadata !61, metadata !DIExpression()), !dbg !62
+  %0 = load %struct.device*, %struct.device** %dev.addr, align 8, !dbg !63
+  %open = getelementptr inbounds %struct.device, %struct.device* %0, i32 0, i32 0, !dbg !64
+  %1 = load void (%struct.device*)*, void (%struct.device*)** %open, align 8, !dbg !64
+  %2 = load %struct.device*, %struct.device** %dev.addr, align 8, !dbg !65
+  call void %1(%struct.device* %2), !dbg !63
+  %3 = load %struct.device*, %struct.device** %dev.addr, align 8, !dbg !66
+  %name = getelementptr inbounds %struct.device, %struct.device* %3, i32 0, i32 1, !dbg !67
+  %4 = load i8*, i8** %name, align 8, !dbg !67
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str, i32 0, i32 0), i8* %4), !dbg !68
+  ret i32 1, !dbg !69
 }
 
 declare i32 @printf(i8*, ...) #3
 
-; Function Attrs: noinline nounwind optnone ssp uwtable
-define void @device_reset(i32*) #0 !dbg !72 {
-  %2 = alloca i32*, align 8
-  store i32* %0, i32** %2, align 8
-  call void @llvm.dbg.declare(metadata i32** %2, metadata !76, metadata !38), !dbg !77
-  %3 = load i32*, i32** %2, align 8, !dbg !78
-  store i32 0, i32* %3, align 4, !dbg !79
-  ret void, !dbg !80
+; Function Attrs: noinline nounwind optnone uwtable
+define void @device_reset(i32* %dev_init) #0 !dbg !70 {
+entry:
+  %dev_init.addr = alloca i32*, align 8
+  store i32* %dev_init, i32** %dev_init.addr, align 8
+  call void @llvm.dbg.declare(metadata i32** %dev_init.addr, metadata !74, metadata !DIExpression()), !dbg !75
+  %0 = load i32*, i32** %dev_init.addr, align 8, !dbg !76
+  store i32 0, i32* %0, align 4, !dbg !77
+  ret void, !dbg !78
 }
 
-; Function Attrs: noinline nounwind optnone ssp uwtable
-define %struct.device* @lookup_device(i8*) #0 !dbg !81 {
-  %2 = alloca %struct.device*, align 8
-  %3 = alloca i8*, align 8
-  %4 = alloca %struct.node*, align 8
-  store i8* %0, i8** %3, align 8
-  call void @llvm.dbg.declare(metadata i8** %3, metadata !84, metadata !38), !dbg !85
-  call void @llvm.dbg.declare(metadata %struct.node** %4, metadata !86, metadata !38), !dbg !87
-  %5 = load %struct.node*, %struct.node** @device_list_head, align 8, !dbg !88
-  store %struct.node* %5, %struct.node** %4, align 8, !dbg !87
-  br label %6, !dbg !89
+; Function Attrs: noinline nounwind optnone uwtable
+define %struct.device* @lookup_device(i8* %search_name) #0 !dbg !79 {
+entry:
+  %retval = alloca %struct.device*, align 8
+  %search_name.addr = alloca i8*, align 8
+  %current = alloca %struct.node*, align 8
+  store i8* %search_name, i8** %search_name.addr, align 8
+  call void @llvm.dbg.declare(metadata i8** %search_name.addr, metadata !82, metadata !DIExpression()), !dbg !83
+  call void @llvm.dbg.declare(metadata %struct.node** %current, metadata !84, metadata !DIExpression()), !dbg !85
+  %0 = load %struct.node*, %struct.node** @device_list_head, align 8, !dbg !86
+  store %struct.node* %0, %struct.node** %current, align 8, !dbg !85
+  br label %while.cond, !dbg !87
 
-; <label>:6:                                      ; preds = %26, %1
-  %7 = load %struct.node*, %struct.node** %4, align 8, !dbg !90
-  %8 = icmp ne %struct.node* %7, null, !dbg !91
-  br i1 %8, label %9, label %27, !dbg !89
+while.cond:                                       ; preds = %if.end, %entry
+  %1 = load %struct.node*, %struct.node** %current, align 8, !dbg !88
+  %cmp = icmp ne %struct.node* %1, null, !dbg !89
+  br i1 %cmp, label %while.body, label %while.end, !dbg !87
 
-; <label>:9:                                      ; preds = %6
-  %10 = load %struct.node*, %struct.node** %4, align 8, !dbg !92
-  %11 = getelementptr inbounds %struct.node, %struct.node* %10, i32 0, i32 0, !dbg !95
-  %12 = load %struct.device*, %struct.device** %11, align 8, !dbg !95
-  %13 = getelementptr inbounds %struct.device, %struct.device* %12, i32 0, i32 1, !dbg !96
-  %14 = load i8*, i8** %13, align 8, !dbg !96
-  %15 = load i8*, i8** %3, align 8, !dbg !97
-  %16 = call i32 @strcmp(i8* %14, i8* %15), !dbg !98
-  %17 = icmp eq i32 %16, 0, !dbg !99
-  br i1 %17, label %18, label %22, !dbg !100
+while.body:                                       ; preds = %while.cond
+  %2 = load %struct.node*, %struct.node** %current, align 8, !dbg !90
+  %dev = getelementptr inbounds %struct.node, %struct.node* %2, i32 0, i32 0, !dbg !93
+  %3 = load %struct.device*, %struct.device** %dev, align 8, !dbg !93
+  %name = getelementptr inbounds %struct.device, %struct.device* %3, i32 0, i32 1, !dbg !94
+  %4 = load i8*, i8** %name, align 8, !dbg !94
+  %5 = load i8*, i8** %search_name.addr, align 8, !dbg !95
+  %call = call i32 @strcmp(i8* %4, i8* %5) #6, !dbg !96
+  %cmp1 = icmp eq i32 %call, 0, !dbg !97
+  br i1 %cmp1, label %if.then, label %if.else, !dbg !98
 
-; <label>:18:                                     ; preds = %9
-  %19 = load %struct.node*, %struct.node** %4, align 8, !dbg !101
-  %20 = getelementptr inbounds %struct.node, %struct.node* %19, i32 0, i32 0, !dbg !102
-  %21 = load %struct.device*, %struct.device** %20, align 8, !dbg !102
-  store %struct.device* %21, %struct.device** %2, align 8, !dbg !103
-  br label %28, !dbg !103
+if.then:                                          ; preds = %while.body
+  %6 = load %struct.node*, %struct.node** %current, align 8, !dbg !99
+  %dev2 = getelementptr inbounds %struct.node, %struct.node* %6, i32 0, i32 0, !dbg !100
+  %7 = load %struct.device*, %struct.device** %dev2, align 8, !dbg !100
+  store %struct.device* %7, %struct.device** %retval, align 8, !dbg !101
+  br label %return, !dbg !101
 
-; <label>:22:                                     ; preds = %9
-  %23 = load %struct.node*, %struct.node** %4, align 8, !dbg !104
-  %24 = getelementptr inbounds %struct.node, %struct.node* %23, i32 0, i32 1, !dbg !105
-  %25 = load %struct.node*, %struct.node** %24, align 8, !dbg !105
-  store %struct.node* %25, %struct.node** %4, align 8, !dbg !106
-  br label %26
+if.else:                                          ; preds = %while.body
+  %8 = load %struct.node*, %struct.node** %current, align 8, !dbg !102
+  %next = getelementptr inbounds %struct.node, %struct.node* %8, i32 0, i32 1, !dbg !103
+  %9 = load %struct.node*, %struct.node** %next, align 8, !dbg !103
+  store %struct.node* %9, %struct.node** %current, align 8, !dbg !104
+  br label %if.end
 
-; <label>:26:                                     ; preds = %22
-  br label %6, !dbg !89, !llvm.loop !107
+if.end:                                           ; preds = %if.else
+  br label %while.cond, !dbg !87, !llvm.loop !105
 
-; <label>:27:                                     ; preds = %6
-  store %struct.device* null, %struct.device** %2, align 8, !dbg !109
-  br label %28, !dbg !109
+while.end:                                        ; preds = %while.cond
+  store %struct.device* null, %struct.device** %retval, align 8, !dbg !107
+  br label %return, !dbg !107
 
-; <label>:28:                                     ; preds = %27, %18
-  %29 = load %struct.device*, %struct.device** %2, align 8, !dbg !110
-  ret %struct.device* %29, !dbg !110
+return:                                           ; preds = %while.end, %if.then
+  %10 = load %struct.device*, %struct.device** %retval, align 8, !dbg !108
+  ret %struct.device* %10, !dbg !108
 }
 
-declare i32 @strcmp(i8*, i8*) #3
+; Function Attrs: nounwind readonly
+declare i32 @strcmp(i8*, i8*) #4
 
-; Function Attrs: noinline nounwind optnone ssp uwtable
-define i32 @main() #0 !dbg !111 {
-  %1 = alloca i32, align 4
-  %2 = alloca %struct.device*, align 8
-  store i32 0, i32* %1, align 4
-  call void @llvm.dbg.declare(metadata %struct.device** %2, metadata !114, metadata !38), !dbg !115
-  %3 = load %struct.node*, %struct.node** @device_list_head, align 8, !dbg !116
-  call void @init(%struct.node* %3), !dbg !117
-  %4 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([25 x i8], [25 x i8]* @.str.1, i32 0, i32 0)), !dbg !118
-  call void @register_device(%struct.device* @dev1), !dbg !119
-  call void @register_device(%struct.device* @dev2), !dbg !120
-  call void @device_reset(i32* getelementptr inbounds (%struct.device, %struct.device* @dev1, i32 0, i32 2)), !dbg !121
-  %5 = call %struct.device* @lookup_device(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.2, i32 0, i32 0)), !dbg !122
-  store %struct.device* %5, %struct.device** %2, align 8, !dbg !123
-  %6 = load %struct.device*, %struct.device** %2, align 8, !dbg !124
-  %7 = call i32 @open(%struct.device* %6), !dbg !125
-  %8 = call %struct.device* @lookup_device(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.3, i32 0, i32 0)), !dbg !126
-  store %struct.device* %8, %struct.device** %2, align 8, !dbg !127
-  %9 = load %struct.device*, %struct.device** %2, align 8, !dbg !128
-  %10 = call i32 @open(%struct.device* %9), !dbg !129
-  ret i32 0, !dbg !130
+; Function Attrs: noinline nounwind optnone uwtable
+define i32 @main() #0 !dbg !109 {
+entry:
+  %retval = alloca i32, align 4
+  %dev = alloca %struct.device*, align 8
+  store i32 0, i32* %retval, align 4
+  call void @llvm.dbg.declare(metadata %struct.device** %dev, metadata !112, metadata !DIExpression()), !dbg !113
+  %0 = load %struct.node*, %struct.node** @device_list_head, align 8, !dbg !114
+  call void @init(%struct.node* %0), !dbg !115
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([25 x i8], [25 x i8]* @.str.1, i32 0, i32 0)), !dbg !116
+  call void @register_device(%struct.device* @dev1), !dbg !117
+  call void @register_device(%struct.device* @dev2), !dbg !118
+  call void @device_reset(i32* getelementptr inbounds (%struct.device, %struct.device* @dev1, i32 0, i32 2)), !dbg !119
+  %call1 = call %struct.device* @lookup_device(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.2, i32 0, i32 0)), !dbg !120
+  store %struct.device* %call1, %struct.device** %dev, align 8, !dbg !121
+  %1 = load %struct.device*, %struct.device** %dev, align 8, !dbg !122
+  %call2 = call i32 @open(%struct.device* %1), !dbg !123
+  %call3 = call %struct.device* @lookup_device(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.3, i32 0, i32 0)), !dbg !124
+  store %struct.device* %call3, %struct.device** %dev, align 8, !dbg !125
+  %2 = load %struct.device*, %struct.device** %dev, align 8, !dbg !126
+  %call4 = call i32 @open(%struct.device* %2), !dbg !127
+  ret i32 0, !dbg !128
 }
 
-; Function Attrs: noinline nounwind optnone ssp uwtable
-define internal void @dev1_open(%struct.device*) #0 !dbg !131 {
-  %2 = alloca %struct.device*, align 8
-  store %struct.device* %0, %struct.device** %2, align 8
-  call void @llvm.dbg.declare(metadata %struct.device** %2, metadata !132, metadata !38), !dbg !133
-  %3 = load %struct.device*, %struct.device** %2, align 8, !dbg !134
-  %4 = getelementptr inbounds %struct.device, %struct.device* %3, i32 0, i32 2, !dbg !135
-  store i32 1, i32* %4, align 8, !dbg !136
-  ret void, !dbg !137
+; Function Attrs: noinline nounwind optnone uwtable
+define internal void @dev1_open(%struct.device* %dev) #0 !dbg !129 {
+entry:
+  %dev.addr = alloca %struct.device*, align 8
+  store %struct.device* %dev, %struct.device** %dev.addr, align 8
+  call void @llvm.dbg.declare(metadata %struct.device** %dev.addr, metadata !130, metadata !DIExpression()), !dbg !131
+  %0 = load %struct.device*, %struct.device** %dev.addr, align 8, !dbg !132
+  %devop_init_registered = getelementptr inbounds %struct.device, %struct.device* %0, i32 0, i32 2, !dbg !133
+  store i32 1, i32* %devop_init_registered, align 8, !dbg !134
+  ret void, !dbg !135
 }
 
-; Function Attrs: noinline nounwind optnone ssp uwtable
-define internal void @dev2_open(%struct.device*) #0 !dbg !138 {
-  %2 = alloca %struct.device*, align 8
-  store %struct.device* %0, %struct.device** %2, align 8
-  call void @llvm.dbg.declare(metadata %struct.device** %2, metadata !139, metadata !38), !dbg !140
-  %3 = load %struct.device*, %struct.device** %2, align 8, !dbg !141
-  %4 = getelementptr inbounds %struct.device, %struct.device* %3, i32 0, i32 2, !dbg !142
-  store i32 1, i32* %4, align 8, !dbg !143
-  ret void, !dbg !144
+; Function Attrs: noinline nounwind optnone uwtable
+define internal void @dev2_open(%struct.device* %dev) #0 !dbg !136 {
+entry:
+  %dev.addr = alloca %struct.device*, align 8
+  store %struct.device* %dev, %struct.device** %dev.addr, align 8
+  call void @llvm.dbg.declare(metadata %struct.device** %dev.addr, metadata !137, metadata !DIExpression()), !dbg !138
+  %0 = load %struct.device*, %struct.device** %dev.addr, align 8, !dbg !139
+  %devop_init_registered = getelementptr inbounds %struct.device, %struct.device* %0, i32 0, i32 2, !dbg !140
+  store i32 1, i32* %devop_init_registered, align 8, !dbg !141
+  ret void, !dbg !142
 }
 
-attributes #0 = { noinline nounwind optnone ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { noinline nounwind optnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone speculatable }
-attributes #2 = { allocsize(0) "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #3 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #4 = { allocsize(0) }
+attributes #2 = { nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #3 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #4 = { nounwind readonly "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #5 = { nounwind }
+attributes #6 = { nounwind readonly }
 
 !llvm.dbg.cu = !{!2}
-!llvm.module.flags = !{!29, !30, !31, !32}
-!llvm.ident = !{!33}
+!llvm.module.flags = !{!29, !30, !31}
+!llvm.ident = !{!32}
 
-!0 = !DIGlobalVariableExpression(var: !1)
+!0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
 !1 = distinct !DIGlobalVariable(name: "device_list_head", scope: !2, file: !3, line: 23, type: !6, isLocal: false, isDefinition: true)
-!2 = distinct !DICompileUnit(language: DW_LANG_C99, file: !3, producer: "clang version 5.0.2 (tags/RELEASE_502/final)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !4, retainedTypes: !5, globals: !24)
-!3 = !DIFile(filename: "example.k5.c", directory: "/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/test/test_idl_gen")
+!2 = distinct !DICompileUnit(language: DW_LANG_C99, file: !3, producer: "clang version 7.0.0 (trunk 323988) (llvm/trunk 323938)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !4, retainedTypes: !5, globals: !24)
+!3 = !DIFile(filename: "example.k5.c", directory: "/home/yongzhe/llvm-versions/llvm-5.0/lib/Analysis/PDG/test/test_idl_gen")
 !4 = !{}
 !5 = !{!6, !23}
 !6 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !7, size: 64)
@@ -217,123 +228,121 @@ attributes #4 = { allocsize(0) }
 !22 = !DIDerivedType(tag: DW_TAG_member, name: "next", scope: !7, file: !3, line: 20, baseType: !6, size: 64, offset: 64)
 !23 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: null, size: 64)
 !24 = !{!0, !25, !27}
-!25 = !DIGlobalVariableExpression(var: !26)
+!25 = !DIGlobalVariableExpression(var: !26, expr: !DIExpression())
 !26 = distinct !DIGlobalVariable(name: "dev1", scope: !2, file: !3, line: 77, type: !11, isLocal: true, isDefinition: true)
-!27 = !DIGlobalVariableExpression(var: !28)
+!27 = !DIGlobalVariableExpression(var: !28, expr: !DIExpression())
 !28 = distinct !DIGlobalVariable(name: "dev2", scope: !2, file: !3, line: 88, type: !11, isLocal: true, isDefinition: true)
 !29 = !{i32 2, !"Dwarf Version", i32 4}
 !30 = !{i32 2, !"Debug Info Version", i32 3}
 !31 = !{i32 1, !"wchar_size", i32 4}
-!32 = !{i32 7, !"PIC Level", i32 2}
-!33 = !{!"clang version 5.0.2 (tags/RELEASE_502/final)"}
-!34 = distinct !DISubprogram(name: "init", scope: !3, file: !3, line: 27, type: !35, isLocal: false, isDefinition: true, scopeLine: 27, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
-!35 = !DISubroutineType(types: !36)
-!36 = !{null, !6}
-!37 = !DILocalVariable(name: "head", arg: 1, scope: !34, file: !3, line: 27, type: !6)
-!38 = !DIExpression()
-!39 = !DILocation(line: 27, column: 24, scope: !34)
-!40 = !DILocation(line: 28, column: 10, scope: !34)
-!41 = !DILocation(line: 29, column: 1, scope: !34)
-!42 = distinct !DISubprogram(name: "register_device", scope: !3, file: !3, line: 31, type: !15, isLocal: false, isDefinition: true, scopeLine: 32, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
-!43 = !DILocalVariable(name: "dev", arg: 1, scope: !42, file: !3, line: 31, type: !10)
-!44 = !DILocation(line: 31, column: 37, scope: !42)
-!45 = !DILocalVariable(name: "new_node", scope: !42, file: !3, line: 34, type: !6)
-!46 = !DILocation(line: 34, column: 18, scope: !42)
-!47 = !DILocation(line: 34, column: 44, scope: !42)
-!48 = !DILocation(line: 34, column: 29, scope: !42)
-!49 = !DILocation(line: 37, column: 22, scope: !42)
-!50 = !DILocation(line: 37, column: 5, scope: !42)
-!51 = !DILocation(line: 37, column: 15, scope: !42)
-!52 = !DILocation(line: 37, column: 20, scope: !42)
-!53 = !DILocation(line: 40, column: 22, scope: !42)
-!54 = !DILocation(line: 40, column: 5, scope: !42)
-!55 = !DILocation(line: 40, column: 15, scope: !42)
-!56 = !DILocation(line: 40, column: 20, scope: !42)
-!57 = !DILocation(line: 43, column: 24, scope: !42)
-!58 = !DILocation(line: 43, column: 22, scope: !42)
-!59 = !DILocation(line: 44, column: 1, scope: !42)
-!60 = distinct !DISubprogram(name: "open", scope: !3, file: !3, line: 46, type: !61, isLocal: false, isDefinition: true, scopeLine: 46, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
-!61 = !DISubroutineType(types: !62)
-!62 = !{!21, !10}
-!63 = !DILocalVariable(name: "dev", arg: 1, scope: !60, file: !3, line: 46, type: !10)
-!64 = !DILocation(line: 46, column: 25, scope: !60)
-!65 = !DILocation(line: 47, column: 2, scope: !60)
-!66 = !DILocation(line: 47, column: 7, scope: !60)
-!67 = !DILocation(line: 47, column: 12, scope: !60)
-!68 = !DILocation(line: 48, column: 26, scope: !60)
-!69 = !DILocation(line: 48, column: 31, scope: !60)
-!70 = !DILocation(line: 48, column: 5, scope: !60)
-!71 = !DILocation(line: 49, column: 5, scope: !60)
-!72 = distinct !DISubprogram(name: "device_reset", scope: !3, file: !3, line: 52, type: !73, isLocal: false, isDefinition: true, scopeLine: 52, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
-!73 = !DISubroutineType(types: !74)
-!74 = !{null, !75}
-!75 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !21, size: 64)
-!76 = !DILocalVariable(name: "dev_init", arg: 1, scope: !72, file: !3, line: 52, type: !75)
-!77 = !DILocation(line: 52, column: 25, scope: !72)
-!78 = !DILocation(line: 53, column: 6, scope: !72)
-!79 = !DILocation(line: 53, column: 14, scope: !72)
-!80 = !DILocation(line: 54, column: 1, scope: !72)
-!81 = distinct !DISubprogram(name: "lookup_device", scope: !3, file: !3, line: 56, type: !82, isLocal: false, isDefinition: true, scopeLine: 57, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
-!82 = !DISubroutineType(types: !83)
-!83 = !{!10, !18}
-!84 = !DILocalVariable(name: "search_name", arg: 1, scope: !81, file: !3, line: 56, type: !18)
-!85 = !DILocation(line: 56, column: 38, scope: !81)
-!86 = !DILocalVariable(name: "current", scope: !81, file: !3, line: 58, type: !6)
-!87 = !DILocation(line: 58, column: 18, scope: !81)
-!88 = !DILocation(line: 58, column: 28, scope: !81)
-!89 = !DILocation(line: 59, column: 5, scope: !81)
-!90 = !DILocation(line: 59, column: 12, scope: !81)
-!91 = !DILocation(line: 59, column: 20, scope: !81)
-!92 = !DILocation(line: 61, column: 20, scope: !93)
-!93 = distinct !DILexicalBlock(scope: !94, file: !3, line: 61, column: 13)
-!94 = distinct !DILexicalBlock(scope: !81, file: !3, line: 60, column: 5)
-!95 = !DILocation(line: 61, column: 29, scope: !93)
-!96 = !DILocation(line: 61, column: 34, scope: !93)
-!97 = !DILocation(line: 61, column: 39, scope: !93)
-!98 = !DILocation(line: 61, column: 13, scope: !93)
-!99 = !DILocation(line: 61, column: 52, scope: !93)
-!100 = !DILocation(line: 61, column: 13, scope: !94)
-!101 = !DILocation(line: 62, column: 20, scope: !93)
-!102 = !DILocation(line: 62, column: 29, scope: !93)
-!103 = !DILocation(line: 62, column: 13, scope: !93)
-!104 = !DILocation(line: 64, column: 19, scope: !93)
-!105 = !DILocation(line: 64, column: 28, scope: !93)
-!106 = !DILocation(line: 64, column: 17, scope: !93)
-!107 = distinct !{!107, !89, !108}
-!108 = !DILocation(line: 65, column: 5, scope: !81)
-!109 = !DILocation(line: 66, column: 5, scope: !81)
-!110 = !DILocation(line: 68, column: 1, scope: !81)
-!111 = distinct !DISubprogram(name: "main", scope: !3, file: !3, line: 95, type: !112, isLocal: false, isDefinition: true, scopeLine: 95, isOptimized: false, unit: !2, variables: !4)
-!112 = !DISubroutineType(types: !113)
-!113 = !{!21}
-!114 = !DILocalVariable(name: "dev", scope: !111, file: !3, line: 96, type: !10)
-!115 = !DILocation(line: 96, column: 21, scope: !111)
-!116 = !DILocation(line: 97, column: 10, scope: !111)
-!117 = !DILocation(line: 97, column: 5, scope: !111)
-!118 = !DILocation(line: 98, column: 5, scope: !111)
-!119 = !DILocation(line: 99, column: 5, scope: !111)
-!120 = !DILocation(line: 100, column: 5, scope: !111)
-!121 = !DILocation(line: 101, column: 5, scope: !111)
-!122 = !DILocation(line: 103, column: 11, scope: !111)
-!123 = !DILocation(line: 103, column: 9, scope: !111)
-!124 = !DILocation(line: 104, column: 10, scope: !111)
-!125 = !DILocation(line: 104, column: 5, scope: !111)
-!126 = !DILocation(line: 105, column: 11, scope: !111)
-!127 = !DILocation(line: 105, column: 9, scope: !111)
-!128 = !DILocation(line: 106, column: 10, scope: !111)
-!129 = !DILocation(line: 106, column: 5, scope: !111)
-!130 = !DILocation(line: 108, column: 5, scope: !111)
-!131 = distinct !DISubprogram(name: "dev1_open", scope: !3, file: !3, line: 73, type: !15, isLocal: true, isDefinition: true, scopeLine: 73, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
-!132 = !DILocalVariable(name: "dev", arg: 1, scope: !131, file: !3, line: 73, type: !10)
-!133 = !DILocation(line: 73, column: 38, scope: !131)
-!134 = !DILocation(line: 74, column: 2, scope: !131)
-!135 = !DILocation(line: 74, column: 7, scope: !131)
-!136 = !DILocation(line: 74, column: 29, scope: !131)
-!137 = !DILocation(line: 75, column: 1, scope: !131)
-!138 = distinct !DISubprogram(name: "dev2_open", scope: !3, file: !3, line: 84, type: !15, isLocal: true, isDefinition: true, scopeLine: 84, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
-!139 = !DILocalVariable(name: "dev", arg: 1, scope: !138, file: !3, line: 84, type: !10)
-!140 = !DILocation(line: 84, column: 38, scope: !138)
-!141 = !DILocation(line: 85, column: 2, scope: !138)
-!142 = !DILocation(line: 85, column: 7, scope: !138)
-!143 = !DILocation(line: 85, column: 29, scope: !138)
-!144 = !DILocation(line: 86, column: 1, scope: !138)
+!32 = !{!"clang version 7.0.0 (trunk 323988) (llvm/trunk 323938)"}
+!33 = distinct !DISubprogram(name: "init", scope: !3, file: !3, line: 27, type: !34, isLocal: false, isDefinition: true, scopeLine: 27, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
+!34 = !DISubroutineType(types: !35)
+!35 = !{null, !6}
+!36 = !DILocalVariable(name: "head", arg: 1, scope: !33, file: !3, line: 27, type: !6)
+!37 = !DILocation(line: 27, column: 24, scope: !33)
+!38 = !DILocation(line: 28, column: 10, scope: !33)
+!39 = !DILocation(line: 29, column: 1, scope: !33)
+!40 = distinct !DISubprogram(name: "register_device", scope: !3, file: !3, line: 31, type: !15, isLocal: false, isDefinition: true, scopeLine: 32, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
+!41 = !DILocalVariable(name: "dev", arg: 1, scope: !40, file: !3, line: 31, type: !10)
+!42 = !DILocation(line: 31, column: 37, scope: !40)
+!43 = !DILocalVariable(name: "new_node", scope: !40, file: !3, line: 34, type: !6)
+!44 = !DILocation(line: 34, column: 18, scope: !40)
+!45 = !DILocation(line: 34, column: 44, scope: !40)
+!46 = !DILocation(line: 34, column: 29, scope: !40)
+!47 = !DILocation(line: 37, column: 22, scope: !40)
+!48 = !DILocation(line: 37, column: 5, scope: !40)
+!49 = !DILocation(line: 37, column: 15, scope: !40)
+!50 = !DILocation(line: 37, column: 20, scope: !40)
+!51 = !DILocation(line: 40, column: 22, scope: !40)
+!52 = !DILocation(line: 40, column: 5, scope: !40)
+!53 = !DILocation(line: 40, column: 15, scope: !40)
+!54 = !DILocation(line: 40, column: 20, scope: !40)
+!55 = !DILocation(line: 43, column: 24, scope: !40)
+!56 = !DILocation(line: 43, column: 22, scope: !40)
+!57 = !DILocation(line: 44, column: 1, scope: !40)
+!58 = distinct !DISubprogram(name: "open", scope: !3, file: !3, line: 46, type: !59, isLocal: false, isDefinition: true, scopeLine: 46, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
+!59 = !DISubroutineType(types: !60)
+!60 = !{!21, !10}
+!61 = !DILocalVariable(name: "dev", arg: 1, scope: !58, file: !3, line: 46, type: !10)
+!62 = !DILocation(line: 46, column: 25, scope: !58)
+!63 = !DILocation(line: 47, column: 2, scope: !58)
+!64 = !DILocation(line: 47, column: 7, scope: !58)
+!65 = !DILocation(line: 47, column: 12, scope: !58)
+!66 = !DILocation(line: 48, column: 26, scope: !58)
+!67 = !DILocation(line: 48, column: 31, scope: !58)
+!68 = !DILocation(line: 48, column: 5, scope: !58)
+!69 = !DILocation(line: 49, column: 5, scope: !58)
+!70 = distinct !DISubprogram(name: "device_reset", scope: !3, file: !3, line: 52, type: !71, isLocal: false, isDefinition: true, scopeLine: 52, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
+!71 = !DISubroutineType(types: !72)
+!72 = !{null, !73}
+!73 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !21, size: 64)
+!74 = !DILocalVariable(name: "dev_init", arg: 1, scope: !70, file: !3, line: 52, type: !73)
+!75 = !DILocation(line: 52, column: 25, scope: !70)
+!76 = !DILocation(line: 53, column: 6, scope: !70)
+!77 = !DILocation(line: 53, column: 14, scope: !70)
+!78 = !DILocation(line: 54, column: 1, scope: !70)
+!79 = distinct !DISubprogram(name: "lookup_device", scope: !3, file: !3, line: 56, type: !80, isLocal: false, isDefinition: true, scopeLine: 57, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
+!80 = !DISubroutineType(types: !81)
+!81 = !{!10, !18}
+!82 = !DILocalVariable(name: "search_name", arg: 1, scope: !79, file: !3, line: 56, type: !18)
+!83 = !DILocation(line: 56, column: 38, scope: !79)
+!84 = !DILocalVariable(name: "current", scope: !79, file: !3, line: 58, type: !6)
+!85 = !DILocation(line: 58, column: 18, scope: !79)
+!86 = !DILocation(line: 58, column: 28, scope: !79)
+!87 = !DILocation(line: 59, column: 5, scope: !79)
+!88 = !DILocation(line: 59, column: 12, scope: !79)
+!89 = !DILocation(line: 59, column: 20, scope: !79)
+!90 = !DILocation(line: 61, column: 20, scope: !91)
+!91 = distinct !DILexicalBlock(scope: !92, file: !3, line: 61, column: 13)
+!92 = distinct !DILexicalBlock(scope: !79, file: !3, line: 60, column: 5)
+!93 = !DILocation(line: 61, column: 29, scope: !91)
+!94 = !DILocation(line: 61, column: 34, scope: !91)
+!95 = !DILocation(line: 61, column: 39, scope: !91)
+!96 = !DILocation(line: 61, column: 13, scope: !91)
+!97 = !DILocation(line: 61, column: 52, scope: !91)
+!98 = !DILocation(line: 61, column: 13, scope: !92)
+!99 = !DILocation(line: 62, column: 20, scope: !91)
+!100 = !DILocation(line: 62, column: 29, scope: !91)
+!101 = !DILocation(line: 62, column: 13, scope: !91)
+!102 = !DILocation(line: 64, column: 19, scope: !91)
+!103 = !DILocation(line: 64, column: 28, scope: !91)
+!104 = !DILocation(line: 64, column: 17, scope: !91)
+!105 = distinct !{!105, !87, !106}
+!106 = !DILocation(line: 65, column: 5, scope: !79)
+!107 = !DILocation(line: 66, column: 5, scope: !79)
+!108 = !DILocation(line: 68, column: 1, scope: !79)
+!109 = distinct !DISubprogram(name: "main", scope: !3, file: !3, line: 95, type: !110, isLocal: false, isDefinition: true, scopeLine: 95, isOptimized: false, unit: !2, variables: !4)
+!110 = !DISubroutineType(types: !111)
+!111 = !{!21}
+!112 = !DILocalVariable(name: "dev", scope: !109, file: !3, line: 96, type: !10)
+!113 = !DILocation(line: 96, column: 21, scope: !109)
+!114 = !DILocation(line: 97, column: 10, scope: !109)
+!115 = !DILocation(line: 97, column: 5, scope: !109)
+!116 = !DILocation(line: 98, column: 5, scope: !109)
+!117 = !DILocation(line: 99, column: 5, scope: !109)
+!118 = !DILocation(line: 100, column: 5, scope: !109)
+!119 = !DILocation(line: 101, column: 5, scope: !109)
+!120 = !DILocation(line: 103, column: 11, scope: !109)
+!121 = !DILocation(line: 103, column: 9, scope: !109)
+!122 = !DILocation(line: 104, column: 10, scope: !109)
+!123 = !DILocation(line: 104, column: 5, scope: !109)
+!124 = !DILocation(line: 105, column: 11, scope: !109)
+!125 = !DILocation(line: 105, column: 9, scope: !109)
+!126 = !DILocation(line: 106, column: 10, scope: !109)
+!127 = !DILocation(line: 106, column: 5, scope: !109)
+!128 = !DILocation(line: 108, column: 5, scope: !109)
+!129 = distinct !DISubprogram(name: "dev1_open", scope: !3, file: !3, line: 73, type: !15, isLocal: true, isDefinition: true, scopeLine: 73, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
+!130 = !DILocalVariable(name: "dev", arg: 1, scope: !129, file: !3, line: 73, type: !10)
+!131 = !DILocation(line: 73, column: 38, scope: !129)
+!132 = !DILocation(line: 74, column: 2, scope: !129)
+!133 = !DILocation(line: 74, column: 7, scope: !129)
+!134 = !DILocation(line: 74, column: 29, scope: !129)
+!135 = !DILocation(line: 75, column: 1, scope: !129)
+!136 = distinct !DISubprogram(name: "dev2_open", scope: !3, file: !3, line: 84, type: !15, isLocal: true, isDefinition: true, scopeLine: 84, flags: DIFlagPrototyped, isOptimized: false, unit: !2, variables: !4)
+!137 = !DILocalVariable(name: "dev", arg: 1, scope: !136, file: !3, line: 84, type: !10)
+!138 = !DILocation(line: 84, column: 38, scope: !136)
+!139 = !DILocation(line: 85, column: 2, scope: !136)
+!140 = !DILocation(line: 85, column: 7, scope: !136)
+!141 = !DILocation(line: 85, column: 29, scope: !136)
+!142 = !DILocation(line: 86, column: 1, scope: !136)

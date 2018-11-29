@@ -57,6 +57,11 @@ namespace pdg {
 
         void collectAliasInst();
 
+        int getDependencyType(llvm::Instruction* inst1, llvm::Instruction* inst2) {
+            DependencyNode<pdg::InstructionWrapper> *dataDNode = DDG->getNodeByData(instMap[inst1]);
+            return dataDNode->getDataDependencyType(DDG->getNodeByData(instMap[inst2]));
+        }
+
         virtual bool runOnFunction(llvm::Function &F);
 
         virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const;

@@ -1,56 +1,4 @@
 #include "ProgramDependencies.h"
-
-// int pdg::ProgramDependencyGraph::getArgOpType(llvm::Argument *arg)
-// {
-//     std::vector<Instruction*> initialStoreInsts = getArgStoreInsts(arg);
-//     if (initialStoreInsts.empty())
-//     {
-//         errs() << "Cannot find start stored inst";
-//         return AccessType::NOACCESS;
-//     }
-
-//     for (Instruction *storeInst : initialStoreInsts)
-//     {
-//         InstructionWrapper *initialStartStW = instMap[storeInst];
-//     }
-
-//     // if find the start store instruction, find all relevant instruction and check type.
-//     // 1. get consecutive load instruction.
-//     DependencyNode<InstructionWrapper> *storeDataDNode = PDG->getNodeByData(start_stW);
-//     DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = storeDataDNode->getDependencyList();
-//     std::vector<InstructionWrapper*> loadWvec;
-//     for (auto dependencyPair : dataDList)
-//     {
-//         if (dependencyPair.second == DependencyType::DATA_RAW)
-//         {
-//             loadWvec.push_back(const_cast<InstructionWrapper *>(dependencyPair.first->getData()));
-//         }
-//     }
-
-//     // 2. find related store instruction.
-//     std::vector<InstructionWrapper *> storeWvec;
-//     for (InstructionWrapper *loadInst : loadWvec)
-//     {
-//         DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(loadInst);
-//         dataDList = dataDNode->getDependencyList();
-//         for (auto dependencyPair : dataDList)
-//         {
-//             InstructionWrapper *instW = const_cast<InstructionWrapper *>(dependencyPair.first->getData());
-//             if (instW->getInstruction() != nullptr && isa<StoreInst>(instW->getInstruction()))
-//             {
-//                 return AccessType::WRITE_FIELD;
-//             }
-//         }
-//     }
-
-//     if (!loadWvec.empty())
-//     {
-//         return AccessType::READ_FIELD;
-//     }
-
-//     return AccessType::NOACCESS;
-// }
-
 std::vector<llvm::Instruction*> pdg::ProgramDependencyGraph::getArgStoreInsts(Argument *arg)
 {
     std::vector<llvm::Instruction*> initialStoreInsts;
@@ -331,8 +279,6 @@ void pdg::ProgramDependencyGraph::propergateAccessInfoToParent(ArgumentWrapper *
     }
 
     auto parentTI = argW->getTree(FORMAL_IN_TREE).parent(treeI);
-    errs() << argW->getTree(FORMAL_IN_TREE).depth(treeI) << "\n";
-    errs() << argW->getTree(FORMAL_IN_TREE).depth(parentTI) << "\n";
     while (argW->getTree(FORMAL_IN_TREE).depth(parentTI) != 0) {
         //errs() << "Traversing back to parent\n";
         (*parentTI)->setAccessType(newAccessType);
@@ -343,15 +289,18 @@ void pdg::ProgramDependencyGraph::propergateAccessInfoToParent(ArgumentWrapper *
 
 void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *argW)
 {
-    auto treeIter = argW->getTree(FORMAL_IN_TREE).begin();
+    if (argW->getTree(FORMAL_IN_TREE).size() == 0) {
+        return;
+    }
+
+    tree<InstructionWrapper*>::iterator treeIter = argW->getTree(FORMAL_IN_TREE).begin();
     int accessType = pdg::NOACCESS;
 
     std::vector<Instruction*> initialStoreInsts = getArgStoreInsts(argW->getArg());
     for (Instruction* storeInst : initialStoreInsts) {
         if (StoreInst* st = dyn_cast<StoreInst>(storeInst)) {
             if (!isa<Instruction>(st->getValueOperand())) {
-                accessType = pdg::WRITE_FIELD;
-                (*treeIter)->setAccessType(accessType);
+                (*treeIter)->setAccessType(pdg::WRITE_FIELD);
             }
         }
     }
@@ -460,7 +409,6 @@ void pdg::ProgramDependencyGraph::getReadWriteInfoAggregatePtr(ArgumentWrapper *
             // get read/writ information for the GEP, and store to the typenode
             int gepAccessType = getAccessTypeForGEPInstW(gepInstW);
             int old_type = typeNodeW->getAccessType();
-            errs() << *(gepInstW->getInstruction()) << "\n";
             if (gepAccessType <= old_type)
             {
                 // if access info not changed, continue processing

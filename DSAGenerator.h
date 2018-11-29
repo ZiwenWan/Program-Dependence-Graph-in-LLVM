@@ -55,7 +55,7 @@ public:
 
     std::string getStructName(DIType* Ty);
 
-    int getAllNames(DIType *Ty, std::set<std::string> seen_names, offsetNames &of, int prev_off, std::string baseName, std::string indent, StringRef argName, std::string &structName);
+    int getAllNames(DIType *Ty, offsetNames &of, int prev_off, std::string baseName, std::string indent, StringRef argName, std::string &structName, int depth);
 
     offsetNames getArgFieldNames(Function *F, unsigned argNumber, StringRef argName, std::string& structName);
 

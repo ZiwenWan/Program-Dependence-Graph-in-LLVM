@@ -8,9 +8,9 @@ int pdg::ControlDependencyGraph::getDependenceType(const BasicBlock *A,
   if (const llvm::BranchInst *b = dyn_cast<BranchInst>(A->getTerminator())) {
     if (b->isConditional()) {
       if (b->getSuccessor(0) == B) {
-        return ControlType::TRUE;
+        return ControlType::CTRUE;
       } else if (b->getSuccessor(1) == B) {
-        return ControlType::FALSE;
+        return ControlType::CFALSE;
       } else {
         DEBUG(dbgs() << *A << "\n" << *B << "\n");
         assert(false &&

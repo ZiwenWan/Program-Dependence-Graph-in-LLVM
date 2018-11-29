@@ -7,7 +7,8 @@ DIType *DSAGenerator::getBaseType(DIType *Ty)
 {
     if (Ty->getTag() == dwarf::DW_TAG_pointer_type ||
         Ty->getTag() == dwarf::DW_TAG_member ||
-        Ty->getTag() == dwarf::DW_TAG_typedef)
+        Ty->getTag() == dwarf::DW_TAG_typedef ||
+        Ty->getTag() == dwarf::DW_TAG_array_type)
     {
         DIType *baseTy = dyn_cast<DIDerivedType>(Ty)->getBaseType().resolve();
         if (!baseTy) {
@@ -61,57 +62,66 @@ std::string DSAGenerator::getStructName(DIType *Ty) {
     return "";
 }
 
-int DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, offsetNames &of, int visit_order, std::string baseName, std::string indent, StringRef argName, std::string &structName)
+int DSAGenerator::getAllNames(DIType *Ty, offsetNames &of, int visit_order, std::string baseName, std::string indent, StringRef argName, std::string &structName, int depth)
 {
-    std::string printinfo = moduleName + "[getAllNames]: ";
-    //errs() << rootDer->getName().str() << "\n";
-    DIType *baseTy = getLowestDINode(Ty);
-    if (!baseTy)
-        return 0;
-    // If that pointer is a struct
-    if (baseTy->getTag() == dwarf::DW_TAG_structure_type)
-    {
-        errs() << "Find structure type\n";
-        structName = baseTy->getName().str();
-        errs() << "Current struct name: " << structName << "\n";
-        DICompositeType *compType = dyn_cast<DICompositeType>(baseTy);
-        // Go thro struct elements and print them all
-        //std::string curStructName; 
-        //of[visit_order] = std::pair<std::string, DIType *>( new_name, der->getBaseType().resolve());
-        for (DINode *Op : compType->getElements())
-        {
-            //visit_order += 1;
-            DIDerivedType *der = dyn_cast<DIDerivedType>(Op);
-            unsigned offset = der->getOffsetInBits() >> 3;
+  if (depth >= 1) {
+    return visit_order;
+  }
+  std::string printinfo = moduleName + "[getAllNames]: ";
+  
+  DIType *baseTy = getLowestDINode(Ty);
+  if (!baseTy)
+    return 0;
+  // If that pointer is a struct
+  if (baseTy->getTag() == dwarf::DW_TAG_structure_type) {
+    errs() << "Find structure type\n";
+    structName = baseTy->getName().str();
+    errs() << "Current struct name: " << structName << "\n";
+    DICompositeType *compType = dyn_cast<DICompositeType>(baseTy);
+    // Go thro struct elements and print them all
+    // std::string curStructName;
+    // of[visit_order] = std::pair<std::string, DIType *>( new_name,
+    // der->getBaseType().resolve());
+    for (DINode *Op : compType->getElements()) {
+      DIDerivedType *der = dyn_cast<DIDerivedType>(Op);
+    //   errs() << getBaseType(der)->getTag() << "\n";
+    // errs() << der->getSizeInBits() << "\n";
+    // errs() << (getBaseType(der)->getTag() == dwarf::DW_TAG_array_type) << "\n";
+    // if (der->getSizeInBits() <= 8 && getBaseType(der)->getTag() != dwarf::DW_TAG_array_type) {
+    //   continue;
+    // }
 
-            // do some type checking. If recursive type call, return
-            std::string curFieldName = der->getName().str();
-            if (seen_names.find(curFieldName) != seen_names.end()) {
-                errs() << "Find repeat struct name. Break Here!"  << "\n";
-                continue;
-            }
-            seen_names.insert(curFieldName);
-            std::string new_name(baseName);
-            if (new_name != "") new_name.append(".");
-            new_name.append(curFieldName);
-            errs() << "A new sturct name: " << curFieldName << "\n";
+    unsigned offset = der->getOffsetInBits() >> 3;
+    std::string curFieldName = der->getName().str();
+    //   if (seen_names.find(curFieldName) != seen_names.end()) {
+    //     errs() << "Find repeat struct name. Break Here!"
+    //            << "\n";
+    //     continue;
+    //   }
+    //   seen_names.insert(curFieldName);
+      std::string new_name(baseName);
+      if (new_name != "")
+        new_name.append(".");
+      new_name.append(curFieldName);
+      errs() << "A new sturct name: " << curFieldName << "\n";
+      errs() << printinfo << "type information:  " << der->getBaseType().resolve()->getTag() << "\n";
+      errs() << printinfo << "Updating [of] on line 192 with following pair:\n";
+      errs() << printinfo << "first item [new_name] " << new_name << " - " << visit_order << "\n";
+      // visit_order += 1;
+      errs() << "Der size: " << der->getSizeInBits() << "\n";
+      //of[visit_order] = std::pair<std::string, DIType *>(new_name, der->getBaseType().resolve());
+      of[visit_order] = std::pair<std::string, DIType *>(new_name, der);
+      /// XXX: crude assumption that we want to peek only into those members
+      /// whose sizes are greater than 8 bytes. 1 bytes?
 
-            errs() << printinfo << "type information:  " << der->getBaseType().resolve()->getTag() << "\n";
-            errs() << printinfo << "Updating [of] on line 192 with following pair:\n";
-            errs() << printinfo << "first item [new_name] " << new_name << " - " << visit_order << "\n";
-            //visit_order += 1;
-            of[visit_order] = std::pair<std::string, DIType *>( new_name, der->getBaseType().resolve());
-            /// XXX: crude assumption that we want to peek only into those members
-            /// whose sizes are greater than 8 bytes
-            if (((der->getSizeInBits() >> 3) > 1)
-                && der->getBaseType().resolve()->getTag()) {
-                std::string tempStructName("");
-                errs() << printinfo <<"RECURSIVELY CALL getAllNames on 200\n";
-                visit_order = getAllNames(dyn_cast<DIType>(der), seen_names, of, visit_order + 1,
-                            new_name, indent, argName, tempStructName);
-            }
-            errs() << "--------------- " << der->getName().str() << "\n";
-        }
+      if (((der->getSizeInBits() >> 3) > 1) && der->getBaseType().resolve()->getTag()) {
+        std::string tempStructName("");
+        errs() << printinfo << "RECURSIVELY CALL getAllNames on 200\n";
+        visit_order = getAllNames(dyn_cast<DIType>(der), of, visit_order + 1, new_name, indent, argName, tempStructName, depth + 1);
+      } else {
+        visit_order += 1;
+      }
+    }
     }
     else if (isa<DIBasicType>(baseTy))
     {
@@ -119,7 +129,6 @@ int DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, offs
         DIType* oneLevelUpBaseType = getBaseType(Ty);
         if ( oneLevelUpBaseType->getTag() == dwarf::DW_TAG_pointer_type ) // class member type ... 
         {
-            errs() << "Adding 2 offset" << "\n";
             visit_order += 1;
         }
 
@@ -137,6 +146,7 @@ int DSAGenerator::getAllNames(DIType *Ty, std::set<std::string> seen_names, offs
     {
         errs() << "Find unknown types\n";
         structName = "";
+        visit_order += 1;
         // same here, unkonwn type could be function pointer etc. In this case, we assume it will have a child created
     }
     return visit_order;
@@ -198,10 +208,10 @@ DSAGenerator::offsetNames DSAGenerator::getArgFieldNames(Function *F, unsigned a
                         continue;
                     }
 
-                    std::set<std::string> seen_names;
+                    //std::set<std::string> seen_names;
                     //getAllNames(Ty, seen_names, offNames, 0, "", "  ", argName, structName);
-                    getAllNames(Ty, seen_names, offNames, 1, "", "  ", argName, structName);
-                    seen_names.clear();
+                    getAllNames(Ty, offNames, 1, argName, "  ", argName, structName, 0);
+                    //seen_names.clear();
                     seenStructs[structName] = offNames;
                     errs() << printinfo << "structName = " << structName << "\n";
                 }
@@ -255,90 +265,49 @@ void DSAGenerator::dumpOffsetNames(offsetNames &of) {
 }
 
 bool DSAGenerator::runOnModule(Module &M) {
-    std::set<std::string> funcList = {
-            "___might_sleep",
-            "__alloc_percpu",
-            "__rtnl_link_register",
-            "__rtnl_link_unregister",
-            "_cond_resched",
-            "alloc_netdev_mqs",
-            "consume_skb",
-            "dummy_change_carrier",
-            "dummy_cleanup_module",
-            "dummy_dev_init",
-            "dummy_dev_uninit",
-            "dummy_get_drvinfo",
-            "dummy_get_stats64",
-            "dummy_init_module",
-            "dummy_init_one",
-            "dummy_setup",
-            "dummy_validate",
-            "dummy_xmit",
-            "eth_hw_addr_random",
-            "eth_mac_addr",
-            "eth_random_addr",
-            "eth_validate_addr",
-            "ether_setup",
-            "free_netdev",
-            "free_percpu",
-            "get_random_bytes",
-            "is_multicast_ether_addr",
-            "is_valid_ether_addr",
-            "is_zero_ether_addr",
-            "netif_carrier_off",
-            "netif_carrier_on",
-            "nla_data",
-            "nla_len",
-            "register_netdevice",
-            "rtnl_link_unregister",
-            "rtnl_lock",
-            "rtnl_unlock",
-            "set_multicast_list",
-            "u64_stats_fetch_begin_irq",
-            "u64_stats_fetch_retry_irq",
-            "u64_stats_update_begin",
-            "u64_stats_update_end"
-    };
+  std::set<std::string> funcList = {"consume_skb"};
 
-    for (Module::iterator FF = M.begin(), E = M.end(); FF != E; ++FF) {
-        std::string printinfo = moduleName + "[runOnModule]: ";
-        // collect dgb inst for
-        Function *F = dyn_cast<Function>(FF);
+  for (Module::iterator FF = M.begin(), E = M.end(); FF != E; ++FF) {
+    std::string printinfo = moduleName + "[runOnModule]: ";
+    // collect dgb inst for
+    Function *F = dyn_cast<Function>(FF);
 
-// #ifdef TEST_IDL 
-//         if (funcList.find(F->getName()) == funcList.end()) {
-//             continue;
-//         }
-// #endif
+    // #ifdef TEST_IDL
+    if (funcList.find(F->getName()) == funcList.end()) {
+      continue;
+    }
+    // #endif
 
-        if (F->isDeclaration()) {
-            continue;
-        }
+    if (F->isDeclaration()) {
+      continue;
+    }
 
-        std::map<unsigned, offsetNames> argNoToFieldNames;
-        // iterate dgb and
-        for (Argument &arg : F->args()) {
-            if (arg.getType()->isPointerTy()) {
-                std::string structName;
-//#ifdef TEST_IDL
-                errs()<<printinfo << "arg.getArgNo(){ "<<arg.getArgNo()<<" }\n";
-                errs() << printinfo<<"CALL getArgFieldNames on line 521 with these parameters:\n";
-                errs() << printinfo<<"F, s.t F.getName() = "<<F->getName()<<"\n";
-                errs() << printinfo<<"arg.getArgNo() + 1 = "<<arg.getArgNo() + 1<<"\n";
-                errs() << printinfo<<"arg.getName() = "<<arg.getName()<<"\n";
-//#endif
-                offsetNames of = getArgFieldNames(F, arg.getArgNo() + 1, arg.getName(), structName);
-                //funcArgOffsetMap[F] = of;
-                argNoToFieldNames[arg.getArgNo()] = of;
-//#ifdef TEST_IDL
-                errs() << printinfo<< "structName = " << structName <<"\n";
-                errs() << printinfo<<"CALL dumpOffsetNames on line 523\n";
-//#endif
-                //dumpOffsetNames(of);
-            }
-        }
+    std::map<unsigned, offsetNames> argNoToFieldNames;
+    // iterate dgb and
+    for (Argument &arg : F->args()) {
+      if (arg.getType()->isPointerTy()) {
+        std::string structName;
+        //#ifdef TEST_IDL
+        errs() << printinfo << "arg.getArgNo(){ " << arg.getArgNo() << " }\n";
+        errs() << printinfo
+               << "CALL getArgFieldNames on line 521 with these parameters:\n";
+        errs() << printinfo << "F, s.t F.getName() = " << F->getName() << "\n";
+        errs() << printinfo << "arg.getArgNo() + 1 = " << arg.getArgNo() + 1
+               << "\n";
+        errs() << printinfo << "arg.getName() = " << arg.getName() << "\n";
+        //#endif
+        offsetNames of = getArgFieldNames(F, arg.getArgNo() + 1, arg.getName(), structName);
+        // funcArgOffsetMap[F] = of;
+        argNoToFieldNames[arg.getArgNo()] = of;
+        //#ifdef TEST_IDL
+        errs() << printinfo << "structName = " << structName << "\n";
+        errs() << printinfo << "CALL dumpOffsetNames on line 523\n";
+        //#endif
+        // dumpOffsetNames(of);
+      }
+    }
 
-        funcArgOffsetMap[F] = argNoToFieldNames;
+    funcArgOffsetMap[F] = argNoToFieldNames;
     }
 
     return false;

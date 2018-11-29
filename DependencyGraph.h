@@ -46,7 +46,7 @@ namespace pdg{
     };
 
     enum ControlType {
-        TRUE = 0x4, FALSE = 0x8, OTHER = 0xc
+        CTRUE = 0x4, CFALSE = 0x8, OTHER = 0xc
     };
 
     enum ArgumentType {
@@ -274,7 +274,9 @@ namespace pdg{
 
         int getAccessType() {return access_type;}
 
-        void setAccessType(int _access_type) { access_type = _access_type; }
+        void setAccessType(const int _access_type) { 
+            access_type = _access_type; 
+        }
     };
 
 
@@ -284,13 +286,10 @@ namespace pdg{
     template<class NodeT>
     class DependencyNode {
     public:
-        //    typedef std::pair<DependencyNode<NodeT> *, DependencyType>
-        //    DependencyLink;
-
         typedef std::pair<DependencyNode<NodeT> *, int> DependencyLink;
         typedef std::vector<DependencyLink> DependencyLinkList;
-        typedef DependencyLinkIterator<NodeT> iterator;
-        typedef DependencyLinkIterator<NodeT> const_iterator;
+        using iterator = DependencyLinkIterator<NodeT>;
+        using const_iterator = DependencyLinkIterator<NodeT>;
 
         iterator begin() {
             return DependencyLinkIterator<NodeT>(mDependencies.begin());
@@ -432,8 +431,7 @@ namespace pdg{
     class DependencyGraph {
     public:
         typedef typename std::vector<DependencyNode<NodeT> *>::iterator nodes_iterator;
-        typedef typename std::vector<DependencyNode<NodeT> *>::const_iterator
-                const_nodes_iterator;
+        typedef typename std::vector<DependencyNode<NodeT> *>::const_iterator const_nodes_iterator;
 
         DependencyNode<NodeT> *getRootNode() const { return RootNode; }
 

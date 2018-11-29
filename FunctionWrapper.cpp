@@ -3,7 +3,8 @@
 void pdg::ArgumentWrapper::copyTree(const tree<InstructionWrapper *> &srcTree, TreeType treeTy) {
         if (srcTree.empty()) {
                 errs() << *arg->getParent() << " arg : " << *arg << " srcTree is empty!\n";
-                exit(1);
+                //exit(1);
+                return;
         }
 
         InstWrapperType instWTy;//formal_out actual_in/out
@@ -14,20 +15,20 @@ void pdg::ArgumentWrapper::copyTree(const tree<InstructionWrapper *> &srcTree, T
                         errs() << "FORMAL_IN_TREE can't be copied\n";
                 break;
                 case FORMAL_OUT_TREE:
-                        formalOutTree = srcTree;
-                newArg = (*srcTree.begin())->getArgument();
-                instWTy = FORMAL_OUT;
-                break;
+                  formalOutTree = srcTree;
+                  newArg = (*srcTree.begin())->getArgument();
+                  instWTy = FORMAL_OUT;
+                  break;
                 case ACTUAL_IN_TREE:
-                        actualInTree = srcTree;
-                newArg = this->getArg();
-                instWTy = ACTUAL_IN;
-                break;
+                  actualInTree = srcTree;
+                  newArg = this->getArg();
+                  instWTy = ACTUAL_IN;
+                  break;
                 case ACTUAL_OUT_TREE:
-                        actualOutTree = srcTree;
-                newArg = this->getArg();
-                instWTy = ACTUAL_OUT;
-                break;
+                  actualOutTree = srcTree;
+                  newArg = this->getArg();
+                  instWTy = ACTUAL_OUT;
+                  break;
         }
 
 //    formalOutTree = formalInTree;
