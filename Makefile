@@ -1,4 +1,3 @@
-# Ensure there is a build folder
 ODIR = ./build
 output_folder := $(shell mkdir -p $(ODIR))
 
@@ -13,4 +12,4 @@ libplugin.so:
 clean:
 	@echo Cleaning up...
 	@rm -rf $(ODIR)
-	@rm -rf test/llvm*
+

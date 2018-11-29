@@ -1,28 +1,31 @@
-#
-# Standard configuration when building anything related to LLVM
-#
 cmake_minimum_required(VERSION 3.1)
+project(pdg)
 find_package(LLVM REQUIRED CONFIG)
 add_definitions(${LLVM_DEFINITIONS})
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
 
 #
-# We will build one library: libtmplugin.so.  It corresponds to a plugin that we 
+# We will build one library: libtmplugin.so.  It corresponds to a plugin that we
 # run when compiling.
 #
-
+#option(USE_CXX_EXCEPTIONS "Enable C++ exception support" ON)
 #
 # Files associated with libtmplugin.so
 #
-add_library(pdg MODULE 
-    ControlDependencies.cpp
-    DataDependencies.cpp
-    ProgramDependencies.cpp
-    PDGHelper.cpp
-    FunctionWrapper.cpp
-    ConnectFunctions.cpp
-    DepPrinter.cpp
+
+include_directories("include")
+include_directories("src")
+
+file(GLOB TPPSRC "src/*.tpp")
+file(GLOB SOURCES "src/*.cpp")
+file(GLOB HEADERS "include/*.hpp")
+
+add_library(pdg MODULE
+    include/tree.hh
+    ${HEADERS}
+    ${TPPSRC}
+    ${SOURCES}
 )
 
 
@@ -30,7 +33,7 @@ add_library(pdg MODULE
 # Turn on C++11, turn off C++ RTTI.
 #
 target_compile_features(pdg PRIVATE cxx_range_for cxx_auto_type)
-set_target_properties(pdg PROPERTIES COMPILE_FLAGS "-fno-rtti ")
+set_target_properties(pdg PROPERTIES COMPILE_FLAGS "-fno-rtti")
 
 #
 # OS X-specific configuration
@@ -38,3 +41,4 @@ set_target_properties(pdg PROPERTIES COMPILE_FLAGS "-fno-rtti ")
 if(APPLE)
     set_target_properties(pdg PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
 endif(APPLE)
+
