@@ -92,3 +92,13 @@ void pdg::ArgumentWrapper::copyTree(const tree<pdg::InstructionWrapper *> &srcTr
     PDGUtils::getInstance().getFuncInstWMap()[srcTreeW->getFunction()].insert(treeTypeW);
   }
 }
+
+tree<pdg::InstructionWrapper *>::iterator pdg::ArgumentWrapper::tree_begin(TreeType treeTy)
+{
+  return getTree(treeTy).begin();
+}
+
+tree<pdg::InstructionWrapper *>::iterator pdg::ArgumentWrapper::tree_end(TreeType treeTy)
+{
+  return getTree(treeTy).end();
+}

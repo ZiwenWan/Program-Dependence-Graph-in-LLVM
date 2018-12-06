@@ -61,6 +61,7 @@ class InstructionWrapper {
     virtual llvm::Type *getTreeNodeType() const { return nullptr; }
     virtual llvm::Type *getParentTreeNodeType() const { return nullptr; }
     virtual llvm::Argument *getArgument() const { return nullptr; }
+    virtual InstructionWrapper *getGEPInstW() const { return nullptr; }
     virtual int getNodeOffset() const { return -1; }
 
   private:
@@ -87,15 +88,34 @@ class TreeTypeWrapper : public InstructionWrapper
       this->treeNodeType = treeNodeType;
       this->parentTreeNodeType = parentTreeNodeType;
       this->node_offset = node_offset;
+      this->gepInstW = nullptr;
+    }
+
+    TreeTypeWrapper(llvm::Function *Func,
+                    GraphNodeType nodetype,
+                    llvm::Argument *arg,
+                    llvm::Type *treeNodeType,
+                    llvm::Type *parentTreeNodeType, 
+                    int node_offset, 
+                    InstructionWrapper* gepInstW) : InstructionWrapper(Func, nodetype)
+    {
+      this->arg = arg;
+      this->treeNodeType = treeNodeType;
+      this->parentTreeNodeType = parentTreeNodeType;
+      this->node_offset = node_offset;
+      this->gepInstW = gepInstW; 
     }
 
     llvm::Type *getTreeNodeType() const override { return treeNodeType; }
     llvm::Type *getParentTreeNodeType() const override { return parentTreeNodeType; }
     llvm::Argument *getArgument() const override { return arg; }
+    InstructionWrapper *getGEPInstW() const override { return gepInstW; }
     int getNodeOffset() const override { return node_offset; }
+
 
   private:
     llvm::Argument *arg;
+    InstructionWrapper *gepInstW;
     llvm::Type *treeNodeType;
     llvm::Type *parentTreeNodeType;
     int node_offset;

@@ -6,9 +6,13 @@
 
 #IncludeRegexTransform: 
 
-../include/AllPasses.hpp
-llvm/Pass.h
-../include/llvm/Pass.h
+../include/AccessInfoTracker.hpp
+llvm/IR/Module.h
+../include/llvm/IR/Module.h
+llvm/PassAnalysisSupport.h
+../include/llvm/PassAnalysisSupport.h
+ProgramDependencyGraph.hpp
+../include/ProgramDependencyGraph.hpp
 
 ../include/ArgumentWrapper.hpp
 llvm/IR/Argument.h
@@ -169,8 +173,6 @@ ControlDependencyGraph.hpp
 ../include/ControlDependencyGraph.hpp
 DataDependencyGraph.hpp
 ../include/DataDependencyGraph.hpp
-AllPasses.hpp
-../include/AllPasses.hpp
 
 ../include/tree.hh
 cassert
@@ -196,47 +198,51 @@ stdio.h
 
 ../src/DependencyNode.tpp
 
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/ArgumentWrapper.cpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/AccessInfoTracker.cpp
+AccessInfoTracker.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/AccessInfoTracker.hpp
+
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/ArgumentWrapper.cpp
 ArgumentWrapper.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/ArgumentWrapper.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/ArgumentWrapper.hpp
 PDGUtils.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/PDGUtils.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/PDGUtils.hpp
 
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/CallWrapper.cpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/CallWrapper.cpp
 CallWrapper.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/CallWrapper.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/CallWrapper.hpp
 
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/ControlDependencyGraph.cpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/ControlDependencyGraph.cpp
 ControlDependencyGraph.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/ControlDependencyGraph.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/ControlDependencyGraph.hpp
 
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/DataDependencyGraph.cpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/DataDependencyGraph.cpp
 DataDependencyGraph.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/DataDependencyGraph.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/DataDependencyGraph.hpp
 
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/DepPrinter.cpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/DepPrinter.cpp
 ProgramDependencyGraph.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/ProgramDependencyGraph.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/ProgramDependencyGraph.hpp
 llvm/Analysis/DOTGraphTraitsPass.h
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/llvm/Analysis/DOTGraphTraitsPass.h
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/llvm/Analysis/DOTGraphTraitsPass.h
 llvm/ADT/GraphTraits.h
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/llvm/ADT/GraphTraits.h
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/llvm/ADT/GraphTraits.h
 llvm/Support/TypeName.h
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/llvm/Support/TypeName.h
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/llvm/Support/TypeName.h
 
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/FunctionWrapper.cpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/FunctionWrapper.cpp
 FunctionWrapper.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/FunctionWrapper.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/FunctionWrapper.hpp
 
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/PDGUtils.cpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/PDGUtils.cpp
 PDGUtils.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/PDGUtils.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/PDGUtils.hpp
 llvm/IR/InstIterator.h
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/llvm/IR/InstIterator.h
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/llvm/IR/InstIterator.h
 
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/ProgramDependencyGraph.cpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/ProgramDependencyGraph.cpp
 ProgramDependencyGraph.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src/ProgramDependencyGraph.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/ProgramDependencyGraph.hpp
 
 /usr/local/opt/llvm@5/include/llvm-c/Types.h
 llvm/Support/DataTypes.h

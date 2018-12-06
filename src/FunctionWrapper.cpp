@@ -25,15 +25,24 @@ bool pdg::FunctionWrapper::isVisited()
   return visited;
 }
 
-pdg::ArgumentWrapper *pdg::FunctionWrapper::getArgWByArg(Argument *arg)
+pdg::ArgumentWrapper *pdg::FunctionWrapper::getArgWByArg(Argument &arg)
 {
   for (auto argW : argWList) 
   {
-    if (argW->getArg() == arg) {
+    if (argW->getArg() == &arg) {
       return argW;
     }
   }
 
   errs() << "ERROR: cannot find argW by arg in Function " << Func->getName() << "\n";
   return nullptr;
+}
+
+pdg::ArgumentWrapper *pdg::FunctionWrapper::getArgWByIdx(int idx) {
+  if (idx > argWList.size())
+  {
+    errs() << "request index excess argW list length... Return nullptr" << "\n";
+    return nullptr;
+  }
+  return argWList[idx];
 }

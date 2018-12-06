@@ -1,4 +1,5 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o"
   "CMakeFiles/pdg.dir/src/ArgumentWrapper.cpp.o"
   "CMakeFiles/pdg.dir/src/CallWrapper.cpp.o"
   "CMakeFiles/pdg.dir/src/ControlDependencyGraph.cpp.o"

@@ -30,7 +30,8 @@ public:
   void addLoadInst(llvm::Instruction *inst) { loadInstList.push_back(llvm::cast<llvm::LoadInst>(inst)); }
   void addReturnInst(llvm::Instruction *inst) { returnInstList.push_back(inst); }
   void addCallInst(llvm::Instruction *inst) { callInstList.push_back(llvm::cast<llvm::CallInst>(inst)); }
-  ArgumentWrapper *getArgWByArg(llvm::Argument *arg);
+  ArgumentWrapper *getArgWByArg(llvm::Argument &arg);
+  ArgumentWrapper *getArgWByIdx(int idx);
 
 private:
   llvm::Function *Func;

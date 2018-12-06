@@ -48,10 +48,10 @@ RM = /usr/local/Cellar/cmake/3.12.1/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0
+CMAKE_SOURCE_DIR = /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/build
+CMAKE_BINARY_DIR = /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -80,9 +80,9 @@ edit_cache/fast: edit_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/build/CMakeFiles /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/build/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -122,6 +122,33 @@ pdg: cmake_check_build_system
 pdg/fast:
 	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/build
 .PHONY : pdg/fast
+
+src/AccessInfoTracker.o: src/AccessInfoTracker.cpp.o
+
+.PHONY : src/AccessInfoTracker.o
+
+# target to build an object file
+src/AccessInfoTracker.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o
+.PHONY : src/AccessInfoTracker.cpp.o
+
+src/AccessInfoTracker.i: src/AccessInfoTracker.cpp.i
+
+.PHONY : src/AccessInfoTracker.i
+
+# target to preprocess a source file
+src/AccessInfoTracker.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.i
+.PHONY : src/AccessInfoTracker.cpp.i
+
+src/AccessInfoTracker.s: src/AccessInfoTracker.cpp.s
+
+.PHONY : src/AccessInfoTracker.s
+
+# target to generate assembly for a file
+src/AccessInfoTracker.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.s
+.PHONY : src/AccessInfoTracker.cpp.s
 
 src/ArgumentWrapper.o: src/ArgumentWrapper.cpp.o
 
@@ -348,6 +375,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... pdg"
+	@echo "... src/AccessInfoTracker.o"
+	@echo "... src/AccessInfoTracker.i"
+	@echo "... src/AccessInfoTracker.s"
 	@echo "... src/ArgumentWrapper.o"
 	@echo "... src/ArgumentWrapper.i"
 	@echo "... src/ArgumentWrapper.s"

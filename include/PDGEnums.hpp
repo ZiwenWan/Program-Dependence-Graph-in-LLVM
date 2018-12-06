@@ -43,7 +43,7 @@ enum class ControlType
 
 enum class AccessType
 {
-  NOACCESS,
+  NOACCESS = 0,
   READ,
   WRITE
 };
@@ -55,6 +55,13 @@ enum class TreeType
   FORMAL_IN_TREE,
   FORMAL_OUT_TREE
 };
+
+enum class ArgumentMatchType {
+  NOTCONTAINED,
+  CONTAINED,
+  EQUAL
+};
+
 } // namespace pdg
 
 #endif

@@ -6,5 +6,5 @@ CXX_FLAGS = -fPIC   -DLLVM_BUILD_GLOBAL_ISEL -D__STDC_CONSTANT_MACROS -D__STDC_F
 
 CXX_DEFINES = -Dpdg_EXPORTS
 
-CXX_INCLUDES = -I/usr/local/opt/llvm@5/include -I/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/include -I/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm-5.0/src 
+CXX_INCLUDES = -I/usr/local/opt/llvm@5/include -I/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/include -I/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src 
 
