@@ -29,20 +29,26 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
     getInterFuncReadWriteInfo(F);
   }
 
+
+  std::map<Function *, std::map<unsigned, FieldNameExtractor::offsetNames>> funcArgOffsetNames = getAnalysis<pdg::FieldNameExtractor>().getFuncArgOffsetNames();  
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
     Function &F = *FI;
-    if (F.isDeclaration()) {
+    if (F.isDeclaration())
+    {
       continue;
     }
-    printFuncArgAccessInfo(F);
+    std::map<unsigned, pdg::FieldNameExtractor::offsetNames> argsOffsetNames = funcArgOffsetNames[&F];
+    printFuncArgAccessInfo(F, argsOffsetNames);
   }
+
   return false;
 }
 
 void pdg::AccessInfoTracker::getAnalysisUsage(AnalysisUsage &AU) const
 {
   AU.addRequired<pdg::ProgramDependencyGraph>();
+  AU.addRequired<pdg::FieldNameExtractor>();
   AU.setPreservesAll();
 }
 
@@ -224,7 +230,7 @@ void pdg::AccessInfoTracker::collectParamCallInstWForArg(ArgumentWrapper *argW, 
     if (depPair.second == DependencyType::DATA_CALL_PARA)
     {
       InstructionWrapper *callInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-      argW->addParamCallInstW(std::make_pair (aliasInstW, callInstW));
+      argW->addParamCallInstW(std::make_pair(aliasInstW, callInstW));
     }
   }
 }
@@ -343,28 +349,61 @@ void pdg::AccessInfoTracker::getInterFuncReadWriteInfo(Function &F)
   }
 }
 
-void pdg::AccessInfoTracker::printFuncArgAccessInfo(Function &F)
+void pdg::AccessInfoTracker::printFuncArgAccessInfo(Function &F, std::map<unsigned, FieldNameExtractor::offsetNames> argsOffsetNames)
 {
   auto &pdgUtils = PDGUtils::getInstance();
+  errs() << "For function: " << F.getName() << "\n";
   for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
   {
-    errs() << "For Func: " << F.getName() << "\n";
-    printArgAccessInfo(argW);
+    FieldNameExtractor::offsetNames argOffsetNames = argsOffsetNames[argW->getArg()->getArgNo()];
+    printArgAccessInfo(argW, argOffsetNames);
   }
+  errs() << "......... [ END " << F.getName() << " ] .........\n";
 }
 
-void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW)
+void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW, FieldNameExtractor::offsetNames argOffsetNames)
 {
   std::vector<std::string> access_name = {
       "No Access",
       "Read",
       "Write"};
+
+  errs() << "Arg use information for arg no: " << argW->getArg()->getArgNo() << "\n";
+  errs() << "Size of argW: " << argW->getTree(TreeType::FORMAL_IN_TREE).size() << "\n";
+
+  int visit_order = 0;
   for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE);
        treeI != argW->tree_end(TreeType::FORMAL_IN_TREE);
        ++treeI)
   {
-    int acc_no = static_cast<int>((*treeI)->getAccessType());
-    errs() << access_name[acc_no] << "\n";
+    InstructionWrapper *curTyNode = *treeI;
+    Type *parentTy = curTyNode->getParentTreeNodeType();
+    Type *curType = curTyNode->getTreeNodeType();
+
+    errs() << "visit order: " << visit_order << "\n";
+    errs() << "Num of child: " << tree<InstructionWrapper *>::number_of_children(treeI) << "\n";
+
+    if (parentTy == nullptr)
+    {
+      errs() << "** Root type node **"
+             << "\n";
+      errs() << "Field name: " << argOffsetNames[visit_order].first << "\n";
+      errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
+      errs() << ".............................................\n";
+      visit_order += 1;
+      continue;
+    }
+
+    if (argOffsetNames.find(visit_order) == argOffsetNames.end())
+    {
+      visit_order += 1;
+      continue;
+    }
+
+    errs() << "sub field name: " << argOffsetNames[visit_order].first << "\n";
+    errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
+    errs() << "..............................................\n";
+    visit_order += 1;
   }
 }
 
