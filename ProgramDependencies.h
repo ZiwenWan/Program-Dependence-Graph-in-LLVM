@@ -101,7 +101,7 @@ namespace pdg {
 
         std::vector<llvm::Instruction*> getArgStoreInsts(llvm::Argument *arg);
 
-        void mergeTypeTreeReadAndWriteInfo(ArgumentWrapper* argW, tree<InstructionWrapper*>::iterator mergeTo, tree<InstructionWrapper*>::iterator mergeFrom);
+        void mergeTypeTreeReadAndWriteInfo(ArgumentWrapper* callerArgW, ArgumentWrapper* calleeArgW, tree<InstructionWrapper*>::iterator mergeTo, tree<InstructionWrapper*>::iterator mergeFrom);
 
         std::set<InstructionWrapper*> getAliasPtrForArgInFunc(ArgumentWrapper* argW);
 

@@ -134,17 +134,17 @@ void pdg::ProgramDependencyGraph::getIntraFuncReadWriteInfo(Function *func)
     }
 }
 
-void pdg::ProgramDependencyGraph::mergeTypeTreeReadAndWriteInfo(ArgumentWrapper* argW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom)
+void pdg::ProgramDependencyGraph::mergeTypeTreeReadAndWriteInfo(ArgumentWrapper* callerArgW, ArgumentWrapper *calleeArgW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom)
 {
-    for (; mergeTo != argW->getTree(FORMAL_IN_TREE).end(); ++mergeTo, ++mergeFrom)
-    {
-        if ((*mergeFrom)->getAccessType() > (*mergeTo)->getAccessType())
-        {
-            // here, we only copy the write state
-            (*mergeTo)->setAccessType((*mergeFrom)->getAccessType());
-            propergateAccessInfoToParent(argW, mergeTo);
-        }
+  for (; mergeTo != callerArgW->getTree(FORMAL_IN_TREE).end(),
+         mergeFrom != calleeArgW->getTree(FORMAL_IN_TREE).end();
+       ++mergeTo, ++mergeFrom) {
+    if ((*mergeFrom)->getAccessType() > (*mergeTo)->getAccessType()) {
+      // here, we only copy the write state
+      (*mergeTo)->setAccessType((*mergeFrom)->getAccessType());
+      propergateAccessInfoToParent(callerArgW, mergeTo);
     }
+  }
 }
 
 void pdg::ProgramDependencyGraph::mergeArgWReadWriteInfo(ArgumentWrapper* callerArgW, ArgumentWrapper* calleeArgW) {
@@ -159,7 +159,7 @@ void pdg::ProgramDependencyGraph::mergeArgWReadWriteInfo(ArgumentWrapper* caller
     {
         errs() << "Merging func arg use info: " << callerArgW->getArg()->getParent()->getName() << " - " << calleeArgW->getArg()->getParent()->getName() << "\n";
         // if the argument type matches exactly, simply merge the whole tree
-        mergeTypeTreeReadAndWriteInfo(callerArgW, callerArgW->getTree(FORMAL_IN_TREE).begin(), calleeFuncArgTreeIter);
+        mergeTypeTreeReadAndWriteInfo(callerArgW, calleeArgW, callerArgW->getTree(FORMAL_IN_TREE).begin(), calleeFuncArgTreeIter);
     }
 
     // Subfield case:
@@ -194,7 +194,7 @@ void pdg::ProgramDependencyGraph::mergeArgWReadWriteInfo(ArgumentWrapper* caller
                     return;
                 }
 
-                mergeTypeTreeReadAndWriteInfo(callerArgW, treeIter, calleeFuncArgTreeIter);
+                mergeTypeTreeReadAndWriteInfo(callerArgW, calleeArgW, treeIter, calleeFuncArgTreeIter);
                 break;
             }
         }
@@ -273,18 +273,22 @@ void pdg::ProgramDependencyGraph::getInterFuncReadWriteInfo(llvm::Function* func
 }
 
 void pdg::ProgramDependencyGraph::propergateAccessInfoToParent(ArgumentWrapper *argW, tree<InstructionWrapper*>::iterator treeI) {
-    int newAccessType  = (*treeI)->getAccessType();
     if (argW->getTree(FORMAL_IN_TREE).depth(treeI) == 0) {
         return;
     }
-
+    
+    int newAccessType  = (*treeI)->getAccessType();
     auto parentTI = argW->getTree(FORMAL_IN_TREE).parent(treeI);
+    
     while (argW->getTree(FORMAL_IN_TREE).depth(parentTI) != 0) {
         //errs() << "Traversing back to parent\n";
-        (*parentTI)->setAccessType(newAccessType);
+        if ((*parentTI)->getAccessType() < (*treeI)->getAccessType())
+          (*parentTI)->setAccessType(newAccessType);
+
         parentTI = argW->getTree(FORMAL_IN_TREE).parent(parentTI);
     }
-    (*parentTI)->setAccessType(newAccessType);
+    if ((*parentTI)->getAccessType() < (*treeI)->getAccessType())
+      (*parentTI)->setAccessType(newAccessType);
 }
 
 void pdg::ProgramDependencyGraph::getReadWriteInfoSingleValPtr(ArgumentWrapper *argW)

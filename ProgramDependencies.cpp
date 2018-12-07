@@ -1061,8 +1061,8 @@ bool pdg::ProgramDependencyGraph::addNodeDependencies(
 }
 
 bool pdg::ProgramDependencyGraph::runOnModule(Module &M) {
-
-  std::set<std::string> funcList = {"consume_skb"};
+  //std::set<std::string> funcList = {"register_netdevice"};
+  std::set<std::string> funcList = {"register_netdevice"};
   //   std::set<std::string> funcList = {
   //       "rtnl_link_unregister",
   //       "ether_setup",
@@ -1344,6 +1344,9 @@ void pdg::ProgramDependencyGraph::printParameterTreeForFunc(
           continue;
         }
 
+        if (argOffsetNames[visit_order + shift].second == nullptr) {
+          continue;
+        }
         // handle bit fields packing
         if (curType->isIntegerTy() && argOffsetNames[visit_order + shift].second->isBitField()) {
           int bitFieldSum = 0;

@@ -153,7 +153,7 @@ namespace pdg{
 
             this->BB = nullptr;
             this->Inst = nullptr;
-            this->value = arg; // changed 12.14
+            this->value = arg; 
             this->field_id = -1;
             this->field_type = nullptr;
             this->parent_type = nullptr;
