@@ -1,4 +1,4 @@
-clang -emit-llvm -S *.c
+clang -emit-llvm -S -g *.c
 
 for f in *.ll; do
     llvm-as $f

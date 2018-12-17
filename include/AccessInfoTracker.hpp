@@ -40,6 +40,7 @@ private:
 };
 
 bool isStructPointer(llvm::Type* ty);
+std::string getTypeNameByTag(llvm::DIType *ty);
 
 } // namespace pdg
 #endif

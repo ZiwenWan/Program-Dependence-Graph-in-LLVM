@@ -409,7 +409,7 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW, FieldName
     }
 
     errs() << "sub field name: " << argOffsetNames[visit_order].first << "\n";
-    errs() << "Type name: " << argOffsetNames[visit_order].second->getName() << "\n";
+    errs() << "Type name: " << getTypeNameByTag(argOffsetNames[visit_order].second) << "\n";
     errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
     errs() << "..............................................\n";
     visit_order += 1;
@@ -428,6 +428,7 @@ void pdg::AccessInfoTracker::generateIDLforFunc(Function &F, std::map<unsigned, 
 
 void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, FieldNameExtractor::offsetNames argOffsetNames)
 {
+  // TODO: add correct attribute later
   std::vector<std::string> attributes = {
     "[in]",
     "[out]"
@@ -465,7 +466,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, FieldNameE
     }
     // normal case
     DIType *dt = argOffsetNames[visit_order].second;
-    idl_file << "\t" << dt->getName().str() << " " << argOffsetNames[visit_order].first << ";\n";
+    idl_file << "\t" << getTypeNameByTag(dt) << " " << argOffsetNames[visit_order].first << ";\n";
     visit_order += 1;
   }
   idl_file << "}";
@@ -492,7 +493,7 @@ int pdg::AccessInfoTracker::generateIDLforStructField(int subtreeSize, tree<Inst
     {
       break;
     }
-    ss << "\t" << dt->getName().str() << " " << argOffsetNames[visit_order].first << ";\n";
+    ss << "\t" << getTypeNameByTag(dt) << " " << argOffsetNames[visit_order].first << ";\n";
     // update all status
   }
   ss << "}\n";
@@ -506,6 +507,24 @@ bool pdg::isStructPointer(Type* ty) {
     return ty->getPointerElementType()->isStructTy();
   }
   return false;
+}
+
+std::string pdg::getTypeNameByTag(DIType *ty)
+{
+  if (!ty->getName().str().empty())
+  {
+    return ty->getName().str();
+  }
+  if (ty->getTag() == dwarf::DW_TAG_member) {
+    ty = dyn_cast<DIDerivedType>(ty)->getBaseType().resolve();
+  }
+  switch (ty->getTag()) {
+    case dwarf::DW_TAG_array_type:
+      ty = dyn_cast<DICompositeType>(ty)->getBaseType().resolve();      
+      return ty->getName().str() + " *";
+    default:
+      return "unknow type ";
+  }
 }
 
 static RegisterPass<pdg::AccessInfoTracker>
