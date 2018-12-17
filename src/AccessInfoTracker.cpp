@@ -31,6 +31,11 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
 
 
   std::map<Function *, std::map<unsigned, FieldNameExtractor::offsetNames>> funcArgOffsetNames = getAnalysis<pdg::FieldNameExtractor>().getFuncArgOffsetNames();  
+  std::string file_name = M.getSourceFileName();
+  file_name += ".txt";
+  idl_file.open(file_name);
+  idl_file << M.getName().str() << " {\n";
+
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
     Function &F = *FI;
@@ -40,8 +45,11 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
     }
     std::map<unsigned, pdg::FieldNameExtractor::offsetNames> argsOffsetNames = funcArgOffsetNames[&F];
     printFuncArgAccessInfo(F, argsOffsetNames);
+    generateIDLforFunc(F, argsOffsetNames);
   }
 
+  idl_file << "}";
+  idl_file.close();
   return false;
 }
 
@@ -401,10 +409,103 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW, FieldName
     }
 
     errs() << "sub field name: " << argOffsetNames[visit_order].first << "\n";
+    errs() << "Type name: " << argOffsetNames[visit_order].second->getName() << "\n";
     errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
     errs() << "..............................................\n";
     visit_order += 1;
   }
+}
+
+void pdg::AccessInfoTracker::generateIDLforFunc(Function &F, std::map<unsigned, FieldNameExtractor::offsetNames> argsOffsetNames)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
+  {
+    FieldNameExtractor::offsetNames argOffsetNames = argsOffsetNames[argW->getArg()->getArgNo()];
+    generateIDLforArg(argW, argOffsetNames);
+  }
+}
+
+void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, FieldNameExtractor::offsetNames argOffsetNames)
+{
+  std::vector<std::string> attributes = {
+    "[in]",
+    "[out]"
+  };
+
+  // an lambda funciont determining whether a pointer is a struct pointer
+  int visit_order = 0;
+  std::stringstream projection_str; 
+  for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE);
+       treeI != argW->tree_end(TreeType::FORMAL_IN_TREE);
+       ++treeI)
+  {
+    InstructionWrapper *curTyNode = *treeI;
+    Type *parentTy = curTyNode->getParentTreeNodeType();
+    Type *curType = curTyNode->getTreeNodeType();
+
+    if (parentTy == nullptr)
+    {
+      // idl for root node.
+      idl_file << "project <struct " << argOffsetNames[visit_order].first << ">" << argOffsetNames[visit_order].first << "{\n";
+      visit_order += 1;
+      continue;
+    }
+
+    if (isStructPointer(curType))
+    {
+      int subtreeSize = argW->getTree(TreeType::FORMAL_IN_TREE).size(treeI);
+      visit_order = generateIDLforStructField(subtreeSize - 1, treeI, projection_str, visit_order, argOffsetNames);
+    }
+
+    if (argOffsetNames.find(visit_order) == argOffsetNames.end())
+    {
+      visit_order += 1;
+      continue;
+    }
+    // normal case
+    DIType *dt = argOffsetNames[visit_order].second;
+    idl_file << "\t" << dt->getName().str() << " " << argOffsetNames[visit_order].first << ";\n";
+    visit_order += 1;
+  }
+  idl_file << "}";
+  idl_file << projection_str.str();
+}
+
+int pdg::AccessInfoTracker::generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss, int visit_order, FieldNameExtractor::offsetNames argOffsetNames)
+{
+  ss << "\nproject <struct " << argOffsetNames[visit_order].first << "> " << argOffsetNames[visit_order].first << "\n";
+  while (subtreeSize > 0)
+  {
+    treeI++;
+    visit_order += 1;
+    subtreeSize -= 1;
+    Type* curType = (*treeI)->getTreeNodeType();
+
+    if (isStructPointer(curType))
+    {
+      visit_order = generateIDLforStructField(subtreeSize - 1, treeI, ss, visit_order, argOffsetNames);
+    }
+
+    DIType *dt = argOffsetNames[visit_order].second;
+    if (dt == nullptr)
+    {
+      break;
+    }
+    ss << "\t" << dt->getName().str() << " " << argOffsetNames[visit_order].first << ";\n";
+    // update all status
+  }
+  ss << "}\n";
+
+  return visit_order;
+}
+
+bool pdg::isStructPointer(Type* ty) {
+  if (ty->isPointerTy())
+  {
+    return ty->getPointerElementType()->isStructTy();
+  }
+  return false;
 }
 
 static RegisterPass<pdg::AccessInfoTracker>

@@ -99,7 +99,8 @@ int pdg::FieldNameExtractor::getAllNames(DIType *Ty, std::set<std::string> seen_
             errs() << printinfo << "Updating [of] on line 192 with following pair:\n";
             errs() << printinfo << "first item [new_name] " << new_name << " - " << visit_order << "\n";
             //visit_order += 1;
-            of[visit_order] = std::pair<std::string, DIType *>( new_name, der->getBaseType().resolve());
+            //of[visit_order] = std::pair<std::string, DIType *>( new_name, der->getBaseType().resolve());
+            of[visit_order] = std::pair<std::string, DIType *>( new_name, getBaseType(der)); // cast from member type to the original type
             /// XXX: crude assumption that we want to peek only into those members
             /// whose sizes are greater than 8 bytes
             if (((der->getSizeInBits() >> 3) > 1)
@@ -196,9 +197,10 @@ pdg::FieldNameExtractor::offsetNames pdg::FieldNameExtractor::getArgFieldNames(F
                         offNames = seenStructs[baseStructName];
                         continue;
                     }
-
+                     
                     std::set<std::string> seen_names;
                     //getAllNames(Ty, seen_names, offNames, 0, "", "  ", argName, structName);
+                    offNames[0] = std::pair<std::string, DIType *> (baseStructName, Ty);
                     getAllNames(Ty, seen_names, offNames, 1, "", "  ", argName, structName);
                     seen_names.clear();
                     seenStructs[structName] = offNames;
