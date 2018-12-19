@@ -8,6 +8,7 @@
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/CFLSteensAliasAnalysis.h"
+#include "llvm/Analysis/CFLAndersAliasAnalysis.h"
 
 #include "DependencyGraph.hpp"
 #include "CallWrapper.hpp"
@@ -52,6 +53,7 @@ private:
   DependencyGraph<InstructionWrapper> *DDG;
   llvm::Function *Func;
   llvm::CFLSteensAAResult *steenAA;
+  llvm::CFLAndersAAResult *andersAA;
   llvm::MemoryDependenceResults *MD;
 };
 } // namespace pdg

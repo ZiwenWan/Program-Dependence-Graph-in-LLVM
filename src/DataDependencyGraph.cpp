@@ -7,6 +7,7 @@ char pdg::DataDependencyGraph::ID = 0;
 void pdg::DataDependencyGraph::initializeMemoryDependencyPasses()
 {
   steenAA = &getAnalysis<CFLSteensAAWrapperPass>().getResult();
+  andersAA = &getAnalysis<CFLAndersAAWrapperPass>().getResult();
   MD = &getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
 }
 
@@ -51,16 +52,17 @@ void pdg::DataDependencyGraph::collectAliasInst()
       MemoryLocation s_loc = MemoryLocation::get(si);
       MemoryLocation l_loc = MemoryLocation::get(li);
 
-      Type *storePtrType = si->getPointerOperandType();
-      Type *loadPtrType = li->getPointerOperandType();
+      // Type *storePtrType = si->getPointerOperandType();
+      // Type *loadPtrType = li->getPointerOperandType();
 
-      if (storePtrType != loadPtrType)
-      {
-        continue;
-      }
-
-      AliasResult AA_result = steenAA->alias(s_loc, l_loc);
-      if (AA_result != NoAlias)
+      // if (storePtrType != loadPtrType)
+      // {
+      //   continue;
+      // }
+      AliasResult andersAAResult = andersAA->alias(s_loc, l_loc);
+      AliasResult steensAAResult = steenAA->alias(s_loc, l_loc);
+      // errs() << "Load, Store: " << *li << "\n" << *si << andersAAResult << "-"<< steensAAResult << "\n";
+      if (andersAAResult != NoAlias && steensAAResult != NoAlias)
       {
         InstructionWrapper *loadInstW = PDGUtils::getInstance().getInstMap()[li];
         InstructionWrapper *storeInstW = PDGUtils::getInstance().getInstMap()[si];
@@ -229,6 +231,7 @@ void pdg::DataDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const
 {
   AU.addRequired<MemoryDependenceWrapperPass>();
   AU.addRequired<CFLSteensAAWrapperPass>();
+  AU.addRequired<CFLAndersAAWrapperPass>();
   AU.setPreservesAll();
 }
 

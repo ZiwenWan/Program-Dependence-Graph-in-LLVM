@@ -11,11 +11,9 @@ typedef struct person_t {
     Clothes *s;
 } Person;
 
-
 void f(Person *p1) {
     char *name = p1->name;
     char *color = p1->s->color;
-
     printf("%s is wearing %s today.", name, color);
 }
 
@@ -24,6 +22,5 @@ int main() {
     Person p = {10, "Jack", &c};
     Person *pt = &p;
     f(pt);
-
     return 0;
 }

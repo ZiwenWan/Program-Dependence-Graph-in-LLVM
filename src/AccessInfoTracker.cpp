@@ -448,7 +448,12 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, FieldNameE
     if (parentTy == nullptr)
     {
       // idl for root node.
-      idl_file << "project <struct " << argOffsetNames[visit_order].first << ">" << argOffsetNames[visit_order].first << "{\n";
+      idl_file << "project <struct " << argOffsetNames[visit_order].first << "> " << argOffsetNames[visit_order].first << "{\n";
+      visit_order += 1;
+      continue;
+    }
+
+    if ((*treeI)->getAccessType() == AccessType::NOACCESS) {
       visit_order += 1;
       continue;
     }
@@ -457,6 +462,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, FieldNameE
     {
       int subtreeSize = argW->getTree(TreeType::FORMAL_IN_TREE).size(treeI);
       visit_order = generateIDLforStructField(subtreeSize - 1, treeI, projection_str, visit_order, argOffsetNames);
+      continue;
     }
 
     if (argOffsetNames.find(visit_order) == argOffsetNames.end())
@@ -464,6 +470,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, FieldNameE
       visit_order += 1;
       continue;
     }
+
     // normal case
     DIType *dt = argOffsetNames[visit_order].second;
     idl_file << "\t" << getTypeNameByTag(dt) << " " << argOffsetNames[visit_order].first << ";\n";
@@ -483,9 +490,13 @@ int pdg::AccessInfoTracker::generateIDLforStructField(int subtreeSize, tree<Inst
     subtreeSize -= 1;
     Type* curType = (*treeI)->getTreeNodeType();
 
+    if ((*treeI)->getAccessType() == AccessType::NOACCESS )
+      continue; 
+
     if (isStructPointer(curType))
     {
       visit_order = generateIDLforStructField(subtreeSize - 1, treeI, ss, visit_order, argOffsetNames);
+      continue;
     }
 
     DIType *dt = argOffsetNames[visit_order].second;

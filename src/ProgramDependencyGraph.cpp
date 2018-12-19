@@ -760,10 +760,10 @@ std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getAllRelevantG
       if (depType == DependencyType::DATA_DEF_USE)
       {
         InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
+        instWQ.push(depInstW);
         if (depInstW->getInstruction() != nullptr && isa<GetElementPtrInst>(depInstW->getInstruction()))
         {
           relevantGEPs.insert(depInstW);
-          instWQ.push(depInstW);
         }
       }
     }
