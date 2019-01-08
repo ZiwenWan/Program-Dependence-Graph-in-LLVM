@@ -28,6 +28,14 @@ DependencyNode<NodeT> *DependencyGraph<NodeT>::getNodeByData(const NodeT *data)
 }
 
 template <typename NodeT>
+typename DependencyNode<NodeT>::DependencyLinkList DependencyGraph<NodeT>::getNodeDepList(const NodeT *data) 
+{
+  DependencyNode<NodeT>* dNode = getNodeByData(data);
+  return dNode->getDependencyList();
+}
+
+
+template <typename NodeT>
 void DependencyGraph<NodeT>::addDependency(const NodeT *from, const NodeT *to, DependencyType depType)
 {
   DependencyNode<NodeT> *fromNode = getNodeByData(from);

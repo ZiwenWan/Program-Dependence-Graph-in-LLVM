@@ -153,8 +153,8 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForArg(ArgumentWrapper *ar
   auto treeI = argW->getTree(TreeType::FORMAL_IN_TREE).begin();
   AccessType accessType = AccessType::NOACCESS;
 
-  // 1. processing the root node, which represent the argument as a whole
-  std::vector<Instruction *> initialStoreInsts = getArgStoreInsts(*(argW->getArg()));
+  // 1. processing the root node, which represent the argument
+  std::vector<Instruction *> initialStoreInsts = getArgStoreInsts(*(argW->getArg())); // there could be multiple store inst for the argument
   for (Instruction *storeInst : initialStoreInsts)
   {
     if (StoreInst *st = dyn_cast<StoreInst>(storeInst))

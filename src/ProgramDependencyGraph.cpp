@@ -208,8 +208,9 @@ void pdg::ProgramDependencyGraph::addNodeDependencies(InstructionWrapper *instW)
   }
 
   // copy data dependency
-  auto *dataDNode = ddg->getNodeByData(instW);
-  auto dataDList = dataDNode->getDependencyList();
+  // auto *dataDNode = ddg->getNodeByData(instW);
+  // auto dataDList = dataDNode->getDependencyList();
+  auto dataDList = ddg->getNodeDepList(instW);
   for (auto dependencyPair : dataDList)
   {
     InstructionWrapper *DNodeW2 = const_cast<InstructionWrapper *>(dependencyPair.first->getData());
@@ -271,107 +272,92 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
 {
   auto &pdgUtils = PDGUtils::getInstance();
   Function *Func = arg.getParent();
-  if (!treeTyW->getTreeNodeType()->isPointerTy())
-  {
-    return;
-  }
+  // setup instWQ to avoid recusion processing
+  std::queue<InstructionWrapper *> instWQ;
+  tree<InstructionWrapper *>::iterator insert_loc;
 
   ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
-
   if (argW == nullptr)
   {
-    errs() << "getArgWrapper returns a NULL pointer!"
-           << "\n";
+    errs() << "getArgWrapper returns a NULL pointer!" << "\n";
     return;
   }
+  // process the root node separately
+  Type *curNodeTy = treeTyW->getTreeNodeType();
+  if (curNodeTy->isPointerTy()) { // if root node is pointer, dereference it firstly
+    PointerType* pt = dyn_cast<PointerType>(curNodeTy);
+    Type* pointedNodeTy = pt->getElementType();
+    InstructionWrapper *pointedTypeW = new TreeTypeWrapper(arg.getParent(),
+                                                           GraphNodeType::PARAMETER_FIELD,
+                                                           &arg,
+                                                           pointedNodeTy,
+                                                           curNodeTy,
+                                                           0);
+    insert_loc = getInstInsertLoc(argW, treeTyW, treeTy);
+    pdgUtils.getFuncInstWMap()[arg.getParent()].insert(pointedTypeW);
+    argW->getTree(treeTy).append_child(insert_loc, pointedTypeW);
+    instWQ.push(pointedTypeW);
+  } else {
+    instWQ.push(treeTyW); // put source node into the queue
+  }
 
-  // setup instWQ to avoid recusion processing
-  std::set<Type *> recursive_types;
-  std::queue<InstructionWrapper *> instWQ;
-  instWQ.push(treeTyW);
-
-  tree<InstructionWrapper *>::iterator insert_loc;
   while (!instWQ.empty())
   {
     InstructionWrapper *curTyNode = instWQ.front();
     instWQ.pop();
     insert_loc = getInstInsertLoc(argW, curTyNode, treeTy);
-    // this function works on pointer type data.
-    if (!curTyNode->getTreeNodeType()->isPointerTy())
+    // handle recursion type using 1-limit approach
+    bool recursion_flag = false;
+    tree<InstructionWrapper *>::iterator backTreeIt = argW->getTree(treeTy).parent(insert_loc);
+    while (argW->getTree(treeTy).depth(backTreeIt) != 0)
     {
+      if ((*insert_loc)->getTreeNodeType() == (*backTreeIt)->getTreeNodeType())
+      {
+        errs() << "Find recursion type!" << "\n";
+        recursion_flag = true;
+        break;
+      }
+      backTreeIt = argW->getTree(treeTy).parent(backTreeIt);
+    }
+
+    // process next type, because this type brings in a recursion
+    if (recursion_flag)
+      continue;
+
+    // if is pointer type, create a node represent pointer type.
+    if (curTyNode->getTreeNodeType()->isPointerTy())
+    {
+      PointerType *pt = dyn_cast<PointerType>(curTyNode->getTreeNodeType());
+      Type *pointedNodeTy = pt->getElementType();
+      InstructionWrapper *pointedTypeW = new TreeTypeWrapper(arg.getParent(),
+                                                             GraphNodeType::PARAMETER_FIELD,
+                                                             &arg,
+                                                             pointedNodeTy,
+                                                             curTyNode->getTreeNodeType(),
+                                                             0);
+      pdgUtils.getFuncInstWMap()[arg.getParent()].insert(pointedTypeW);
+      argW->getTree(treeTy).append_child(insert_loc, pointedTypeW);
+      instWQ.push(pointedTypeW); // put the pointed node to queue
       continue;
     }
-    // need to process the integer/float pointer differently
-    if (PointerType *pt = dyn_cast<PointerType>(curTyNode->getTreeNodeType()))
-    {
-      if (pt->getElementType()->isSingleValueType())
-      {
-        // by default, the pointed buffer has 0 offset compared to parent
-        Type *pointedNodeTy = pt->getElementType();
-        InstructionWrapper *pointedTypeFieldW = new TreeTypeWrapper(arg.getParent(),
-                                                                    GraphNodeType::PARAMETER_FIELD,
-                                                                    &arg,
-                                                                    pointedNodeTy,
-                                                                    curTyNode->getTreeNodeType(),
-                                                                    0);
-        pdgUtils.getFuncInstWMap()[arg.getParent()].insert(pointedTypeFieldW);
-        argW->getTree(treeTy).append_child(insert_loc, pointedTypeFieldW);
-        return;
-      }
 
-      if (!pt->getElementType()->isStructTy())
-      {
-        return;
-      }
-    }
-
-    if (recursive_types.find(curTyNode->getTreeNodeType()) != recursive_types.end())
-    {
-      errs() << curTyNode->getTreeNodeType() << " is a recursive type found in historic record!\n ";
-      return;
-    }
-
-    //if ty is a pointer, its containedType [ty->getContainedType(0)] means the type ty points to
+    // processs non-pointer type
     Type *parentType = nullptr;
-    //for(unsigned int i = 0; i < curTyNode->getType()->getContainedType(0)->getNumContainedTypes(); i++) {
-    for (unsigned int child_offset = 0;
-         child_offset < dyn_cast<PointerType>(curTyNode->getTreeNodeType())->getElementType()->getNumContainedTypes();
-         child_offset++)
+    Type *curNodeTy = curTyNode->getTreeNodeType();
+    // skip single value type as it is already inserted to the tree
+    if (curNodeTy->isSingleValueType())
+      continue;
+    if (!curNodeTy->isStructTy())
+      continue;
+    // for struct type, insert all children to the tree
+    for (unsigned int child_offset = 0; child_offset < curNodeTy->getNumContainedTypes(); child_offset++)
     {
-      //recursion, e.g. linked list, do backtracking along the path until reaching the root, if we can find an type that appears before,
-      //use 1-limit to break the tree construction when insert_loc is not the root, it means we need to do backtracking the check recursion
-      if (argW->getTree(treeTy).depth(insert_loc) != 0)
-      {
-        bool recursion_flag = false;
-        tree<InstructionWrapper *>::iterator backTreeIt = argW->getTree(treeTy).parent(insert_loc);
-        while (argW->getTree(treeTy).depth(backTreeIt) != 0)
-        {
-          if ((*insert_loc)->getTreeNodeType() == (*backTreeIt)->getTreeNodeType())
-          {
-            errs() << "Find recursion type!"
-                   << "\n";
-            recursion_flag = true;
-            recursive_types.insert((*insert_loc)->getTreeNodeType());
-            break;
-          }
-          backTreeIt = argW->getTree(treeTy).parent(backTreeIt);
-        }
-
-        if (recursion_flag)
-        {
-          //process next contained type, because this type brings in a recursion
-          continue;
-        }
-      }
-
-      // here extracting the contained field, and insert to tree. This happens after making sure the current
-      // node is not recursive
-      // for example: int* -> int, struct -> stcut.field
       parentType = curTyNode->getTreeNodeType();
       // field sensitive processing. Get correspond gep and link tree node with gep.
-      Type *childType = curTyNode->getTreeNodeType()->getContainedType(0)->getContainedType(child_offset);
+      Type *childType = curNodeTy->getContainedType(child_offset);
       InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
       InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW);
+      // link gep with tree node
       if (gepInstW != nullptr)
         PDG->addDependency(typeFieldW, gepInstW, DependencyType::STRUCT_FIELDS);
       pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
@@ -382,14 +368,14 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
       {
         Type *childEleTy = dyn_cast<PointerType>(childType)->getElementType();
         //if field is a function Ptr
-        if (childType->isFunctionTy() || childEleTy->isFunctionTy())
+        if (childEleTy->isFunctionTy())
         {
           std::string Str;
           raw_string_ostream OS(Str);
           OS << childType;
           continue;
         }
-        if (childType->isStructTy() || childEleTy->isStructTy())
+        if (childEleTy->isStructTy())
         {
           std::string Str;
           raw_string_ostream OS(Str);
@@ -405,6 +391,146 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
     }
   }
 }
+
+// void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrapper *treeTyW, TreeType treeTy)
+// {
+//   auto &pdgUtils = PDGUtils::getInstance();
+//   Function *Func = arg.getParent();
+
+//   if (!treeTyW->getTreeNodeType()->isPointerTy())
+//   {
+//     return;
+//   }
+
+//   ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
+//   if (argW == nullptr)
+//   {
+//     errs() << "getArgWrapper returns a NULL pointer!" << "\n";
+//     return;
+//   }
+
+//   // setup instWQ to avoid recusion processing
+//   std::set<Type *> recursive_types;
+//   std::queue<InstructionWrapper *> instWQ;
+//   instWQ.push(treeTyW); // put source node into the queue
+
+//   tree<InstructionWrapper *>::iterator insert_loc;
+//   while (!instWQ.empty())
+//   {
+//     // currently, this function works on pointer type.
+//     InstructionWrapper *curTyNode = instWQ.front();
+//     instWQ.pop();
+//     insert_loc = getInstInsertLoc(argW, curTyNode, treeTy);
+//     if (!curTyNode->getTreeNodeType()->isPointerTy())
+//     {
+//       continue;
+//     }
+//     // need to process the integer/float pointer differently
+//     // if find a pointer type, we need to create a new node for it
+//     if (PointerType *pt = dyn_cast<PointerType>(curTyNode->getTreeNodeType()))
+//     {
+//       if (pt->getElementType()->isSingleValueType())
+//       {
+//         // by default, the pointed buffer has 0 offset compared to parent
+//         Type *pointedNodeTy = pt->getElementType();
+//         InstructionWrapper *pointedTypeFieldW = new TreeTypeWrapper(arg.getParent(),
+//                                                                     GraphNodeType::PARAMETER_FIELD,
+//                                                                     &arg,
+//                                                                     pointedNodeTy,
+//                                                                     curTyNode->getTreeNodeType(),
+//                                                                     0);
+//         pdgUtils.getFuncInstWMap()[arg.getParent()].insert(pointedTypeFieldW);
+//         argW->getTree(treeTy).append_child(insert_loc, pointedTypeFieldW);
+//         return;
+//       }
+
+//       if (!pt->getElementType()->isStructTy())
+//       {
+//         return;
+//       }
+//     }
+
+//     if (recursive_types.find(curTyNode->getTreeNodeType()) != recursive_types.end())
+//     {
+//       errs() << curTyNode->getTreeNodeType() << " is a recursive type found in historic record!\n ";
+//       return;
+//     }
+
+//     //if ty is a pointer, its containedType [ty->getContainedType(0)] means the type ty points to
+//     Type *parentType = nullptr;
+//     //for(unsigned int i = 0; i < curTyNode->getType()->getContainedType(0)->getNumContainedTypes(); i++) {
+//     for (unsigned int child_offset = 0;
+//          child_offset < dyn_cast<PointerType>(curTyNode->getTreeNodeType())->getElementType()->getNumContainedTypes();
+//          child_offset++)
+//     {
+//       //recursion, e.g. linked list, do backtracking along the path until reaching the root, if we can find an type that appears before,
+//       //use 1-limit to break the tree construction when insert_loc is not the root, it means we need to do backtracking the check recursion
+//       if (argW->getTree(treeTy).depth(insert_loc) != 0)
+//       {
+//         bool recursion_flag = false;
+//         tree<InstructionWrapper *>::iterator backTreeIt = argW->getTree(treeTy).parent(insert_loc);
+//         while (argW->getTree(treeTy).depth(backTreeIt) != 0)
+//         {
+//           if ((*insert_loc)->getTreeNodeType() == (*backTreeIt)->getTreeNodeType())
+//           {
+//             errs() << "Find recursion type!"
+//                    << "\n";
+//             recursion_flag = true;
+//             recursive_types.insert((*insert_loc)->getTreeNodeType());
+//             break;
+//           }
+//           backTreeIt = argW->getTree(treeTy).parent(backTreeIt);
+//         }
+
+//         if (recursion_flag)
+//         {
+//           //process next contained type, because this type brings in a recursion
+//           continue;
+//         }
+//       }
+
+//       // here extracting the contained field, and insert to tree. This happens after making sure the current
+//       // node is not recursive
+//       // for example: int* -> int, struct -> stcut.field
+//       parentType = curTyNode->getTreeNodeType();
+//       // field sensitive processing. Get correspond gep and link tree node with gep.
+//       Type *childType = curTyNode->getTreeNodeType()->getContainedType(0)->getContainedType(child_offset);
+//       InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
+//       InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW);
+//       // link gep with tree node
+//       if (gepInstW != nullptr)
+//         PDG->addDependency(typeFieldW, gepInstW, DependencyType::STRUCT_FIELDS);
+//       pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
+//       // start inserting formal tree instructions
+//       argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
+//       //skip function ptr, FILE*
+//       if (childType->isPointerTy())
+//       {
+//         Type *childEleTy = dyn_cast<PointerType>(childType)->getElementType();
+//         //if field is a function Ptr
+//         if (childType->isFunctionTy() || childEleTy->isFunctionTy())
+//         {
+//           std::string Str;
+//           raw_string_ostream OS(Str);
+//           OS << childType;
+//           continue;
+//         }
+//         if (childType->isStructTy() || childEleTy->isStructTy())
+//         {
+//           std::string Str;
+//           raw_string_ostream OS(Str);
+//           OS << childType;
+//           //FILE*, bypass, no need to buildTypeTree
+//           if ("%struct._IO_FILE*" == OS.str() || "%struct._IO_marker*" == OS.str())
+//           {
+//             continue;
+//           }
+//         }
+//       }
+//       instWQ.push(typeFieldW);
+//     }
+//   }
+// }
 
 void pdg::ProgramDependencyGraph::drawFormalParameterTree(Function *Func, TreeType treeTy)
 {
@@ -652,7 +778,7 @@ void pdg::ProgramDependencyGraph::buildActualParameterTrees(CallInst *CI)
   auto argFI = pdgUtils.getFuncMap()[called_func]->getArgWList().begin();
   auto argFE = pdgUtils.getFuncMap()[called_func]->getArgWList().end();
 
-  //copy FormalInTree in callee to ActualIn/OutTree in callMap
+  //copy Formal Tree to Actual Tree. Actual trees are used by call site.
   for (; argI != argE && argFI != argFE; ++argI, ++argFI)
   {
     (*argI)->copyTree((*argFI)->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_IN_TREE);
@@ -730,8 +856,9 @@ std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getAllRelevantG
 
   for (Instruction *storeInst : initialStoreInsts)
   {
+    instWQ.push(pdgUtils.getInstMap()[storeInst]); // push the initial store instruction to the instQ
     DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(pdgUtils.getInstMap()[storeInst]);
-    DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
+    DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList(); // retrive relevant dependency nodes
     for (auto depPair : dataDList)
     {
       DependencyType depType = depPair.second;
@@ -772,9 +899,9 @@ std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getAllRelevantG
   return relevantGEPs;
 }
 
-InstructionWrapper* pdg::ProgramDependencyGraph::getTreeNodeGEP(Argument &arg, unsigned field_offset, Type* treeNodeTy, Type* parentNodeTy) 
+InstructionWrapper *pdg::ProgramDependencyGraph::getTreeNodeGEP(Argument &arg, unsigned field_offset, Type *treeNodeTy, Type *parentNodeTy)
 {
-  std::set<InstructionWrapper *> RelevantGEPList = getAllRelevantGEP(arg); 
+  std::set<InstructionWrapper *> RelevantGEPList = getAllRelevantGEP(arg);
   for (auto GEPInstW : RelevantGEPList)
   {
     int operand_num = GEPInstW->getInstruction()->getNumOperands();

@@ -42,6 +42,7 @@ public:
   void collectDataDependencyInFunc();
   void collectAliasInst();
   DependencyNode<InstructionWrapper> *getNodeByData(const InstructionWrapper *data);
+  typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(const InstructionWrapper *data);
   virtual bool runOnFunction(llvm::Function &Func);
   virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
   virtual llvm::StringRef getPassName() const

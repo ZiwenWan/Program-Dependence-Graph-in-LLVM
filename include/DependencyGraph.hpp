@@ -19,6 +19,7 @@ public:
   std::vector<DependencyNode<NodeT> *> getNodeSet() const { return nodeSet; }
   void addNode(const NodeT *dNode);
   DependencyNode<NodeT> *getNodeByData(const NodeT *data);
+  typename DependencyNode<NodeT>::DependencyLinkList getNodeDepList(const NodeT *data);
   void addDependency(const NodeT *from, const NodeT *to, DependencyType depType);
   bool isDepends(const NodeT *data1, const NodeT *data2);
   DependencyType getDepType(const NodeT *data1, const NodeT *data2);

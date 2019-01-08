@@ -216,6 +216,11 @@ pdg::DependencyNode<pdg::InstructionWrapper> *pdg::DataDependencyGraph::getNodeB
   return DDG->getNodeByData(data);
 }
 
+typename pdg::DependencyNode<pdg::InstructionWrapper>::DependencyLinkList pdg::DataDependencyGraph::getNodeDepList(const InstructionWrapper *data)
+{
+  return DDG->getNodeDepList(data);
+}
+
 bool pdg::DataDependencyGraph::runOnFunction(Function &F)
 {
   Func = &F;
