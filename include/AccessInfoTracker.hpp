@@ -22,6 +22,7 @@ public:
   void getIntraFuncReadWriteInfoForFunc(llvm::Function &F);
   int getCallParamIdx(InstructionWrapper *instW, InstructionWrapper *callInstW);
   ArgumentMatchType getArgMatchType(llvm::Argument *arg1, llvm::Argument *arg2);
+  llvm::Instruction* getArgStackAddr(llvm::Argument *arg);
   void collectParamCallInstWForArg(ArgumentWrapper *argW, InstructionWrapper *aliasInstW);
   void mergeArgWAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW);
   void mergeTypeTreeAccessInfo(ArgumentWrapper *callerArgW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom);

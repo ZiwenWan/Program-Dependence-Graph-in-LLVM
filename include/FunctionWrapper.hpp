@@ -26,10 +26,10 @@ public:
   std::vector<llvm::Instruction *> &getReturnInstList() { return returnInstList; }
   std::vector<llvm::CallInst *> &getCallInstList() { return callInstList; }
   std::vector<ArgumentWrapper *> &getArgWList() { return argWList; }
-  void addStoreInst(llvm::Instruction *inst) { storeInstList.push_back(llvm::cast<llvm::StoreInst>(inst)); }
-  void addLoadInst(llvm::Instruction *inst) { loadInstList.push_back(llvm::cast<llvm::LoadInst>(inst)); }
+  void addStoreInst(llvm::Instruction *inst);
+  void addLoadInst(llvm::Instruction *inst); 
   void addReturnInst(llvm::Instruction *inst) { returnInstList.push_back(inst); }
-  void addCallInst(llvm::Instruction *inst) { callInstList.push_back(llvm::cast<llvm::CallInst>(inst)); }
+  void addCallInst(llvm::Instruction *inst); 
   ArgumentWrapper *getArgWByArg(llvm::Argument &arg);
   ArgumentWrapper *getArgWByIdx(int idx);
 

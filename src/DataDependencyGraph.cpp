@@ -26,7 +26,7 @@ void pdg::DataDependencyGraph::collectDataDependencyInFunc()
 {
   for (inst_iterator instIt = inst_begin(Func); instIt != inst_end(Func); ++instIt)
   {
-    DDG->getNodeByData(PDGUtils::getInstance().getInstMap()[&*instIt]);
+    getNodeByData(&*instIt);
     Instruction *inst = dyn_cast<Instruction>(&*instIt);
     collectDefUseDependency(inst);
     collectCallInstDependency(inst);
@@ -158,13 +158,13 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
   std::vector<StoreInst *> StoreVec = PDGUtils::getInstance().getFuncMap()[Func]->getStoreInstList();
   // for each Load Instruction, find related Store Instructions(alias considered)
   LoadInst *LI = dyn_cast<LoadInst>(pLoadInst);
-
   MemoryLocation LI_Loc = MemoryLocation::get(LI);
   for (StoreInst *SI : StoreVec)
   {
     MemoryLocation SI_Loc = MemoryLocation::get(SI);
-    AliasResult AA_result = steenAA->alias(LI_Loc, SI_Loc);
-    if (AA_result != NoAlias)
+    AliasResult andersAAResult = andersAA->alias(LI_Loc, SI_Loc);
+    AliasResult steensAAResult = steenAA->alias(LI_Loc, SI_Loc);
+    if (andersAAResult != NoAlias || steensAAResult != NoAlias)
     {
       _flowdep_set.push_back(SI);
     }
@@ -200,7 +200,7 @@ void pdg::DataDependencyGraph::collectNonLocalDependency(llvm::Instruction *inst
     InstructionWrapper *itInst = PDGUtils::getInstance().getInstMap()[inst];
     InstructionWrapper *parentInst = PDGUtils::getInstance().getInstMap()[nonLocal_res.getInst()];
 
-    if (nullptr != nonLocal_res.getInst())
+    if (nonLocal_res.getInst() != nullptr)
     {
       DDG->addDependency(itInst, parentInst, DependencyType::DATA_GENERAL);
     }
@@ -211,14 +211,14 @@ void pdg::DataDependencyGraph::collectNonLocalDependency(llvm::Instruction *inst
   }
 }
 
-pdg::DependencyNode<pdg::InstructionWrapper> *pdg::DataDependencyGraph::getNodeByData(const InstructionWrapper *data)
+pdg::DependencyNode<pdg::InstructionWrapper> *pdg::DataDependencyGraph::getNodeByData(Instruction *inst)
 {
-  return DDG->getNodeByData(data);
+  return DDG->getNodeByData(PDGUtils::getInstance().getInstMap()[inst]);
 }
 
-typename pdg::DependencyNode<pdg::InstructionWrapper>::DependencyLinkList pdg::DataDependencyGraph::getNodeDepList(const InstructionWrapper *data)
+typename pdg::DependencyNode<pdg::InstructionWrapper>::DependencyLinkList pdg::DataDependencyGraph::getNodeDepList(Instruction *inst)
 {
-  return DDG->getNodeDepList(data);
+  return DDG->getNodeDepList(PDGUtils::getInstance().getInstMap()[inst]);
 }
 
 bool pdg::DataDependencyGraph::runOnFunction(Function &F)

@@ -41,8 +41,8 @@ public:
   void collectNonLocalDependency(llvm::Instruction *inst);
   void collectDataDependencyInFunc();
   void collectAliasInst();
-  DependencyNode<InstructionWrapper> *getNodeByData(const InstructionWrapper *data);
-  typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(const InstructionWrapper *data);
+  DependencyNode<InstructionWrapper> *getNodeByData(llvm::Instruction *inst);
+  typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
   virtual bool runOnFunction(llvm::Function &Func);
   virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
   virtual llvm::StringRef getPassName() const

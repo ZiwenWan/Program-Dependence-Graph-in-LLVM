@@ -14,6 +14,7 @@ typedef struct person_t {
 void f(Person *p1) {
     char *name = p1->name;
     char *color = p1->s->color;
+    p1->age = 10;
     printf("%s is wearing %s today.", name, color);
 }
 

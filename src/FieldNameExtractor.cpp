@@ -67,7 +67,7 @@ int pdg::FieldNameExtractor::getAllNames(DIType *Ty, std::set<std::string> seen_
     DIType *baseTy = getLowestDINode(Ty);
     if (!baseTy)
         return 0;
-    // If that pointer is a struct
+    // If struct pointer
     if (baseTy->getTag() == dwarf::DW_TAG_structure_type)
     {
         errs() << "Find structure type\n";

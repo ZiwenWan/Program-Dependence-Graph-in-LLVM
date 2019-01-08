@@ -42,6 +42,7 @@ public:
   //  dep printer related functions
   std::vector<DependencyNode<InstructionWrapper> *> getNodeSet() { return PDG->getNodeSet(); }
   DependencyGraph<InstructionWrapper> *_getPDG() { return PDG; }
+  typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
 
 private:
   llvm::Module *module;

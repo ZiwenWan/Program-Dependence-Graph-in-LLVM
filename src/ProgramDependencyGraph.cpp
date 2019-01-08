@@ -210,7 +210,7 @@ void pdg::ProgramDependencyGraph::addNodeDependencies(InstructionWrapper *instW)
   // copy data dependency
   // auto *dataDNode = ddg->getNodeByData(instW);
   // auto dataDList = dataDNode->getDependencyList();
-  auto dataDList = ddg->getNodeDepList(instW);
+  auto dataDList = ddg->getNodeDepList(instW->getInstruction());
   for (auto dependencyPair : dataDList)
   {
     InstructionWrapper *DNodeW2 = const_cast<InstructionWrapper *>(dependencyPair.first->getData());
@@ -989,6 +989,11 @@ tree<pdg::InstructionWrapper *>::iterator pdg::ProgramDependencyGraph::getInstIn
     insert_loc++;
   }
   return insert_loc;
+}
+
+typename pdg::DependencyNode<pdg::InstructionWrapper>::DependencyLinkList pdg::ProgramDependencyGraph::getNodeDepList(Instruction *inst)
+{
+  return PDG->getNodeDepList(PDGUtils::getInstance().getInstMap()[inst]);
 }
 
 static RegisterPass<pdg::ProgramDependencyGraph>

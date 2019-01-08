@@ -38,6 +38,23 @@ pdg::ArgumentWrapper *pdg::FunctionWrapper::getArgWByArg(Argument &arg)
   return nullptr;
 }
 
+void pdg::FunctionWrapper::addStoreInst(Instruction *inst)
+{
+  if (StoreInst *st = dyn_cast<StoreInst>(inst))
+    storeInstList.push_back(st);
+}
+
+void pdg::FunctionWrapper::addLoadInst(Instruction *inst)
+{
+  if (LoadInst *li = dyn_cast<LoadInst>(inst))
+    loadInstList.push_back(li);
+}
+
+void pdg::FunctionWrapper::addCallInst(Instruction *inst) {
+  if (CallInst *ci = dyn_cast<CallInst>(inst)) 
+    callInstList.push_back(ci);
+}
+
 pdg::ArgumentWrapper *pdg::FunctionWrapper::getArgWByIdx(int idx) {
   if (idx > argWList.size())
   {

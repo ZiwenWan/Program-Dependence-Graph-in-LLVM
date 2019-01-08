@@ -29,10 +29,13 @@ define void @f(%struct.person_t*) #0 !dbg !8 {
   %11 = getelementptr inbounds %struct.clothes, %struct.clothes* %10, i32 0, i32 0, !dbg !41
   %12 = getelementptr inbounds [10 x i8], [10 x i8]* %11, i32 0, i32 0, !dbg !39
   store i8* %12, i8** %4, align 8, !dbg !38
-  %13 = load i8*, i8** %3, align 8, !dbg !42
-  %14 = load i8*, i8** %4, align 8, !dbg !43
-  %15 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str, i32 0, i32 0), i8* %13, i8* %14), !dbg !44
-  ret void, !dbg !45
+  %13 = load %struct.person_t*, %struct.person_t** %2, align 8, !dbg !42
+  %14 = getelementptr inbounds %struct.person_t, %struct.person_t* %13, i32 0, i32 0, !dbg !43
+  store i32 10, i32* %14, align 8, !dbg !44
+  %15 = load i8*, i8** %3, align 8, !dbg !45
+  %16 = load i8*, i8** %4, align 8, !dbg !46
+  %17 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str, i32 0, i32 0), i8* %15, i8* %16), !dbg !47
+  ret void, !dbg !48
 }
 
 ; Function Attrs: nounwind readnone speculatable
@@ -41,28 +44,28 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 declare i32 @printf(i8*, ...) #2
 
 ; Function Attrs: noinline nounwind optnone ssp uwtable
-define i32 @main() #0 !dbg !46 {
+define i32 @main() #0 !dbg !49 {
   %1 = alloca i32, align 4
   %2 = alloca %struct.clothes, align 4
   %3 = alloca %struct.person_t, align 8
   %4 = alloca %struct.person_t*, align 8
   store i32 0, i32* %1, align 4
-  call void @llvm.dbg.declare(metadata %struct.clothes* %2, metadata !49, metadata !30), !dbg !50
-  %5 = bitcast %struct.clothes* %2 to i8*, !dbg !50
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %5, i8* getelementptr inbounds (%struct.clothes, %struct.clothes* @main.c, i32 0, i32 0, i32 0), i64 16, i32 4, i1 false), !dbg !50
-  call void @llvm.dbg.declare(metadata %struct.person_t* %3, metadata !51, metadata !30), !dbg !52
-  %6 = getelementptr inbounds %struct.person_t, %struct.person_t* %3, i32 0, i32 0, !dbg !53
-  store i32 10, i32* %6, align 8, !dbg !53
-  %7 = getelementptr inbounds %struct.person_t, %struct.person_t* %3, i32 0, i32 1, !dbg !53
-  %8 = bitcast [10 x i8]* %7 to i8*, !dbg !54
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %8, i8* getelementptr inbounds ([10 x i8], [10 x i8]* @.str.1, i32 0, i32 0), i64 10, i32 1, i1 false), !dbg !54
-  %9 = getelementptr inbounds %struct.person_t, %struct.person_t* %3, i32 0, i32 2, !dbg !53
-  store %struct.clothes* %2, %struct.clothes** %9, align 8, !dbg !53
-  call void @llvm.dbg.declare(metadata %struct.person_t** %4, metadata !55, metadata !30), !dbg !56
-  store %struct.person_t* %3, %struct.person_t** %4, align 8, !dbg !56
-  %10 = load %struct.person_t*, %struct.person_t** %4, align 8, !dbg !57
-  call void @f(%struct.person_t* %10), !dbg !58
-  ret i32 0, !dbg !59
+  call void @llvm.dbg.declare(metadata %struct.clothes* %2, metadata !52, metadata !30), !dbg !53
+  %5 = bitcast %struct.clothes* %2 to i8*, !dbg !53
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %5, i8* getelementptr inbounds (%struct.clothes, %struct.clothes* @main.c, i32 0, i32 0, i32 0), i64 16, i32 4, i1 false), !dbg !53
+  call void @llvm.dbg.declare(metadata %struct.person_t* %3, metadata !54, metadata !30), !dbg !55
+  %6 = getelementptr inbounds %struct.person_t, %struct.person_t* %3, i32 0, i32 0, !dbg !56
+  store i32 10, i32* %6, align 8, !dbg !56
+  %7 = getelementptr inbounds %struct.person_t, %struct.person_t* %3, i32 0, i32 1, !dbg !56
+  %8 = bitcast [10 x i8]* %7 to i8*, !dbg !57
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %8, i8* getelementptr inbounds ([10 x i8], [10 x i8]* @.str.1, i32 0, i32 0), i64 10, i32 1, i1 false), !dbg !57
+  %9 = getelementptr inbounds %struct.person_t, %struct.person_t* %3, i32 0, i32 2, !dbg !56
+  store %struct.clothes* %2, %struct.clothes** %9, align 8, !dbg !56
+  call void @llvm.dbg.declare(metadata %struct.person_t** %4, metadata !58, metadata !30), !dbg !59
+  store %struct.person_t* %3, %struct.person_t** %4, align 8, !dbg !59
+  %10 = load %struct.person_t*, %struct.person_t** %4, align 8, !dbg !60
+  call void @f(%struct.person_t* %10), !dbg !61
+  ret i32 0, !dbg !62
 }
 
 ; Function Attrs: argmemonly nounwind
@@ -119,21 +122,24 @@ attributes #3 = { argmemonly nounwind }
 !39 = !DILocation(line: 16, column: 19, scope: !8)
 !40 = !DILocation(line: 16, column: 23, scope: !8)
 !41 = !DILocation(line: 16, column: 26, scope: !8)
-!42 = !DILocation(line: 17, column: 39, scope: !8)
-!43 = !DILocation(line: 17, column: 45, scope: !8)
-!44 = !DILocation(line: 17, column: 5, scope: !8)
-!45 = !DILocation(line: 18, column: 1, scope: !8)
-!46 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 20, type: !47, isLocal: false, isDefinition: true, scopeLine: 20, isOptimized: false, unit: !0, variables: !2)
-!47 = !DISubroutineType(types: !48)
-!48 = !{!16}
-!49 = !DILocalVariable(name: "c", scope: !46, file: !1, line: 21, type: !24)
-!50 = !DILocation(line: 21, column: 13, scope: !46)
-!51 = !DILocalVariable(name: "p", scope: !46, file: !1, line: 22, type: !12)
-!52 = !DILocation(line: 22, column: 12, scope: !46)
-!53 = !DILocation(line: 22, column: 16, scope: !46)
-!54 = !DILocation(line: 22, column: 21, scope: !46)
-!55 = !DILocalVariable(name: "pt", scope: !46, file: !1, line: 23, type: !11)
-!56 = !DILocation(line: 23, column: 13, scope: !46)
-!57 = !DILocation(line: 24, column: 7, scope: !46)
-!58 = !DILocation(line: 24, column: 5, scope: !46)
-!59 = !DILocation(line: 25, column: 5, scope: !46)
+!42 = !DILocation(line: 17, column: 5, scope: !8)
+!43 = !DILocation(line: 17, column: 9, scope: !8)
+!44 = !DILocation(line: 17, column: 13, scope: !8)
+!45 = !DILocation(line: 18, column: 39, scope: !8)
+!46 = !DILocation(line: 18, column: 45, scope: !8)
+!47 = !DILocation(line: 18, column: 5, scope: !8)
+!48 = !DILocation(line: 19, column: 1, scope: !8)
+!49 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 21, type: !50, isLocal: false, isDefinition: true, scopeLine: 21, isOptimized: false, unit: !0, variables: !2)
+!50 = !DISubroutineType(types: !51)
+!51 = !{!16}
+!52 = !DILocalVariable(name: "c", scope: !49, file: !1, line: 22, type: !24)
+!53 = !DILocation(line: 22, column: 13, scope: !49)
+!54 = !DILocalVariable(name: "p", scope: !49, file: !1, line: 23, type: !12)
+!55 = !DILocation(line: 23, column: 12, scope: !49)
+!56 = !DILocation(line: 23, column: 16, scope: !49)
+!57 = !DILocation(line: 23, column: 21, scope: !49)
+!58 = !DILocalVariable(name: "pt", scope: !49, file: !1, line: 24, type: !11)
+!59 = !DILocation(line: 24, column: 13, scope: !49)
+!60 = !DILocation(line: 25, column: 7, scope: !49)
+!61 = !DILocation(line: 25, column: 5, scope: !49)
+!62 = !DILocation(line: 26, column: 5, scope: !49)

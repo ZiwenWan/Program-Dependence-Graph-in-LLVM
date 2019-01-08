@@ -46,13 +46,11 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
     Instruction *inst = dyn_cast<Instruction>(&*I);
     if (isa<StoreInst>(inst))
     {
-      StoreInst *SI = dyn_cast<StoreInst>(inst);
       G_funcMap[&F]->addStoreInst(inst);
     }
 
     if (isa<LoadInst>(inst))
     {
-      LoadInst *LI = dyn_cast<LoadInst>(inst);
       G_funcMap[&F]->addLoadInst(inst);
     }
 
