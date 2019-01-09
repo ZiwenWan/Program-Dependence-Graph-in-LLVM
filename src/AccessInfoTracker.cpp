@@ -29,8 +29,6 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
     getInterFuncReadWriteInfo(F);
   }
 
-
-  std::map<Function *, std::map<unsigned, FieldNameExtractor::offsetNames>> funcArgOffsetNames = getAnalysis<pdg::FieldNameExtractor>().getFuncArgOffsetNames();  
   std::string file_name = M.getSourceFileName();
   file_name += ".txt";
   idl_file.open(file_name);
@@ -43,9 +41,8 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
     {
       continue;
     }
-    std::map<unsigned, pdg::FieldNameExtractor::offsetNames> argsOffsetNames = funcArgOffsetNames[&F];
-    printFuncArgAccessInfo(F, argsOffsetNames);
-    generateIDLforFunc(F, argsOffsetNames);
+    printFuncArgAccessInfo(F);
+    generateIDLforFunc(F);
   }
 
   idl_file << "}";
@@ -56,7 +53,6 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
 void pdg::AccessInfoTracker::getAnalysisUsage(AnalysisUsage &AU) const
 {
   AU.addRequired<pdg::ProgramDependencyGraph>();
-  AU.addRequired<pdg::FieldNameExtractor>();
   AU.setPreservesAll();
 }
 
@@ -136,7 +132,7 @@ std::set<InstructionWrapper *> pdg::AccessInfoTracker::getAliasForArg(ArgumentWr
   auto &pdgUtils = PDGUtils::getInstance();
   Instruction* argStackAddr = getArgStackAddr(argW->getArg());
   std::set<InstructionWrapper *> aliasPtr;
-  auto dataDList = PDG->getNodeDepList(pdgUtils.getInstMap()[argStackAddr]);
+  auto dataDList = PDG->getNodeDepList(argStackAddr);
     // collect alias instructions, including store and load instructions
   for (auto depPair : dataDList)
   {
@@ -155,7 +151,6 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForArg(ArgumentWrapper *ar
 {
   auto treeI = argW->getTree(TreeType::FORMAL_IN_TREE).begin();
   AccessType accessType = AccessType::NOACCESS;
-
   // 1. process the root parameter.
   try
   {
@@ -167,16 +162,17 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForArg(ArgumentWrapper *ar
     std::vector<InstructionWrapper *> argLoadInstWs;
     for (auto depPair : depDataList)
     {
-      if (depPair.second == DependencyType::DATA_RAW) {
+      if (depPair.second == DependencyType::DATA_RAW)
+      {
         InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
         argLoadInstWs.push_back(depInstW); // collect read instructions
       }
     }
-    
+
     // move to pointed value.
+    treeI++;
     if (treeI == argW->getTree(TreeType::FORMAL_IN_TREE).end())
       return;
-    treeI++;
 
     for (InstructionWrapper *instW : argLoadInstWs)
     {
@@ -188,32 +184,32 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForArg(ArgumentWrapper *ar
 
     if (treeI == argW->getTree(TreeType::FORMAL_IN_TREE).end())
       return;
+    // analysis data dep, find read/write instructions operate one the stack addr for the arg
+
+    // 3. process each treenode(field) separately
+    //accessType = AccessType::NOACCESS;
+    for (; treeI != argW->getTree(TreeType::FORMAL_IN_TREE).end(); ++treeI)
+    {
+      // if a treenode has a correspond GetElement pointer Instruction
+      if (!(*treeI)->getGEPInstW())
+        continue;
+      // get acces info for the gep instruction, and store access information in treenode
+      AccessType gepAccessType = getAccessTypeForInstW((*treeI)->getGEPInstW());
+      AccessType oldAccessInfo = (*treeI)->getAccessType();
+      if (static_cast<int>(gepAccessType) < static_cast<int>(oldAccessInfo))
+      {
+        // if access info not changed, continue processing
+        continue;
+      }
+      //typeNodeW->setAccessType(gepAccessType);
+      (*treeI)->setAccessType(gepAccessType);
+      propergateAccessInfoToParent(argW, treeI);
+    }
   }
   catch (std::exception &e)
   {
     errs() << e.what() << "\n";
     return;
-  }
-  // analysis data dep, find read/write instructions operate one the stack addr for the arg
-
-  // 3. process each treenode(field) separately
-  accessType = AccessType::NOACCESS;
-  for (; treeI != argW->getTree(TreeType::FORMAL_IN_TREE).end(); ++treeI)
-  {
-    // if a treenode has a correspond GetElement pointer Instruction
-    if (!(*treeI)->getGEPInstW())
-      continue;
-    // get acces info for the gep instruction, and store access information in treenode
-    AccessType gepAccessType = getAccessTypeForInstW((*treeI)->getGEPInstW());
-    AccessType oldAccessInfo = (*treeI)->getAccessType();
-    if (gepAccessType < oldAccessInfo)
-    {
-      // if access info not changed, continue processing
-      continue;
-    }
-    //typeNodeW->setAccessType(gepAccessType);
-    (*treeI)->setAccessType(gepAccessType);
-    propergateAccessInfoToParent(argW, treeI);
   }
 }
 
@@ -230,7 +226,7 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForFunc(Function &F)
 // inter function.
 void pdg::AccessInfoTracker::collectParamCallInstWForArg(ArgumentWrapper *argW, InstructionWrapper *aliasInstW)
 {
-  auto dataDList = PDG->getNodeDepList(aliasInstW);
+  auto dataDList = PDG->getNodeDepList(aliasInstW->getInstruction());
   for (auto depPair : dataDList)
   {
     if (depPair.second == DependencyType::DATA_CALL_PARA)
@@ -356,19 +352,18 @@ void pdg::AccessInfoTracker::getInterFuncReadWriteInfo(Function &F)
   }
 }
 
-void pdg::AccessInfoTracker::printFuncArgAccessInfo(Function &F, std::map<unsigned, FieldNameExtractor::offsetNames> argsOffsetNames)
+void pdg::AccessInfoTracker::printFuncArgAccessInfo(Function &F)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   errs() << "For function: " << F.getName() << "\n";
   for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
   {
-    FieldNameExtractor::offsetNames argOffsetNames = argsOffsetNames[argW->getArg()->getArgNo()];
-    printArgAccessInfo(argW, argOffsetNames);
+    printArgAccessInfo(argW);
   }
   errs() << "......... [ END " << F.getName() << " ] .........\n";
 }
 
-void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW, FieldNameExtractor::offsetNames argOffsetNames)
+void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW)
 {
   std::vector<std::string> access_name = {
       "No Access",
@@ -378,7 +373,6 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW, FieldName
   errs() << "Arg use information for arg no: " << argW->getArg()->getArgNo() << "\n";
   errs() << "Size of argW: " << argW->getTree(TreeType::FORMAL_IN_TREE).size() << "\n";
 
-  int visit_order = 0;
   for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE);
        treeI != argW->tree_end(TreeType::FORMAL_IN_TREE);
        ++treeI)
@@ -387,45 +381,35 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW, FieldName
     Type *parentTy = curTyNode->getParentTreeNodeType();
     Type *curType = curTyNode->getTreeNodeType();
 
-    errs() << "visit order: " << visit_order << "\n";
     errs() << "Num of child: " << tree<InstructionWrapper *>::number_of_children(treeI) << "\n";
 
     if (parentTy == nullptr)
     {
       errs() << "** Root type node **"
              << "\n";
-      errs() << "Field name: " << argOffsetNames[visit_order].first << "\n";
+      errs() << "Field name: " << curTyNode->getDIType()->getName().str()  << "\n";
       errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
       errs() << ".............................................\n";
-      visit_order += 1;
       continue;
     }
 
-    if (argOffsetNames.find(visit_order) == argOffsetNames.end())
-    {
-      visit_order += 1;
-      continue;
-    }
-
-    errs() << "sub field name: " << argOffsetNames[visit_order].first << "\n";
-    errs() << "Type name: " << getTypeNameByTag(argOffsetNames[visit_order].second) << "\n";
+    errs() << "sub field name: " << curTyNode->getDIType()->getName().str() << "\n";
+    errs() << "Type name: " << getTypeNameByTag(curTyNode->getDIType()) << "\n";
     errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
     errs() << "..............................................\n";
-    visit_order += 1;
   }
 }
 
-void pdg::AccessInfoTracker::generateIDLforFunc(Function &F, std::map<unsigned, FieldNameExtractor::offsetNames> argsOffsetNames)
+void pdg::AccessInfoTracker::generateIDLforFunc(Function &F)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
   {
-    FieldNameExtractor::offsetNames argOffsetNames = argsOffsetNames[argW->getArg()->getArgNo()];
-    generateIDLforArg(argW, argOffsetNames);
+    generateIDLforArg(argW);
   }
 }
 
-void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, FieldNameExtractor::offsetNames argOffsetNames)
+void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
 {
   // TODO: add correct attribute later
   std::vector<std::string> attributes = {
@@ -433,7 +417,6 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, FieldNameE
       "[out]"};
 
   // an lambda funciont determining whether a pointer is a struct pointer
-  int visit_order = 0;
   std::stringstream projection_str;
   for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE);
        treeI != argW->tree_end(TreeType::FORMAL_IN_TREE);
@@ -446,46 +429,36 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, FieldNameE
     if (parentTy == nullptr)
     {
       // idl for root node.
-      idl_file << "project <struct " << argOffsetNames[visit_order].first << "> " << argOffsetNames[visit_order].first << "{\n";
-      visit_order += 1;
+      idl_file << "project <struct " << curTyNode->getDIType()->getName().str() << "> " << curTyNode->getDIType()->getName().str() << "{\n";
       continue;
     }
 
     if ((*treeI)->getAccessType() == AccessType::NOACCESS)
     {
-      visit_order += 1;
       continue;
     }
 
     if (isStructPointer(curType))
     {
       int subtreeSize = argW->getTree(TreeType::FORMAL_IN_TREE).size(treeI);
-      visit_order = generateIDLforStructField(subtreeSize - 1, treeI, projection_str, visit_order, argOffsetNames);
-      continue;
-    }
-
-    if (argOffsetNames.find(visit_order) == argOffsetNames.end())
-    {
-      visit_order += 1;
+      generateIDLforStructField(subtreeSize - 1, treeI, projection_str);
       continue;
     }
 
     // normal case
-    DIType *dt = argOffsetNames[visit_order].second;
-    idl_file << "\t" << getTypeNameByTag(dt) << " " << argOffsetNames[visit_order].first << ";\n";
-    visit_order += 1;
+    idl_file << "\t" << getTypeNameByTag(curTyNode->getDIType()) << " " << curTyNode->getDIType()->getName().str() << ";\n";
   }
   idl_file << "}";
   idl_file << projection_str.str();
 }
 
-int pdg::AccessInfoTracker::generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss, int visit_order, FieldNameExtractor::offsetNames argOffsetNames)
+void pdg::AccessInfoTracker::generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss)
 {
-  ss << "\nproject <struct " << argOffsetNames[visit_order].first << "> " << argOffsetNames[visit_order].first << "\n";
+  InstructionWrapper* curTyNode = *treeI;
+  ss << "\nproject <struct " << curTyNode->getDIType()->getName().str() << "> " << curTyNode->getDIType()->getName().str() << "\n";
   while (subtreeSize > 0)
   {
     treeI++;
-    visit_order += 1;
     subtreeSize -= 1;
     Type *curType = (*treeI)->getTreeNodeType();
 
@@ -494,21 +467,13 @@ int pdg::AccessInfoTracker::generateIDLforStructField(int subtreeSize, tree<Inst
 
     if (isStructPointer(curType))
     {
-      visit_order = generateIDLforStructField(subtreeSize - 1, treeI, ss, visit_order, argOffsetNames);
+      generateIDLforStructField(subtreeSize - 1, treeI, ss);
       continue;
     }
-
-    DIType *dt = argOffsetNames[visit_order].second;
-    if (dt == nullptr)
-    {
-      break;
-    }
-    ss << "\t" << getTypeNameByTag(dt) << " " << argOffsetNames[visit_order].first << ";\n";
+    ss << "\t" << getTypeNameByTag(curTyNode->getDIType()) << " " << curTyNode->getDIType()->getName().str() << ";\n";
     // update all status
   }
   ss << "}\n";
-
-  return visit_order;
 }
 
 bool pdg::isStructPointer(Type *ty)

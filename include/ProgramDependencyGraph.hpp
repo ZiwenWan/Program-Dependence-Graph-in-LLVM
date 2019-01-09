@@ -5,6 +5,9 @@
 #include "llvm/PassAnalysisSupport.h"
 #include "ControlDependencyGraph.hpp"
 #include "DataDependencyGraph.hpp"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/Support/Debug.h"
 
 namespace pdg
 {
@@ -27,7 +30,7 @@ public:
   void drawActualParameterTree(llvm::CallInst *CI, TreeType treeTy);
   void buildFormalTreeForFunc(llvm::Function *Func);
   void buildFormalTreeForArg(llvm::Argument &arg, TreeType treeTy);
-  void buildTypeTree(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType);
+  void buildTypeTree(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType* argDIType);
   void drawFormalParameterTree(llvm::Function *Func, TreeType treeTy);
   void connectFunctionAndFormalTrees(llvm::Function *callee);
   bool connectAllPossibleFunctions(llvm::CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates);

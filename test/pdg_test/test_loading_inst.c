@@ -15,8 +15,13 @@ int f(person_t* p) {
     return p->age;
 }
 
+int ff (int a) {
+    return a;
+}
+
 int main() {
     clothes_t c = {10, "red"};
     person_t p = {21, &c};
     f(&p);
+    ff(5);
 }

@@ -135,22 +135,9 @@ CMakeFiles/pdg.dir/src/DepPrinter.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/pdg.dir/src/DepPrinter.cpp.s"
 	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/DepPrinter.cpp -o CMakeFiles/pdg.dir/src/DepPrinter.cpp.s
 
-CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.o: CMakeFiles/pdg.dir/flags.make
-CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.o: ../src/FieldNameExtractor.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.o"
-	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.o -c /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/FieldNameExtractor.cpp
-
-CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.i"
-	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/FieldNameExtractor.cpp > CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.i
-
-CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.s"
-	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/FieldNameExtractor.cpp -o CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.s
-
 CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.o: CMakeFiles/pdg.dir/flags.make
 CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.o: ../src/FunctionWrapper.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.o"
 	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.o -c /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/FunctionWrapper.cpp
 
 CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.i: cmake_force
@@ -163,7 +150,7 @@ CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.s: cmake_force
 
 CMakeFiles/pdg.dir/src/PDGUtils.cpp.o: CMakeFiles/pdg.dir/flags.make
 CMakeFiles/pdg.dir/src/PDGUtils.cpp.o: ../src/PDGUtils.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/pdg.dir/src/PDGUtils.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/pdg.dir/src/PDGUtils.cpp.o"
 	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/pdg.dir/src/PDGUtils.cpp.o -c /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/PDGUtils.cpp
 
 CMakeFiles/pdg.dir/src/PDGUtils.cpp.i: cmake_force
@@ -176,7 +163,7 @@ CMakeFiles/pdg.dir/src/PDGUtils.cpp.s: cmake_force
 
 CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o: CMakeFiles/pdg.dir/flags.make
 CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o: ../src/ProgramDependencyGraph.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o"
 	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o -c /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/ProgramDependencyGraph.cpp
 
 CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.i: cmake_force
@@ -195,7 +182,6 @@ pdg_OBJECTS = \
 "CMakeFiles/pdg.dir/src/ControlDependencyGraph.cpp.o" \
 "CMakeFiles/pdg.dir/src/DataDependencyGraph.cpp.o" \
 "CMakeFiles/pdg.dir/src/DepPrinter.cpp.o" \
-"CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.o" \
 "CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.o" \
 "CMakeFiles/pdg.dir/src/PDGUtils.cpp.o" \
 "CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o"
@@ -209,13 +195,12 @@ libpdg.so: CMakeFiles/pdg.dir/src/CallWrapper.cpp.o
 libpdg.so: CMakeFiles/pdg.dir/src/ControlDependencyGraph.cpp.o
 libpdg.so: CMakeFiles/pdg.dir/src/DataDependencyGraph.cpp.o
 libpdg.so: CMakeFiles/pdg.dir/src/DepPrinter.cpp.o
-libpdg.so: CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.o
 libpdg.so: CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.o
 libpdg.so: CMakeFiles/pdg.dir/src/PDGUtils.cpp.o
 libpdg.so: CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o
 libpdg.so: CMakeFiles/pdg.dir/build.make
 libpdg.so: CMakeFiles/pdg.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Linking CXX shared module libpdg.so"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX shared module libpdg.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/pdg.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

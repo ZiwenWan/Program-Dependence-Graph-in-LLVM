@@ -33,19 +33,29 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 declare i32 @printf(i8*, ...) #2
 
 ; Function Attrs: noinline nounwind optnone ssp uwtable
-define i32 @main() #0 !dbg !36 {
+define i32 @ff(i32) #0 !dbg !36 {
+  %2 = alloca i32, align 4
+  store i32 %0, i32* %2, align 4
+  call void @llvm.dbg.declare(metadata i32* %2, metadata !39, metadata !27), !dbg !40
+  %3 = load i32, i32* %2, align 4, !dbg !41
+  ret i32 %3, !dbg !42
+}
+
+; Function Attrs: noinline nounwind optnone ssp uwtable
+define i32 @main() #0 !dbg !43 {
   %1 = alloca %struct.clothes, align 8
   %2 = alloca %struct.Person, align 8
-  call void @llvm.dbg.declare(metadata %struct.clothes* %1, metadata !39, metadata !27), !dbg !40
-  %3 = bitcast %struct.clothes* %1 to i8*, !dbg !40
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %3, i8* bitcast (%struct.clothes* @main.c to i8*), i64 16, i32 8, i1 false), !dbg !40
-  call void @llvm.dbg.declare(metadata %struct.Person* %2, metadata !41, metadata !27), !dbg !42
-  %4 = getelementptr inbounds %struct.Person, %struct.Person* %2, i32 0, i32 0, !dbg !43
-  store i32 21, i32* %4, align 8, !dbg !43
-  %5 = getelementptr inbounds %struct.Person, %struct.Person* %2, i32 0, i32 1, !dbg !43
-  store %struct.clothes* %1, %struct.clothes** %5, align 8, !dbg !43
-  %6 = call i32 @f(%struct.Person* %2), !dbg !44
-  ret i32 0, !dbg !45
+  call void @llvm.dbg.declare(metadata %struct.clothes* %1, metadata !46, metadata !27), !dbg !47
+  %3 = bitcast %struct.clothes* %1 to i8*, !dbg !47
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %3, i8* bitcast (%struct.clothes* @main.c to i8*), i64 16, i32 8, i1 false), !dbg !47
+  call void @llvm.dbg.declare(metadata %struct.Person* %2, metadata !48, metadata !27), !dbg !49
+  %4 = getelementptr inbounds %struct.Person, %struct.Person* %2, i32 0, i32 0, !dbg !50
+  store i32 21, i32* %4, align 8, !dbg !50
+  %5 = getelementptr inbounds %struct.Person, %struct.Person* %2, i32 0, i32 1, !dbg !50
+  store %struct.clothes* %1, %struct.clothes** %5, align 8, !dbg !50
+  %6 = call i32 @f(%struct.Person* %2), !dbg !51
+  %7 = call i32 @ff(i32 5), !dbg !52
+  ret i32 0, !dbg !53
 }
 
 ; Function Attrs: argmemonly nounwind
@@ -96,13 +106,21 @@ attributes #3 = { argmemonly nounwind }
 !33 = !DILocation(line: 15, column: 12, scope: !8)
 !34 = !DILocation(line: 15, column: 15, scope: !8)
 !35 = !DILocation(line: 15, column: 5, scope: !8)
-!36 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 18, type: !37, isLocal: false, isDefinition: true, scopeLine: 18, isOptimized: false, unit: !0, variables: !2)
+!36 = distinct !DISubprogram(name: "ff", scope: !1, file: !1, line: 18, type: !37, isLocal: false, isDefinition: true, scopeLine: 18, flags: DIFlagPrototyped, isOptimized: false, unit: !0, variables: !2)
 !37 = !DISubroutineType(types: !38)
-!38 = !{!11}
-!39 = !DILocalVariable(name: "c", scope: !36, file: !1, line: 19, type: !19)
-!40 = !DILocation(line: 19, column: 15, scope: !36)
-!41 = !DILocalVariable(name: "p", scope: !36, file: !1, line: 20, type: !13)
-!42 = !DILocation(line: 20, column: 14, scope: !36)
-!43 = !DILocation(line: 20, column: 18, scope: !36)
-!44 = !DILocation(line: 21, column: 5, scope: !36)
-!45 = !DILocation(line: 22, column: 1, scope: !36)
+!38 = !{!11, !11}
+!39 = !DILocalVariable(name: "a", arg: 1, scope: !36, file: !1, line: 18, type: !11)
+!40 = !DILocation(line: 18, column: 13, scope: !36)
+!41 = !DILocation(line: 19, column: 12, scope: !36)
+!42 = !DILocation(line: 19, column: 5, scope: !36)
+!43 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 22, type: !44, isLocal: false, isDefinition: true, scopeLine: 22, isOptimized: false, unit: !0, variables: !2)
+!44 = !DISubroutineType(types: !45)
+!45 = !{!11}
+!46 = !DILocalVariable(name: "c", scope: !43, file: !1, line: 23, type: !19)
+!47 = !DILocation(line: 23, column: 15, scope: !43)
+!48 = !DILocalVariable(name: "p", scope: !43, file: !1, line: 24, type: !13)
+!49 = !DILocation(line: 24, column: 14, scope: !43)
+!50 = !DILocation(line: 24, column: 18, scope: !43)
+!51 = !DILocation(line: 25, column: 5, scope: !43)
+!52 = !DILocation(line: 26, column: 5, scope: !43)
+!53 = !DILocation(line: 27, column: 1, scope: !43)

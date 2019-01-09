@@ -63,6 +63,7 @@ class InstructionWrapper {
     virtual llvm::Argument *getArgument() const { return nullptr; }
     virtual InstructionWrapper *getGEPInstW() const { return nullptr; }
     virtual int getNodeOffset() const { return -1; }
+    virtual llvm::DIType *getDIType() const { return nullptr; }
 
   private:
     llvm::Instruction *Inst;
@@ -89,6 +90,23 @@ class TreeTypeWrapper : public InstructionWrapper
       this->parentTreeNodeType = parentTreeNodeType;
       this->node_offset = node_offset;
       this->gepInstW = nullptr;
+      this->dt = nullptr;
+    }
+
+    TreeTypeWrapper(llvm::Function *Func,
+                    GraphNodeType nodetype,
+                    llvm::Argument *arg,
+                    llvm::Type *treeNodeType,
+                    llvm::Type *parentTreeNodeType, 
+                    int node_offset,
+                    llvm::DIType* dt) : InstructionWrapper(Func, nodetype)
+    {
+      this->arg = arg;
+      this->treeNodeType = treeNodeType;
+      this->parentTreeNodeType = parentTreeNodeType;
+      this->node_offset = node_offset;
+      this->gepInstW = nullptr;
+      this->dt = dt;
     }
 
     TreeTypeWrapper(llvm::Function *Func,
@@ -104,6 +122,24 @@ class TreeTypeWrapper : public InstructionWrapper
       this->parentTreeNodeType = parentTreeNodeType;
       this->node_offset = node_offset;
       this->gepInstW = gepInstW; 
+      this->dt = nullptr;
+    }
+
+    TreeTypeWrapper(llvm::Function *Func,
+                    GraphNodeType nodetype,
+                    llvm::Argument *arg,
+                    llvm::Type *treeNodeType,
+                    llvm::Type *parentTreeNodeType, 
+                    int node_offset, 
+                    InstructionWrapper* gepInstW,
+                    llvm::DIType* dt) : InstructionWrapper(Func, nodetype)
+    {
+      this->arg = arg;
+      this->treeNodeType = treeNodeType;
+      this->parentTreeNodeType = parentTreeNodeType;
+      this->node_offset = node_offset;
+      this->gepInstW = gepInstW; 
+      this->dt = dt;
     }
 
     llvm::Type *getTreeNodeType() const override { return treeNodeType; }
@@ -111,7 +147,7 @@ class TreeTypeWrapper : public InstructionWrapper
     llvm::Argument *getArgument() const override { return arg; }
     InstructionWrapper *getGEPInstW() const override { return gepInstW; }
     int getNodeOffset() const override { return node_offset; }
-
+    llvm::DIType *getDIType() const override { return dt; }
 
   private:
     llvm::Argument *arg;
@@ -119,6 +155,7 @@ class TreeTypeWrapper : public InstructionWrapper
     llvm::Type *treeNodeType;
     llvm::Type *parentTreeNodeType;
     int node_offset;
+    llvm::DIType *dt;
 };
 
 } // namespace pdg

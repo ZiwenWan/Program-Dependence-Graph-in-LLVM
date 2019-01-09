@@ -3,7 +3,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/PassAnalysisSupport.h"
 #include "ProgramDependencyGraph.hpp"
-#include "FieldNameExtractor.hpp"
 #include <fstream>
 #include <sstream>
 
@@ -29,11 +28,11 @@ public:
   void getInterFuncReadWriteInfo(llvm::Function &F);
   AccessType getAccessTypeForInstW(InstructionWrapper *instW);
   void propergateAccessInfoToParent(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator treeI);
-  void printFuncArgAccessInfo(llvm::Function &F, std::map<unsigned, FieldNameExtractor::offsetNames> argsOffsetNames);
-  void printArgAccessInfo(ArgumentWrapper *argW, FieldNameExtractor::offsetNames argOffsetNames);
-  void generateIDLforFunc(llvm::Function &F, std::map<unsigned, FieldNameExtractor::offsetNames> argsOffsetNames);
-  void generateIDLforArg(ArgumentWrapper *argW, FieldNameExtractor::offsetNames argOffsetNames);
-  int generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss, int visit_order, FieldNameExtractor::offsetNames argOffsetNames);
+  void printFuncArgAccessInfo(llvm::Function &F);
+  void printArgAccessInfo(ArgumentWrapper *argW);
+  void generateIDLforFunc(llvm::Function &F);
+  void generateIDLforArg(ArgumentWrapper *argW);
+  void generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss);
 
 private:
   ProgramDependencyGraph *PDG;

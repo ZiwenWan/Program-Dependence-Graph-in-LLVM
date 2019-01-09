@@ -9,7 +9,6 @@ CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o
  ../include/DataDependencyGraph.hpp
  ../include/DependencyGraph.hpp
  ../include/DependencyNode.hpp
- ../include/FieldNameExtractor.hpp
  ../include/FunctionWrapper.hpp
  ../include/InstructionWrapper.hpp
  ../include/PDGEnums.hpp
@@ -43,7 +42,6 @@ CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o
  /usr/local/opt/llvm@5/include/llvm/ADT/SmallPtrSet.h
  /usr/local/opt/llvm@5/include/llvm/ADT/SmallString.h
  /usr/local/opt/llvm@5/include/llvm/ADT/SmallVector.h
- /usr/local/opt/llvm@5/include/llvm/ADT/Statistic.h
  /usr/local/opt/llvm@5/include/llvm/ADT/StringMap.h
  /usr/local/opt/llvm@5/include/llvm/ADT/StringRef.h
  /usr/local/opt/llvm@5/include/llvm/ADT/TinyPtrVector.h
@@ -126,7 +124,6 @@ CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o
  /usr/local/opt/llvm@5/include/llvm/IR/Value.def
  /usr/local/opt/llvm@5/include/llvm/IR/Value.h
  /usr/local/opt/llvm@5/include/llvm/IR/ValueHandle.h
- /usr/local/opt/llvm@5/include/llvm/IR/ValueSymbolTable.h
  /usr/local/opt/llvm@5/include/llvm/InitializePasses.h
  /usr/local/opt/llvm@5/include/llvm/Pass.h
  /usr/local/opt/llvm@5/include/llvm/PassAnalysisSupport.h
@@ -700,6 +697,7 @@ CMakeFiles/pdg.dir/src/DepPrinter.cpp.o
  /usr/local/opt/llvm@5/include/llvm/ADT/APFloat.h
  /usr/local/opt/llvm@5/include/llvm/ADT/APInt.h
  /usr/local/opt/llvm@5/include/llvm/ADT/ArrayRef.h
+ /usr/local/opt/llvm@5/include/llvm/ADT/BitmaskEnum.h
  /usr/local/opt/llvm@5/include/llvm/ADT/DenseMap.h
  /usr/local/opt/llvm@5/include/llvm/ADT/DenseMapInfo.h
  /usr/local/opt/llvm@5/include/llvm/ADT/DenseSet.h
@@ -747,6 +745,8 @@ CMakeFiles/pdg.dir/src/DepPrinter.cpp.o
  /usr/local/opt/llvm@5/include/llvm/Analysis/TargetFolder.h
  /usr/local/opt/llvm@5/include/llvm/Analysis/TargetLibraryInfo.def
  /usr/local/opt/llvm@5/include/llvm/Analysis/TargetLibraryInfo.h
+ /usr/local/opt/llvm@5/include/llvm/BinaryFormat/Dwarf.def
+ /usr/local/opt/llvm@5/include/llvm/BinaryFormat/Dwarf.h
  /usr/local/opt/llvm@5/include/llvm/Config/abi-breaking.h
  /usr/local/opt/llvm@5/include/llvm/Config/llvm-config.h
  /usr/local/opt/llvm@5/include/llvm/IR/Argument.h
@@ -761,6 +761,9 @@ CMakeFiles/pdg.dir/src/DepPrinter.cpp.o
  /usr/local/opt/llvm@5/include/llvm/IR/ConstantFolder.h
  /usr/local/opt/llvm@5/include/llvm/IR/Constants.h
  /usr/local/opt/llvm@5/include/llvm/IR/DataLayout.h
+ /usr/local/opt/llvm@5/include/llvm/IR/DebugInfo.h
+ /usr/local/opt/llvm@5/include/llvm/IR/DebugInfoFlags.def
+ /usr/local/opt/llvm@5/include/llvm/IR/DebugInfoMetadata.h
  /usr/local/opt/llvm@5/include/llvm/IR/DebugLoc.h
  /usr/local/opt/llvm@5/include/llvm/IR/DerivedTypes.h
  /usr/local/opt/llvm@5/include/llvm/IR/Dominators.h
@@ -838,120 +841,6 @@ CMakeFiles/pdg.dir/src/DepPrinter.cpp.o
  /usr/local/opt/llvm@5/include/llvm/Support/SwapByteOrder.h
  /usr/local/opt/llvm@5/include/llvm/Support/Threading.h
  /usr/local/opt/llvm@5/include/llvm/Support/TypeName.h
- /usr/local/opt/llvm@5/include/llvm/Support/raw_ostream.h
- /usr/local/opt/llvm@5/include/llvm/Support/type_traits.h
-CMakeFiles/pdg.dir/src/FieldNameExtractor.cpp.o
- ../include/FieldNameExtractor.hpp
- /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/FieldNameExtractor.cpp
- /usr/local/opt/llvm@5/include/llvm-c/Types.h
- /usr/local/opt/llvm@5/include/llvm/ADT/APFloat.h
- /usr/local/opt/llvm@5/include/llvm/ADT/APInt.h
- /usr/local/opt/llvm@5/include/llvm/ADT/ArrayRef.h
- /usr/local/opt/llvm@5/include/llvm/ADT/BitmaskEnum.h
- /usr/local/opt/llvm@5/include/llvm/ADT/DenseMap.h
- /usr/local/opt/llvm@5/include/llvm/ADT/DenseMapInfo.h
- /usr/local/opt/llvm@5/include/llvm/ADT/DenseSet.h
- /usr/local/opt/llvm@5/include/llvm/ADT/EpochTracker.h
- /usr/local/opt/llvm@5/include/llvm/ADT/FoldingSet.h
- /usr/local/opt/llvm@5/include/llvm/ADT/Hashing.h
- /usr/local/opt/llvm@5/include/llvm/ADT/None.h
- /usr/local/opt/llvm@5/include/llvm/ADT/Optional.h
- /usr/local/opt/llvm@5/include/llvm/ADT/PointerIntPair.h
- /usr/local/opt/llvm@5/include/llvm/ADT/PointerUnion.h
- /usr/local/opt/llvm@5/include/llvm/ADT/STLExtras.h
- /usr/local/opt/llvm@5/include/llvm/ADT/SmallPtrSet.h
- /usr/local/opt/llvm@5/include/llvm/ADT/SmallString.h
- /usr/local/opt/llvm@5/include/llvm/ADT/SmallVector.h
- /usr/local/opt/llvm@5/include/llvm/ADT/Statistic.h
- /usr/local/opt/llvm@5/include/llvm/ADT/StringMap.h
- /usr/local/opt/llvm@5/include/llvm/ADT/StringRef.h
- /usr/local/opt/llvm@5/include/llvm/ADT/Twine.h
- /usr/local/opt/llvm@5/include/llvm/ADT/ilist.h
- /usr/local/opt/llvm@5/include/llvm/ADT/ilist_base.h
- /usr/local/opt/llvm@5/include/llvm/ADT/ilist_iterator.h
- /usr/local/opt/llvm@5/include/llvm/ADT/ilist_node.h
- /usr/local/opt/llvm@5/include/llvm/ADT/ilist_node_base.h
- /usr/local/opt/llvm@5/include/llvm/ADT/ilist_node_options.h
- /usr/local/opt/llvm@5/include/llvm/ADT/iterator.h
- /usr/local/opt/llvm@5/include/llvm/ADT/iterator_range.h
- /usr/local/opt/llvm@5/include/llvm/ADT/simple_ilist.h
- /usr/local/opt/llvm@5/include/llvm/BinaryFormat/Dwarf.def
- /usr/local/opt/llvm@5/include/llvm/BinaryFormat/Dwarf.h
- /usr/local/opt/llvm@5/include/llvm/Config/abi-breaking.h
- /usr/local/opt/llvm@5/include/llvm/Config/llvm-config.h
- /usr/local/opt/llvm@5/include/llvm/IR/Argument.h
- /usr/local/opt/llvm@5/include/llvm/IR/Attributes.gen
- /usr/local/opt/llvm@5/include/llvm/IR/Attributes.h
- /usr/local/opt/llvm@5/include/llvm/IR/BasicBlock.h
- /usr/local/opt/llvm@5/include/llvm/IR/CallingConv.h
- /usr/local/opt/llvm@5/include/llvm/IR/Comdat.h
- /usr/local/opt/llvm@5/include/llvm/IR/Constant.h
- /usr/local/opt/llvm@5/include/llvm/IR/Constants.h
- /usr/local/opt/llvm@5/include/llvm/IR/DataLayout.h
- /usr/local/opt/llvm@5/include/llvm/IR/DebugInfo.h
- /usr/local/opt/llvm@5/include/llvm/IR/DebugInfoFlags.def
- /usr/local/opt/llvm@5/include/llvm/IR/DebugInfoMetadata.h
- /usr/local/opt/llvm@5/include/llvm/IR/DebugLoc.h
- /usr/local/opt/llvm@5/include/llvm/IR/DerivedTypes.h
- /usr/local/opt/llvm@5/include/llvm/IR/Function.h
- /usr/local/opt/llvm@5/include/llvm/IR/GlobalAlias.h
- /usr/local/opt/llvm@5/include/llvm/IR/GlobalIFunc.h
- /usr/local/opt/llvm@5/include/llvm/IR/GlobalIndirectSymbol.h
- /usr/local/opt/llvm@5/include/llvm/IR/GlobalObject.h
- /usr/local/opt/llvm@5/include/llvm/IR/GlobalValue.h
- /usr/local/opt/llvm@5/include/llvm/IR/GlobalVariable.h
- /usr/local/opt/llvm@5/include/llvm/IR/InstIterator.h
- /usr/local/opt/llvm@5/include/llvm/IR/InstrTypes.h
- /usr/local/opt/llvm@5/include/llvm/IR/Instruction.def
- /usr/local/opt/llvm@5/include/llvm/IR/Instruction.h
- /usr/local/opt/llvm@5/include/llvm/IR/Instructions.h
- /usr/local/opt/llvm@5/include/llvm/IR/IntrinsicInst.h
- /usr/local/opt/llvm@5/include/llvm/IR/Intrinsics.gen
- /usr/local/opt/llvm@5/include/llvm/IR/Intrinsics.h
- /usr/local/opt/llvm@5/include/llvm/IR/LLVMContext.h
- /usr/local/opt/llvm@5/include/llvm/IR/Metadata.def
- /usr/local/opt/llvm@5/include/llvm/IR/Metadata.h
- /usr/local/opt/llvm@5/include/llvm/IR/Module.h
- /usr/local/opt/llvm@5/include/llvm/IR/OperandTraits.h
- /usr/local/opt/llvm@5/include/llvm/IR/SymbolTableListTraits.h
- /usr/local/opt/llvm@5/include/llvm/IR/TrackingMDRef.h
- /usr/local/opt/llvm@5/include/llvm/IR/Type.h
- /usr/local/opt/llvm@5/include/llvm/IR/Use.h
- /usr/local/opt/llvm@5/include/llvm/IR/User.h
- /usr/local/opt/llvm@5/include/llvm/IR/Value.def
- /usr/local/opt/llvm@5/include/llvm/IR/Value.h
- /usr/local/opt/llvm@5/include/llvm/IR/ValueSymbolTable.h
- /usr/local/opt/llvm@5/include/llvm/InitializePasses.h
- /usr/local/opt/llvm@5/include/llvm/Pass.h
- /usr/local/opt/llvm@5/include/llvm/PassAnalysisSupport.h
- /usr/local/opt/llvm@5/include/llvm/PassInfo.h
- /usr/local/opt/llvm@5/include/llvm/PassRegistry.h
- /usr/local/opt/llvm@5/include/llvm/PassSupport.h
- /usr/local/opt/llvm@5/include/llvm/Support/AlignOf.h
- /usr/local/opt/llvm@5/include/llvm/Support/Allocator.h
- /usr/local/opt/llvm@5/include/llvm/Support/Atomic.h
- /usr/local/opt/llvm@5/include/llvm/Support/AtomicOrdering.h
- /usr/local/opt/llvm@5/include/llvm/Support/CBindingWrapping.h
- /usr/local/opt/llvm@5/include/llvm/Support/Casting.h
- /usr/local/opt/llvm@5/include/llvm/Support/CodeGen.h
- /usr/local/opt/llvm@5/include/llvm/Support/CommandLine.h
- /usr/local/opt/llvm@5/include/llvm/Support/Compiler.h
- /usr/local/opt/llvm@5/include/llvm/Support/DataTypes.h
- /usr/local/opt/llvm@5/include/llvm/Support/Debug.h
- /usr/local/opt/llvm@5/include/llvm/Support/Endian.h
- /usr/local/opt/llvm@5/include/llvm/Support/ErrorHandling.h
- /usr/local/opt/llvm@5/include/llvm/Support/ErrorOr.h
- /usr/local/opt/llvm@5/include/llvm/Support/Host.h
- /usr/local/opt/llvm@5/include/llvm/Support/MD5.h
- /usr/local/opt/llvm@5/include/llvm/Support/ManagedStatic.h
- /usr/local/opt/llvm@5/include/llvm/Support/MathExtras.h
- /usr/local/opt/llvm@5/include/llvm/Support/MemoryBuffer.h
- /usr/local/opt/llvm@5/include/llvm/Support/Options.h
- /usr/local/opt/llvm@5/include/llvm/Support/PointerLikeTypeTraits.h
- /usr/local/opt/llvm@5/include/llvm/Support/RWMutex.h
- /usr/local/opt/llvm@5/include/llvm/Support/ReverseIteration.h
- /usr/local/opt/llvm@5/include/llvm/Support/SwapByteOrder.h
- /usr/local/opt/llvm@5/include/llvm/Support/Threading.h
  /usr/local/opt/llvm@5/include/llvm/Support/raw_ostream.h
  /usr/local/opt/llvm@5/include/llvm/Support/type_traits.h
 CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.o
@@ -1215,6 +1104,7 @@ CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o
  /usr/local/opt/llvm@5/include/llvm/ADT/APFloat.h
  /usr/local/opt/llvm@5/include/llvm/ADT/APInt.h
  /usr/local/opt/llvm@5/include/llvm/ADT/ArrayRef.h
+ /usr/local/opt/llvm@5/include/llvm/ADT/BitmaskEnum.h
  /usr/local/opt/llvm@5/include/llvm/ADT/DenseMap.h
  /usr/local/opt/llvm@5/include/llvm/ADT/DenseMapInfo.h
  /usr/local/opt/llvm@5/include/llvm/ADT/DenseSet.h
@@ -1259,6 +1149,8 @@ CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o
  /usr/local/opt/llvm@5/include/llvm/Analysis/TargetFolder.h
  /usr/local/opt/llvm@5/include/llvm/Analysis/TargetLibraryInfo.def
  /usr/local/opt/llvm@5/include/llvm/Analysis/TargetLibraryInfo.h
+ /usr/local/opt/llvm@5/include/llvm/BinaryFormat/Dwarf.def
+ /usr/local/opt/llvm@5/include/llvm/BinaryFormat/Dwarf.h
  /usr/local/opt/llvm@5/include/llvm/Config/abi-breaking.h
  /usr/local/opt/llvm@5/include/llvm/Config/llvm-config.h
  /usr/local/opt/llvm@5/include/llvm/IR/Argument.h
@@ -1273,6 +1165,9 @@ CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o
  /usr/local/opt/llvm@5/include/llvm/IR/ConstantFolder.h
  /usr/local/opt/llvm@5/include/llvm/IR/Constants.h
  /usr/local/opt/llvm@5/include/llvm/IR/DataLayout.h
+ /usr/local/opt/llvm@5/include/llvm/IR/DebugInfo.h
+ /usr/local/opt/llvm@5/include/llvm/IR/DebugInfoFlags.def
+ /usr/local/opt/llvm@5/include/llvm/IR/DebugInfoMetadata.h
  /usr/local/opt/llvm@5/include/llvm/IR/DebugLoc.h
  /usr/local/opt/llvm@5/include/llvm/IR/DerivedTypes.h
  /usr/local/opt/llvm@5/include/llvm/IR/Dominators.h
