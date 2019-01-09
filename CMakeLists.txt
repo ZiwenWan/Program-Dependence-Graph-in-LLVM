@@ -28,7 +28,6 @@ add_library(pdg MODULE
     ${SOURCES}
 )
 
-
 #
 # Turn on C++11, turn off C++ RTTI.
 #

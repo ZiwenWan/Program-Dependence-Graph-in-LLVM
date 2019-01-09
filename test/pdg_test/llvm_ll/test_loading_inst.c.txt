@@ -1,5 +1,5 @@
 <stdin> {
-project <struct > {
+project <struct unknow type > {
 	person_t person_t;
 	age age;
 }

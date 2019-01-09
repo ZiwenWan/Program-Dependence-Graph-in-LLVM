@@ -1,0 +1,6 @@
+f
+int ( opaque * ) ( R ) 
+ff
+int ( int ) ( R ) 
+main
+int (  ) (  ) 

@@ -19,6 +19,7 @@
     "random": "cpp",
     "utility": "cpp",
     "stack": "cpp",
-    "*.tpp": "cpp"
+    "*.tpp": "cpp",
+    "sstream": "cpp"
   }
 }

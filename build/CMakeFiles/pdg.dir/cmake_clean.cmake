@@ -8,6 +8,7 @@ file(REMOVE_RECURSE
   "CMakeFiles/pdg.dir/src/FunctionWrapper.cpp.o"
   "CMakeFiles/pdg.dir/src/PDGUtils.cpp.o"
   "CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o"
+  "CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o"
   "libpdg.pdb"
   "libpdg.so"
 )

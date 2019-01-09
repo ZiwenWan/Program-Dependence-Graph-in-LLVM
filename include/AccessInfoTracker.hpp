@@ -33,6 +33,7 @@ public:
   void generateIDLforFunc(llvm::Function &F);
   void generateIDLforArg(ArgumentWrapper *argW);
   void generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss);
+  std::string getArgAccessInfo(llvm::Argument &arg);
 
 private:
   ProgramDependencyGraph *PDG;

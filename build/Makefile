@@ -366,6 +366,33 @@ src/ProgramDependencyGraph.cpp.s:
 	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.s
 .PHONY : src/ProgramDependencyGraph.cpp.s
 
+src/PtrSplitIDLGen.o: src/PtrSplitIDLGen.cpp.o
+
+.PHONY : src/PtrSplitIDLGen.o
+
+# target to build an object file
+src/PtrSplitIDLGen.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o
+.PHONY : src/PtrSplitIDLGen.cpp.o
+
+src/PtrSplitIDLGen.i: src/PtrSplitIDLGen.cpp.i
+
+.PHONY : src/PtrSplitIDLGen.i
+
+# target to preprocess a source file
+src/PtrSplitIDLGen.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.i
+.PHONY : src/PtrSplitIDLGen.cpp.i
+
+src/PtrSplitIDLGen.s: src/PtrSplitIDLGen.cpp.s
+
+.PHONY : src/PtrSplitIDLGen.s
+
+# target to generate assembly for a file
+src/PtrSplitIDLGen.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.s
+.PHONY : src/PtrSplitIDLGen.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -402,6 +429,9 @@ help:
 	@echo "... src/ProgramDependencyGraph.o"
 	@echo "... src/ProgramDependencyGraph.i"
 	@echo "... src/ProgramDependencyGraph.s"
+	@echo "... src/PtrSplitIDLGen.o"
+	@echo "... src/PtrSplitIDLGen.i"
+	@echo "... src/PtrSplitIDLGen.s"
 .PHONY : help
 
 
