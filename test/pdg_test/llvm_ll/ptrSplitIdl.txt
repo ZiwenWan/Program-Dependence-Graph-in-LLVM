@@ -2,5 +2,7 @@ f
 int ( opaque * ) ( R ) 
 ff
 int ( int ) ( R ) 
+fff
+void ( int *, int *, int * ) ( R, U, U ) 
 main
 int (  ) (  ) 

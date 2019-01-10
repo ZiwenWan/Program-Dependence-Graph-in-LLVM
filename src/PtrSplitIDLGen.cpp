@@ -29,12 +29,34 @@ std::string getTypeNameByTypeID(Type* ty)
       "vector"};
 
   Type::TypeID tid = ty->getTypeID();
-  if (ty->isPointerTy())
+  if (ty->isPointerTy()) {
+    errs() << ty->getPointerElementType()->getTypeID() << "\n";
     return TYPE_NAMES[ty->getPointerElementType()->getTypeID()] + " *"; 
-
+  }
   return TYPE_NAMES[tid];
 }
 
+// DIType *getArgDIType(Argument *arg)
+// {
+//   SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
+//   Function* F = arg->getParent();
+//   F->getAllMetadata(MDs);
+//   for (auto &MD : MDs)
+//   {
+//     MDNode *N = MD.second;
+//     if (DISubprogram *subprogram = dyn_cast<DISubprogram>(N)) {
+//       auto *subRoutine = subprogram->getType();
+//       const auto &TypeRef = subRoutine->getTypeArray();
+//       if (F->arg_size() >= TypeRef.size())
+//         break;
+
+//       const auto &ArgTypeRef = TypeRef[arg->getArgNo()+1];
+//       DIType *Ty = ArgTypeRef.resolve();
+//       return Ty;
+//     }
+//   }
+//   return nullptr;
+// }
 
 bool pdg::PtrSplitIDLGen::runOnModule(Module &M)
 {
@@ -47,9 +69,12 @@ bool pdg::PtrSplitIDLGen::runOnModule(Module &M)
       continue;
     idl_file << F.getName().str() << "\n";
     idl_file << getTypeNameByTypeID(F.getReturnType()) << " ( ";
-    for (auto &arg : F.args()) {
-      idl_file << getTypeNameByTypeID(arg.getType());
-      if (arg.getArgNo() != F.arg_size()-1) {
+
+    for (auto &arg : F.args())
+    {
+      // idl_file << getTypeNameByTypeID
+      if (arg.getArgNo() != F.arg_size() - 1)
+      {
         idl_file << ", ";
       }
     }
@@ -59,7 +84,8 @@ bool pdg::PtrSplitIDLGen::runOnModule(Module &M)
     for (auto &arg : F.args())
     {
       idl_file << acctracker->getArgAccessInfo(arg);
-      if (arg.getArgNo() != F.arg_size()-1) {
+      if (arg.getArgNo() != F.arg_size() - 1)
+      {
         idl_file << ", ";
       }
     }

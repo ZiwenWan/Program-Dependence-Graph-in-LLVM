@@ -57,7 +57,7 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
     if (isa<ReturnInst>(inst))
       G_funcMap[&F]->addReturnInst(inst);
 
-    if (isa<CallInst>(inst))
+    if (CallInst *ci = dyn_cast<CallInst>(inst))
     {
       G_funcMap[&F]->addCallInst(inst);
     }

@@ -47,27 +47,31 @@ void pdg::DataDependencyGraph::collectAliasInst()
 
   for (StoreInst *si : storeVec)
   {
+    MemoryLocation s_loc = MemoryLocation::get(si);
     for (LoadInst *li : loadVec)
     {
-      MemoryLocation s_loc = MemoryLocation::get(si);
       MemoryLocation l_loc = MemoryLocation::get(li);
-
-      // Type *storePtrType = si->getPointerOperandType();
-      // Type *loadPtrType = li->getPointerOperandType();
-
-      // if (storePtrType != loadPtrType)
-      // {
-      //   continue;
-      // }
       AliasResult andersAAResult = andersAA->alias(s_loc, l_loc);
-      AliasResult steensAAResult = steenAA->alias(s_loc, l_loc);
-      // errs() << "Load, Store: " << *li << "\n" << *si << andersAAResult << "-"<< steensAAResult << "\n";
-      if (andersAAResult != NoAlias && steensAAResult != NoAlias)
+      // AliasResult steensAAResult = steenAA->alias(s_loc, l_loc);
+      if (andersAAResult != NoAlias)
       {
         InstructionWrapper *loadInstW = PDGUtils::getInstance().getInstMap()[li];
         InstructionWrapper *storeInstW = PDGUtils::getInstance().getInstMap()[si];
         DDG->addDependency(storeInstW, loadInstW, DependencyType::DATA_ALIAS);
         DDG->addDependency(loadInstW, storeInstW, DependencyType::DATA_ALIAS);
+      }
+    }
+    
+    for (StoreInst *si1 : storeVec) {
+      if (si == si1)
+        continue;
+      MemoryLocation s1_loc = MemoryLocation::get(si1);
+      AliasResult andersAAResult = andersAA->alias(s_loc, s1_loc);
+      if (andersAAResult != NoAlias) {
+        InstructionWrapper *store1InstW = PDGUtils::getInstance().getInstMap()[si];
+        InstructionWrapper *store2InstW = PDGUtils::getInstance().getInstMap()[si1];
+        DDG->addDependency(store1InstW, store2InstW, DependencyType::DATA_ALIAS);
+        DDG->addDependency(store2InstW, store1InstW, DependencyType::DATA_ALIAS);
       }
     }
   }
@@ -91,8 +95,7 @@ void pdg::DataDependencyGraph::collectAliasInst()
       {
         continue;
       }
-
-      AliasResult AA_result = steenAA->alias(li1_loc, li2_loc);
+      AliasResult AA_result = andersAA->alias(li1_loc, li2_loc);
       if (AA_result != NoAlias)
       {
         InstructionWrapper *loadInstW1 = PDGUtils::getInstance().getInstMap()[li1];
@@ -204,10 +207,7 @@ void pdg::DataDependencyGraph::collectNonLocalDependency(llvm::Instruction *inst
     {
       DDG->addDependency(itInst, parentInst, DependencyType::DATA_GENERAL);
     }
-    else
-    {
-      llvm::errs() << "nonLocal_res.getInst() is a nullptr" << '\n';
-    }
+    // ignore nullptr return res
   }
 }
 

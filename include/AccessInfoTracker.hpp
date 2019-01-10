@@ -16,12 +16,12 @@ public:
   bool runOnModule(llvm::Module &M);
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);
-  std::set<InstructionWrapper *> getAliasForArg(ArgumentWrapper *argW);
+  std::set<InstructionWrapper *> getAliasStoreInstsForArg(ArgumentWrapper *argW);
   void getIntraFuncReadWriteInfoForArg(ArgumentWrapper *argW);
   void getIntraFuncReadWriteInfoForFunc(llvm::Function &F);
   int getCallParamIdx(InstructionWrapper *instW, InstructionWrapper *callInstW);
   ArgumentMatchType getArgMatchType(llvm::Argument *arg1, llvm::Argument *arg2);
-  llvm::Instruction* getArgStackAddr(llvm::Argument *arg);
+  std::vector<llvm::Instruction*> getArgStackAddrs(llvm::Argument *arg);
   void collectParamCallInstWForArg(ArgumentWrapper *argW, InstructionWrapper *aliasInstW);
   void mergeArgWAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW);
   void mergeTypeTreeAccessInfo(ArgumentWrapper *callerArgW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom);
@@ -34,6 +34,7 @@ public:
   void generateIDLforArg(ArgumentWrapper *argW);
   void generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss);
   std::string getArgAccessInfo(llvm::Argument &arg);
+  std::string getTypeNameByTag(llvm::DIType *ty);
 
 private:
   ProgramDependencyGraph *PDG;
@@ -41,7 +42,6 @@ private:
 };
 
 bool isStructPointer(llvm::Type* ty);
-std::string getTypeNameByTag(llvm::DIType *ty);
 
 } // namespace pdg
 #endif

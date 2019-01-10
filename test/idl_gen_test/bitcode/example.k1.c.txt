@@ -1,15 +1,10 @@
 <stdin> {
 project <struct unknow type > {
-	person_t person_t;
-	age age;
-}
-project <struct c> c
-	c c;
-	c c;
-}
-project <struct int> int{
 }project <struct unknow type > {
-	char char;
+	NODE NODE;
+}project <struct unknow type > {
+	devops_ds devops_ds;
 }project <struct unknow type > {
 }project <struct unknow type > {
+	device_operations device_operations;
 }}

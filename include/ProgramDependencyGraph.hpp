@@ -46,6 +46,8 @@ public:
   std::vector<DependencyNode<InstructionWrapper> *> getNodeSet() { return PDG->getNodeSet(); }
   DependencyGraph<InstructionWrapper> *_getPDG() { return PDG; }
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
+  llvm::DIType* getBaseType(llvm::DIType *ty);
+  llvm::DIType* getLowestDIType(llvm::DIType *ty);
 
 private:
   llvm::Module *module;

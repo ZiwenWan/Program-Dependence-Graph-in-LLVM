@@ -33,8 +33,15 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     ddg = &getAnalysis<DataDependencyGraph>(*Func);
 
     for (InstructionWrapper *instW : pdgUtils.getFuncInstWMap()[Func])
-    {
       addNodeDependencies(instW);
+
+    if (!pdgUtils.getFuncMap()[Func]->hasTrees())
+    {
+      buildFormalTreeForFunc(Func);
+      drawFormalParameterTree(Func, TreeType::FORMAL_IN_TREE);
+      drawFormalParameterTree(Func, TreeType::FORMAL_OUT_TREE);
+      connectFunctionAndFormalTrees(Func);
+      pdgUtils.getFuncMap()[Func]->setTreeFlag(true);
     }
   }
 
@@ -49,9 +56,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     for (CallInst *inst : callInstsList)
     {
       if (!processCallInst(pdgUtils.getInstMap()[inst]))
-      {
         continue;
-      }
     }
   }
 
@@ -73,15 +78,13 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 bool pdg::ProgramDependencyGraph::processIndirectCallInst(CallInst *CI, InstructionWrapper *instW)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-
   Type *t = CI->getCalledValue()->getType();
   FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
   // collect all possible function with same function signature
   std::vector<Function *> indirect_call_candidates = collectIndirectCallCandidates(funcTy);
   if (indirect_call_candidates.size() == 0)
   {
-    errs() << "cannot find possible indirect call candidates.."
-           << "\n";
+    errs() << "cannot find possible indirect call candidates.." << "\n";
     return false;
   }
   CallWrapper *callW = new CallWrapper(CI, indirect_call_candidates);
@@ -96,7 +99,7 @@ bool pdg::ProgramDependencyGraph::processIndirectCallInst(CallInst *CI, Instruct
       continue;
     if (pdgUtils.getFuncMap()[indirect_called_func]->hasTrees())
       continue;
-
+    errs() << "Building tree for indirect func: " << indirect_called_func->getName() << "\n";
     buildFormalTreeForFunc(indirect_called_func);
     drawFormalParameterTree(indirect_called_func, TreeType::FORMAL_IN_TREE);
     drawFormalParameterTree(indirect_called_func, TreeType::FORMAL_OUT_TREE);
@@ -127,7 +130,7 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
     if (callee == nullptr)
     {
       // indirect function call get func type for indirect call inst
-      processIndirectCallInst(CI, instW);
+      return processIndirectCallInst(CI, instW);
     }
 
     // handle intrinsic functions
@@ -139,7 +142,6 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
     // special cases done, common function
     CallWrapper *callW = new CallWrapper(CI);
     pdgUtils.getCallMap()[CI] = callW;
-
     if (!callee->isDeclaration())
     {
       if (!callee->arg_empty())
@@ -158,7 +160,6 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
       } // end if !callee
 
       connectCallerAndCallee(instW, callee);
-
       // link typenode inst with argument inst
       std::vector<ArgumentWrapper *> argList = pdgUtils.getFuncMap()[callee]->getArgWList();
       for (ArgumentWrapper *argW : argList)
@@ -244,15 +245,14 @@ DIType *getArgDIType(Argument *arg)
   for (auto &MD : MDs)
   {
     MDNode *N = MD.second;
-    if (DISubprogram *subprogram = dyn_cast<DISubprogram>(N)) {
+    if (DISubprogram *subprogram = dyn_cast<DISubprogram>(N))
+    {
       auto *subRoutine = subprogram->getType();
-
       const auto &TypeRef = subRoutine->getTypeArray();
       if (F->arg_size() >= TypeRef.size())
       {
         break;
       }
-
       const auto &ArgTypeRef = TypeRef[arg->getArgNo()+1];
       DIType *Ty = ArgTypeRef.resolve();
       return Ty;
@@ -262,7 +262,7 @@ DIType *getArgDIType(Argument *arg)
 }
 
 // wrapper function for getting base type 
-DIType *getBaseType(DIType *Ty) 
+DIType *pdg::ProgramDependencyGraph::getBaseType(DIType *Ty) 
 {
   if (Ty->getTag() == dwarf::DW_TAG_pointer_type ||
       Ty->getTag() == dwarf::DW_TAG_member ||
@@ -279,7 +279,7 @@ DIType *getBaseType(DIType *Ty)
   return Ty;
 }
 
-DIType *getLowestDIType(DIType *Ty)
+DIType *pdg::ProgramDependencyGraph::getLowestDIType(DIType *Ty)
 {
   if (Ty->getTag() == dwarf::DW_TAG_pointer_type ||
       Ty->getTag() == dwarf::DW_TAG_member ||
@@ -442,6 +442,7 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
       // link gep with tree node
       if (gepInstW != nullptr)
         PDG->addDependency(typeFieldW, gepInstW, DependencyType::STRUCT_FIELDS);
+      
       pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
       // start inserting formal tree instructions
       argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
@@ -797,11 +798,11 @@ std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getAllRelevantG
   std::queue<InstructionWrapper *> instWQ;
   auto &pdgUtils = PDGUtils::getInstance();
 
+  //errs() << depInstW->getInstruction()->getFunction()->getName() << " " << *depInstW->getInstruction() << "\n";
   for (Instruction *storeInst : initialStoreInsts)
   {
     instWQ.push(pdgUtils.getInstMap()[storeInst]); // push the initial store instruction to the instQ
-    DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(pdgUtils.getInstMap()[storeInst]);
-    DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList(); // retrive relevant dependency nodes
+    auto dataDList = PDG->getNodeDepList(pdgUtils.getInstMap()[storeInst]);
     for (auto depPair : dataDList)
     {
       DependencyType depType = depPair.second;
@@ -809,10 +810,6 @@ std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getAllRelevantG
       {
         InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
         instWQ.push(depInstW);
-        if (isa<GetElementPtrInst>(depInstW->getInstruction()))
-        {
-          relevantGEPs.insert(depInstW);
-        }
       }
     }
   }
@@ -822,8 +819,7 @@ std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getAllRelevantG
     InstructionWrapper *instW = instWQ.front();
     instWQ.pop();
 
-    DependencyNode<InstructionWrapper> *dataDNode = PDG->getNodeByData(instW);
-    DependencyNode<InstructionWrapper>::DependencyLinkList dataDList = dataDNode->getDependencyList();
+    auto dataDList = PDG->getNodeDepList(instW);
     for (auto depPair : dataDList)
     {
       DependencyType depType = depPair.second;

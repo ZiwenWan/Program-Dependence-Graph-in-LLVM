@@ -9,6 +9,7 @@ target triple = "x86_64-apple-macosx10.14.0"
 @.str = private unnamed_addr constant [4 x i8] c"%s\0A\00", align 1
 @.str.1 = private unnamed_addr constant [4 x i8] c"red\00", align 1
 @main.c = private unnamed_addr constant %struct.clothes { i32 10, i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str.1, i32 0, i32 0) }, align 8
+@main.b = private unnamed_addr constant [3 x i32] [i32 1, i32 2, i32 3], align 4
 
 ; Function Attrs: noinline nounwind optnone ssp uwtable
 define i32 @f(%struct.Person*) #0 !dbg !8 {
@@ -42,20 +43,47 @@ define i32 @ff(i32) #0 !dbg !36 {
 }
 
 ; Function Attrs: noinline nounwind optnone ssp uwtable
-define i32 @main() #0 !dbg !43 {
+define void @fff(i8*, i32*, i32*) #0 !dbg !43 {
+  %4 = alloca i8*, align 8
+  %5 = alloca i32*, align 8
+  %6 = alloca i32*, align 8
+  store i8* %0, i8** %4, align 8
+  call void @llvm.dbg.declare(metadata i8** %4, metadata !47, metadata !27), !dbg !48
+  store i32* %1, i32** %5, align 8
+  call void @llvm.dbg.declare(metadata i32** %5, metadata !49, metadata !27), !dbg !50
+  store i32* %2, i32** %6, align 8
+  call void @llvm.dbg.declare(metadata i32** %6, metadata !51, metadata !27), !dbg !52
+  %7 = load i8*, i8** %4, align 8, !dbg !53
+  %8 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %7), !dbg !54
+  ret void, !dbg !55
+}
+
+; Function Attrs: noinline nounwind optnone ssp uwtable
+define i32 @main() #0 !dbg !56 {
   %1 = alloca %struct.clothes, align 8
   %2 = alloca %struct.Person, align 8
-  call void @llvm.dbg.declare(metadata %struct.clothes* %1, metadata !46, metadata !27), !dbg !47
-  %3 = bitcast %struct.clothes* %1 to i8*, !dbg !47
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %3, i8* bitcast (%struct.clothes* @main.c to i8*), i64 16, i32 8, i1 false), !dbg !47
-  call void @llvm.dbg.declare(metadata %struct.Person* %2, metadata !48, metadata !27), !dbg !49
-  %4 = getelementptr inbounds %struct.Person, %struct.Person* %2, i32 0, i32 0, !dbg !50
-  store i32 21, i32* %4, align 8, !dbg !50
-  %5 = getelementptr inbounds %struct.Person, %struct.Person* %2, i32 0, i32 1, !dbg !50
-  store %struct.clothes* %1, %struct.clothes** %5, align 8, !dbg !50
-  %6 = call i32 @f(%struct.Person* %2), !dbg !51
-  %7 = call i32 @ff(i32 5), !dbg !52
-  ret i32 0, !dbg !53
+  %3 = alloca i32, align 4
+  %4 = alloca [3 x i32], align 4
+  call void @llvm.dbg.declare(metadata %struct.clothes* %1, metadata !59, metadata !27), !dbg !60
+  %5 = bitcast %struct.clothes* %1 to i8*, !dbg !60
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %5, i8* bitcast (%struct.clothes* @main.c to i8*), i64 16, i32 8, i1 false), !dbg !60
+  call void @llvm.dbg.declare(metadata %struct.Person* %2, metadata !61, metadata !27), !dbg !62
+  %6 = getelementptr inbounds %struct.Person, %struct.Person* %2, i32 0, i32 0, !dbg !63
+  store i32 21, i32* %6, align 8, !dbg !63
+  %7 = getelementptr inbounds %struct.Person, %struct.Person* %2, i32 0, i32 1, !dbg !63
+  store %struct.clothes* %1, %struct.clothes** %7, align 8, !dbg !63
+  %8 = call i32 @f(%struct.Person* %2), !dbg !64
+  %9 = call i32 @ff(i32 5), !dbg !65
+  call void @llvm.dbg.declare(metadata i32* %3, metadata !66, metadata !27), !dbg !67
+  store i32 5, i32* %3, align 4, !dbg !67
+  call void @llvm.dbg.declare(metadata [3 x i32]* %4, metadata !68, metadata !27), !dbg !72
+  %10 = bitcast [3 x i32]* %4 to i8*, !dbg !72
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %10, i8* bitcast ([3 x i32]* @main.b to i8*), i64 12, i32 4, i1 false), !dbg !72
+  %11 = getelementptr inbounds %struct.clothes, %struct.clothes* %1, i32 0, i32 1, !dbg !73
+  %12 = load i8*, i8** %11, align 8, !dbg !73
+  %13 = getelementptr inbounds [3 x i32], [3 x i32]* %4, i32 0, i32 0, !dbg !74
+  call void @fff(i8* %12, i32* %3, i32* %13), !dbg !75
+  ret i32 0, !dbg !76
 }
 
 ; Function Attrs: argmemonly nounwind
@@ -113,14 +141,37 @@ attributes #3 = { argmemonly nounwind }
 !40 = !DILocation(line: 18, column: 13, scope: !36)
 !41 = !DILocation(line: 19, column: 12, scope: !36)
 !42 = !DILocation(line: 19, column: 5, scope: !36)
-!43 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 22, type: !44, isLocal: false, isDefinition: true, scopeLine: 22, isOptimized: false, unit: !0, variables: !2)
+!43 = distinct !DISubprogram(name: "fff", scope: !1, file: !1, line: 22, type: !44, isLocal: false, isDefinition: true, scopeLine: 22, flags: DIFlagPrototyped, isOptimized: false, unit: !0, variables: !2)
 !44 = !DISubroutineType(types: !45)
-!45 = !{!11}
-!46 = !DILocalVariable(name: "c", scope: !43, file: !1, line: 23, type: !19)
-!47 = !DILocation(line: 23, column: 15, scope: !43)
-!48 = !DILocalVariable(name: "p", scope: !43, file: !1, line: 24, type: !13)
-!49 = !DILocation(line: 24, column: 14, scope: !43)
-!50 = !DILocation(line: 24, column: 18, scope: !43)
-!51 = !DILocation(line: 25, column: 5, scope: !43)
-!52 = !DILocation(line: 26, column: 5, scope: !43)
-!53 = !DILocation(line: 27, column: 1, scope: !43)
+!45 = !{null, !24, !46, !46}
+!46 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !11, size: 64)
+!47 = !DILocalVariable(name: "c", arg: 1, scope: !43, file: !1, line: 22, type: !24)
+!48 = !DILocation(line: 22, column: 16, scope: !43)
+!49 = !DILocalVariable(name: "a", arg: 2, scope: !43, file: !1, line: 22, type: !46)
+!50 = !DILocation(line: 22, column: 24, scope: !43)
+!51 = !DILocalVariable(name: "b", arg: 3, scope: !43, file: !1, line: 22, type: !46)
+!52 = !DILocation(line: 22, column: 31, scope: !43)
+!53 = !DILocation(line: 23, column: 19, scope: !43)
+!54 = !DILocation(line: 23, column: 4, scope: !43)
+!55 = !DILocation(line: 24, column: 1, scope: !43)
+!56 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 26, type: !57, isLocal: false, isDefinition: true, scopeLine: 26, isOptimized: false, unit: !0, variables: !2)
+!57 = !DISubroutineType(types: !58)
+!58 = !{!11}
+!59 = !DILocalVariable(name: "c", scope: !56, file: !1, line: 27, type: !19)
+!60 = !DILocation(line: 27, column: 15, scope: !56)
+!61 = !DILocalVariable(name: "p", scope: !56, file: !1, line: 28, type: !13)
+!62 = !DILocation(line: 28, column: 14, scope: !56)
+!63 = !DILocation(line: 28, column: 18, scope: !56)
+!64 = !DILocation(line: 29, column: 5, scope: !56)
+!65 = !DILocation(line: 30, column: 5, scope: !56)
+!66 = !DILocalVariable(name: "a", scope: !56, file: !1, line: 31, type: !11)
+!67 = !DILocation(line: 31, column: 9, scope: !56)
+!68 = !DILocalVariable(name: "b", scope: !56, file: !1, line: 32, type: !69)
+!69 = !DICompositeType(tag: DW_TAG_array_type, baseType: !11, size: 96, elements: !70)
+!70 = !{!71}
+!71 = !DISubrange(count: 3)
+!72 = !DILocation(line: 32, column: 9, scope: !56)
+!73 = !DILocation(line: 33, column: 11, scope: !56)
+!74 = !DILocation(line: 33, column: 22, scope: !56)
+!75 = !DILocation(line: 33, column: 5, scope: !56)
+!76 = !DILocation(line: 34, column: 1, scope: !56)
