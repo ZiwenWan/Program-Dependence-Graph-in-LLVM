@@ -17,12 +17,13 @@ public:
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);
   std::set<InstructionWrapper *> getAliasStoreInstsForArg(ArgumentWrapper *argW);
+  std::set<InstructionWrapper *> getAliasLoadInstsForArg(ArgumentWrapper *argW);
   void getIntraFuncReadWriteInfoForArg(ArgumentWrapper *argW);
   void getIntraFuncReadWriteInfoForFunc(llvm::Function &F);
   int getCallParamIdx(InstructionWrapper *instW, InstructionWrapper *callInstW);
   ArgumentMatchType getArgMatchType(llvm::Argument *arg1, llvm::Argument *arg2);
   std::vector<llvm::Instruction*> getArgStackAddrs(llvm::Argument *arg);
-  void collectParamCallInstWForArg(ArgumentWrapper *argW, InstructionWrapper *aliasInstW);
+  void collectParamCallInstWForArg(ArgumentWrapper *argW);
   void mergeArgWAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW);
   void mergeTypeTreeAccessInfo(ArgumentWrapper *callerArgW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom);
   void getInterFuncReadWriteInfo(llvm::Function &F);
@@ -33,6 +34,7 @@ public:
   void generateIDLforFunc(llvm::Function &F);
   void generateIDLforArg(ArgumentWrapper *argW);
   void generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss);
+  bool reach(InstructionWrapper *instW1, InstructionWrapper *instW2);
   std::string getArgAccessInfo(llvm::Argument &arg);
   std::string getTypeNameByTag(llvm::DIType *ty);
 

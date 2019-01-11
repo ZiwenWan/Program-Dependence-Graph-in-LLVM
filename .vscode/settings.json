@@ -20,6 +20,15 @@
     "utility": "cpp",
     "stack": "cpp",
     "*.tpp": "cpp",
-    "sstream": "cpp"
+    "sstream": "cpp",
+    "exception": "cpp",
+    "__config": "cpp",
+    "__nullptr": "cpp",
+    "cstddef": "cpp",
+    "new": "cpp",
+    "stdexcept": "cpp",
+    "type_traits": "cpp",
+    "typeinfo": "cpp",
+    "algorithm": "cpp"
   }
 }

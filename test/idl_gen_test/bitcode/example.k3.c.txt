@@ -1,19 +1,27 @@
 <stdin> {
-project <struct unknow type > {
-}project <struct unknow type > {
+project <struct node *> {
+
+}project <struct device *> {
 	device device;
-}project <struct unknow type > {
+
+}project <struct device *> {
 	device device;
 	open open;
 	name name;
-}project <struct unknow type > {
+	devop_init_registered devop_init_registered;
+
+}project <struct int *> {
 	int int;
-}project <struct unknow type > {
+
+}project <struct char *> {
 	char char;
-}project <struct unknow type > {
+
+}project <struct device *> {
 	device device;
 	devop_init_registered devop_init_registered;
-}project <struct unknow type > {
+
+}project <struct device *> {
 	device device;
 	devop_init_registered devop_init_registered;
+
 }}
