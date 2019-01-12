@@ -7,6 +7,7 @@ namespace pdg
 {
 class DependencyNodeIsNullptrException : public std::exception
 {
+private:
   std::string _msg;
 
 public:
@@ -19,6 +20,7 @@ public:
 
 class NullPtrException : public std::exception
 {
+private:
   std::string _msg;
 
 public:
@@ -31,6 +33,7 @@ public:
 
 class ArgHasNoDITypeException : public std::exception
 {
+private:
   std::string _msg;
 
 public:
@@ -43,6 +46,7 @@ public:
 
 class ArgParameterTreeSizeIsZero : public std::exception
 {
+private:
   std::string _msg;
 
 public:
@@ -52,6 +56,20 @@ public:
     return _msg.c_str();
   }
 };
+
+class ArgWrapperIsNullPtr : public std::exception
+{
+private:
+  std::string _msg;
+
+public:
+  ArgWrapperIsNullPtr(const std::string &msg) : _msg(msg) {}
+  virtual const char *what() const noexcept override
+  {
+    return _msg.c_str();
+  }
+};
+
 } // namespace pdg
 
 #endif
