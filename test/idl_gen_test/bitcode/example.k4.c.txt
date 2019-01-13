@@ -2,25 +2,26 @@
 project <struct node *> {
 
 }project <struct device *> {
-	device device;
+	device * ;
 
 }project <struct device *> {
-	device device;
-	open open;
-	name name;
-
-}project <struct int *> {
+	device * ;
+	unknow type  ;
+	char char;
 	int int;
 
+}project <struct int *> {
+	int * ;
+
 }project <struct char *> {
-	char char;
+	char * ;
 
 }project <struct device *> {
-	device device;
-	devop_init_registered devop_init_registered;
+	device * ;
+	int int;
 
 }project <struct device *> {
-	device device;
-	devop_init_registered devop_init_registered;
+	device * ;
+	int int;
 
 }}

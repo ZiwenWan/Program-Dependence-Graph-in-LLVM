@@ -6,6 +6,18 @@
 
 #IncludeRegexTransform: 
 
+../include/AccessInfoTracker.hpp
+llvm/IR/Module.h
+../include/llvm/IR/Module.h
+llvm/PassAnalysisSupport.h
+../include/llvm/PassAnalysisSupport.h
+ProgramDependencyGraph.hpp
+../include/ProgramDependencyGraph.hpp
+fstream
+-
+sstream
+-
+
 ../include/ArgumentWrapper.hpp
 llvm/IR/Argument.h
 ../include/llvm/IR/Argument.h
@@ -198,9 +210,9 @@ stdio.h
 
 ../src/DependencyNode.tpp
 
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/ProgramDependencyGraph.cpp
-ProgramDependencyGraph.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/ProgramDependencyGraph.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/AccessInfoTracker.cpp
+AccessInfoTracker.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/AccessInfoTracker.hpp
 
 /usr/local/opt/llvm@5/include/llvm-c/Types.h
 llvm/Support/DataTypes.h

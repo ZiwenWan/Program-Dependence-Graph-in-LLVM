@@ -252,7 +252,7 @@ DIType *getArgDIType(Argument *arg)
       {
         break;
       }
-      const auto &ArgTypeRef = TypeRef[arg->getArgNo()+1];
+      const auto &ArgTypeRef = TypeRef[arg->getArgNo()+1]; // + 1 to skip return type
       DIType *Ty = ArgTypeRef.resolve();
       return Ty;
     }
@@ -333,7 +333,7 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
     }
     else
     {
-      buildTypeTree(arg, treeTyW, treeTy, argDIType);
+      buildTypeTree(arg, treeTyW, treeTy, getBaseType(argDIType));
     }
   } catch (std::exception &e) {
     errs() << e.what() << "\n";
@@ -379,7 +379,7 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
         backTreeIt = argW->getTree(treeTy).parent(backTreeIt);
         if ((*insert_loc)->getTreeNodeType() == (*backTreeIt)->getTreeNodeType())
         {
-          errs() << "Find recursion type!" << "\n";
+          errs() << "Find recursion type during parameter tree build for function: " << Func->getName() << "\n";
           recursion_flag = true;
           break;
         }
@@ -402,11 +402,11 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
                                                              pointedNodeTy,
                                                              curTyNode->getTreeNodeType(),
                                                              0,
-                                                             instDIType);
+                                                             getBaseType(instDIType));
       pdgUtils.getFuncInstWMap()[arg.getParent()].insert(pointedTypeW);
       argW->getTree(treeTy).append_child(insert_loc, pointedTypeW);
       instWQ.push(pointedTypeW); // put the pointed node to queue
-      DITypeQ.push(getLowestDIType(instDIType));
+      DITypeQ.push(getBaseType(instDIType));
       continue;
     }
 
@@ -435,7 +435,7 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
       Type *childType = curNodeTy->getContainedType(child_offset);
       DIType *childDIType = dyn_cast<DIType>(DINodeArr[child_offset]);
       InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
-      InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW, getLowestDIType(childDIType));
+      InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW, childDIType);
       // link gep with tree node
       if (gepInstW != nullptr)
         PDG->addDependency(typeFieldW, gepInstW, DependencyType::STRUCT_FIELDS);
@@ -468,7 +468,7 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
         }
       }
       instWQ.push(typeFieldW);
-      DITypeQ.push(cast<DIType>(childDIType));
+      DITypeQ.push(getBaseType(childDIType));
     }
   }
 }
@@ -523,8 +523,7 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
       // must handle nullptr case first
       if ((*formal_in_TI)->getTreeNodeType() == nullptr)
       {
-        errs() << "connectFunctionAndFormalTrees: "
-                  "formal_in_TI->getFieldType() == nullptr !\n";
+        errs() << "connectFunctionAndFormalTrees: formal_in_TI->getFieldType() == nullptr !\n";
         break;
       }
 
