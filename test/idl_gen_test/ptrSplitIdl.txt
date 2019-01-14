@@ -1,0 +1,16 @@
+init
+void ( node * node * )
+register_device
+void ( device * device * )
+open
+int ( device * device * )
+device_reset
+void ( int * int * )
+lookup_device
+device ( char * char * )
+main
+int (  )
+dev1_open
+void ( device * device * )
+dev2_open
+void ( device * device * )

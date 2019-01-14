@@ -3,6 +3,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/PassAnalysisSupport.h"
 #include "ProgramDependencyGraph.hpp"
+#include "DebugInfoUtils.hpp"
 #include <fstream>
 #include <sstream>
 
@@ -36,8 +37,6 @@ public:
   void generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss);
   bool reach(InstructionWrapper *instW1, InstructionWrapper *instW2);
   std::string getArgAccessInfo(llvm::Argument &arg);
-  std::string getDIFieldName(llvm::DIType *ty);
-  std::string getDITypeName(llvm::DIType *ty);
 
 private:
   ProgramDependencyGraph *PDG;

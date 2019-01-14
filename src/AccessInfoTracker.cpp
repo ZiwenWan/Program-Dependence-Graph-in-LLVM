@@ -526,13 +526,13 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW)
     if (parentTy == nullptr)
     {
       errs() << "** Root type node **" << "\n";
-      errs() << "Field name: " << getDIFieldName(curTyNode->getDIType())  << "\n";
+      errs() << "Field name: " << DIUtils::getDIFieldName(curTyNode->getDIType())  << "\n";
       errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
       errs() << ".............................................\n";
       continue;
     }
 
-    errs() << "sub field name: " << getDIFieldName(curTyNode->getDIType()) << "\n";
+    errs() << "sub field name: " << DIUtils::getDIFieldName(curTyNode->getDIType()) << "\n";
     errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
     errs() << "..............................................\n";
   }
@@ -567,7 +567,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
     if (parentTy == nullptr)
     {
       // idl for root node.
-      idl_file << "project <struct " << getDITypeName(curTyNode->getDIType()) << "> " << getDIFieldName(curTyNode->getDIType()) << "{\n";
+      idl_file << "project <struct " << DIUtils::getDITypeName(curTyNode->getDIType()) << "> " << DIUtils::getDIFieldName(curTyNode->getDIType()) << "{\n";
       continue;
     }
 
@@ -584,7 +584,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
     }
 
     // normal case
-    idl_file << "\t" << getDITypeName(curTyNode->getDIType()) << " " << curTyNode->getDIType()->getName().str() << ";\n";
+    idl_file << "\t" << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << curTyNode->getDIType()->getName().str() << ";\n";
   }
   idl_file << "}\n";
   idl_file << projection_str.str();
@@ -608,7 +608,7 @@ void pdg::AccessInfoTracker::generateIDLforStructField(int subtreeSize, tree<Ins
       generateIDLforStructField(subtreeSize - 1, treeI, ss);
       continue;
     }
-    ss << "\t" << getDITypeName(curTyNode->getDIType()) << " " << getDIFieldName(curTyNode->getDIType()) << ";\n";
+    ss << "\t" << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << DIUtils::getDIFieldName(curTyNode->getDIType()) << ";\n";
     // update all status
   }
   ss << "}\n";
@@ -621,84 +621,6 @@ bool pdg::isStructPointer(Type *ty)
     return ty->getPointerElementType()->isStructTy();
   }
   return false;
-}
-
-std::string pdg::AccessInfoTracker::getDITypeName(DIType *ty)
-{
-  switch (ty->getTag()) {
-    case dwarf::DW_TAG_member: {
-      DIType* lowestDINodeType = PDG->getLowestDIType(ty);
-      std::string lowestNodeName = "";
-      if (DISubroutineType* subRoutine = dyn_cast<DISubroutineType>(lowestDINodeType)) {
-        lowestNodeName += "( ";
-        for (const auto &argTypeRef : subRoutine->getTypeArray())
-        {
-          DIType* d = argTypeRef.resolve();
-          if (d == nullptr) {
-            lowestNodeName += "void ";
-          } else {
-            lowestNodeName += getDITypeName(d);
-          }
-        }
-        lowestNodeName += " )";
-        return lowestNodeName;
-      }
-      lowestNodeName = lowestDINodeType->getName();
-      if (PDG->getBaseType(ty)->getTag() == dwarf::DW_TAG_pointer_type) 
-        return lowestNodeName + " *";
-      return getDITypeName(PDG->getBaseType(ty));
-    }
-    case dwarf::DW_TAG_array_type: {
-      ty = dyn_cast<DICompositeType>(ty)->getBaseType().resolve();
-      return ty->getName().str() + "[]";
-    }
-    case dwarf::DW_TAG_pointer_type: {
-      std::string s = getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
-      return s + " *";
-    }
-    case dwarf::DW_TAG_subroutine_type:
-    {
-      return "func ptr";
-    }
-    default: {
-      if (!ty->getName().str().empty())
-        return ty->getName().str();
-      return "unknow type ";
-    }
-  }
-}
-
-std::string pdg::AccessInfoTracker::getDIFieldName(DIType *ty)
-{
-  // errs() << dwarf::TagString(ty->getTag()) << "\n";
-  switch (ty->getTag())
-  {
-  case dwarf::DW_TAG_member:
-  {
-    if (PDG->getBaseType(ty)->getTag() == dwarf::DW_TAG_pointer_type)
-      return ty->getName().str() + " *";
-    return ty->getName().str();
-  }
-  case dwarf::DW_TAG_array_type:
-  {
-    ty = dyn_cast<DICompositeType>(ty)->getBaseType().resolve();
-    return  ty->getName().str() + "[]";
-  }
-  case dwarf::DW_TAG_pointer_type:
-  {
-    std::string s = getDIFieldName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
-    return  s + " *";
-  }
-  case dwarf::DW_TAG_subroutine_type: {
-    return "func ptr";
-  }
-  default:
-  {
-    if (!ty->getName().str().empty())
-      return ty->getName().str(); 
-    return "unknow type ";
-  }
-  }
 }
 
 std::string pdg::AccessInfoTracker::getArgAccessInfo(Argument &arg) {

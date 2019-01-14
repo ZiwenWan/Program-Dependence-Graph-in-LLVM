@@ -3,6 +3,9 @@
 #include "llvm/IR/Module.h"
 #include "llvm/PassAnalysisSupport.h"
 #include "AccessInfoTracker.hpp"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/Support/Debug.h"
 #include <fstream>
 
 namespace pdg
@@ -15,7 +18,8 @@ public:
   bool runOnModule(llvm::Module &M);
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
 private:
-  AccessInfoTracker *acctracker;
+  ProgramDependencyGraph *PDG;
+  AccessInfoTracker *accInfoTracker;
   std::ofstream idl_file;
 };
 } // namespace

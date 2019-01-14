@@ -258,6 +258,33 @@ src/DataDependencyGraph.cpp.s:
 	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/DataDependencyGraph.cpp.s
 .PHONY : src/DataDependencyGraph.cpp.s
 
+src/DebugInfoUtils.o: src/DebugInfoUtils.cpp.o
+
+.PHONY : src/DebugInfoUtils.o
+
+# target to build an object file
+src/DebugInfoUtils.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/DebugInfoUtils.cpp.o
+.PHONY : src/DebugInfoUtils.cpp.o
+
+src/DebugInfoUtils.i: src/DebugInfoUtils.cpp.i
+
+.PHONY : src/DebugInfoUtils.i
+
+# target to preprocess a source file
+src/DebugInfoUtils.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/DebugInfoUtils.cpp.i
+.PHONY : src/DebugInfoUtils.cpp.i
+
+src/DebugInfoUtils.s: src/DebugInfoUtils.cpp.s
+
+.PHONY : src/DebugInfoUtils.s
+
+# target to generate assembly for a file
+src/DebugInfoUtils.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/src/DebugInfoUtils.cpp.s
+.PHONY : src/DebugInfoUtils.cpp.s
+
 src/DepPrinter.o: src/DepPrinter.cpp.o
 
 .PHONY : src/DepPrinter.o
@@ -417,6 +444,9 @@ help:
 	@echo "... src/DataDependencyGraph.o"
 	@echo "... src/DataDependencyGraph.i"
 	@echo "... src/DataDependencyGraph.s"
+	@echo "... src/DebugInfoUtils.o"
+	@echo "... src/DebugInfoUtils.i"
+	@echo "... src/DebugInfoUtils.s"
 	@echo "... src/DepPrinter.o"
 	@echo "... src/DepPrinter.i"
 	@echo "... src/DepPrinter.s"

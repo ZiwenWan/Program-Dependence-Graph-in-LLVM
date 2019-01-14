@@ -13,6 +13,8 @@ llvm/PassAnalysisSupport.h
 ../include/llvm/PassAnalysisSupport.h
 ProgramDependencyGraph.hpp
 ../include/ProgramDependencyGraph.hpp
+DebugInfoUtils.hpp
+../include/DebugInfoUtils.hpp
 fstream
 -
 sstream
@@ -79,6 +81,20 @@ CallWrapper.hpp
 ../include/CallWrapper.hpp
 FunctionWrapper.hpp
 ../include/FunctionWrapper.hpp
+
+../include/DebugInfoUtils.hpp
+llvm/IR/Module.h
+../include/llvm/IR/Module.h
+llvm/IR/DebugInfo.h
+../include/llvm/IR/DebugInfo.h
+llvm/IR/DebugInfoMetadata.h
+../include/llvm/IR/DebugInfoMetadata.h
+llvm/Support/Debug.h
+../include/llvm/Support/Debug.h
+llvm/Support/raw_ostream.h
+../include/llvm/Support/raw_ostream.h
+PDGExceptions.hpp
+../include/PDGExceptions.hpp
 
 ../include/DependencyGraph.hpp
 DependencyNode.hpp
@@ -185,6 +201,24 @@ llvm/IR/DebugInfoMetadata.h
 ../include/llvm/IR/DebugInfoMetadata.h
 llvm/Support/Debug.h
 ../include/llvm/Support/Debug.h
+DebugInfoUtils.hpp
+../include/DebugInfoUtils.hpp
+
+../include/PtrSplitIDLGen.hpp
+llvm/IR/Module.h
+../include/llvm/IR/Module.h
+llvm/PassAnalysisSupport.h
+../include/llvm/PassAnalysisSupport.h
+AccessInfoTracker.hpp
+../include/AccessInfoTracker.hpp
+llvm/IR/DebugInfo.h
+../include/llvm/IR/DebugInfo.h
+llvm/IR/DebugInfoMetadata.h
+../include/llvm/IR/DebugInfoMetadata.h
+llvm/Support/Debug.h
+../include/llvm/Support/Debug.h
+fstream
+-
 
 ../include/tree.hh
 cassert
@@ -210,9 +244,9 @@ stdio.h
 
 ../src/DependencyNode.tpp
 
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/AccessInfoTracker.cpp
-AccessInfoTracker.hpp
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/AccessInfoTracker.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/PtrSplitIDLGen.cpp
+PtrSplitIDLGen.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/PtrSplitIDLGen.hpp
 
 /usr/local/opt/llvm@5/include/llvm-c/Types.h
 llvm/Support/DataTypes.h

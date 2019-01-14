@@ -1,95 +1,39 @@
 #include "PtrSplitIDLGen.hpp"
-
 using namespace llvm;
 
 char pdg::PtrSplitIDLGen::ID = 0;
-
-std::string getTypeNameByTypeID(Type* ty)
-{
-  std::vector<std::string> TYPE_NAMES = {
-      "void",      ///<  0: type with no size
-      "Half",      ///<  1: 16-bit floating point type
-      "float",     ///<  2: 32-bit floating point type
-      "double",    ///<  3: 64-bit floating point type
-      "X86_FP80Ty",  ///<  4: 80-bit floating point type (X87)
-      "FP128Ty",     ///<  5: 128-bit floating point type (112-bit mantissa)
-      "PPC_FP128Ty", ///<  6: 128-bit floating point type (two 64-bits, PowerPC)
-      "LabelTy",     ///<  7: Labels
-      "MetadataTy",  ///<  8: Metadata
-      "X86_MMXTy",   ///<  9: MMX vectors (64 bits, X86 specific)
-      "TokenTy",     ///< 10: Tokens
-      // Derived types... see DerivedTypes.h file.
-      // Make sure FirstDerivedTyID stays up to date!
-      "int",  ///< 11: Arbitrary bit width integers
-      "function", ///< 12: Functions
-      //"struct",   ///< 13: Structures
-      "opaque", // use opaque for struct first
-      "array",    ///< 14: Arrays
-      "pointer",  ///< 15: Pointers
-      "vector"};
-
-  Type::TypeID tid = ty->getTypeID();
-  if (ty->isPointerTy()) {
-    errs() << ty->getPointerElementType()->getTypeID() << "\n";
-    return TYPE_NAMES[ty->getPointerElementType()->getTypeID()] + " *"; 
-  }
-  return TYPE_NAMES[tid];
-}
-
-// DIType *getArgDIType(Argument *arg)
-// {
-//   SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
-//   Function* F = arg->getParent();
-//   F->getAllMetadata(MDs);
-//   for (auto &MD : MDs)
-//   {
-//     MDNode *N = MD.second;
-//     if (DISubprogram *subprogram = dyn_cast<DISubprogram>(N)) {
-//       auto *subRoutine = subprogram->getType();
-//       const auto &TypeRef = subRoutine->getTypeArray();
-//       if (F->arg_size() >= TypeRef.size())
-//         break;
-
-//       const auto &ArgTypeRef = TypeRef[arg->getArgNo()+1];
-//       DIType *Ty = ArgTypeRef.resolve();
-//       return Ty;
-//     }
-//   }
-//   return nullptr;
-// }
-
 bool pdg::PtrSplitIDLGen::runOnModule(Module &M)
 {
-  acctracker = &getAnalysis<pdg::AccessInfoTracker>();
-  idl_file.open("ptrSplitIdl.txt"); 
-
+  // PDG = &getAnalysis<pdg::ProgramDependencyGraph>();
+  // accInfoTracker = &getAnalysis<pdg::AccessInfoTracker>();
+  idl_file.open("ptrSplitIdl.txt");
   for (Function &F : M)
   {
     if (F.isDeclaration())
       continue;
-    idl_file << F.getName().str() << "\n";
-    idl_file << getTypeNameByTypeID(F.getReturnType()) << " ( ";
+    // print return type name
+    DIType *retDIType = DIUtils::getFuncRetDIType(F);
+    if (retDIType == nullptr)
+      idl_file << "void ";
+    else
+      idl_file << DIUtils::getDITypeName(retDIType) << " ";
 
+    idl_file << F.getName().str() << " (";
     for (auto &arg : F.args())
     {
       // idl_file << getTypeNameByTypeID
+      DIType *dt = DIUtils::getArgDIType(arg);
+      idl_file << DIUtils::getDITypeName(dt) << " ";
+      idl_file << DIUtils::getArgName(arg);
       if (arg.getArgNo() != F.arg_size() - 1)
-      {
         idl_file << ", ";
-      }
     }
-    idl_file << " )";
 
-    idl_file << " ( ";
-    for (auto &arg : F.args())
+    if (F.arg_size() == 0)
     {
-      idl_file << acctracker->getArgAccessInfo(arg);
-      if (arg.getArgNo() != F.arg_size() - 1)
-      {
-        idl_file << ", ";
-      }
+      idl_file << "void";
     }
-    idl_file << " ) \n";
+    idl_file << ")\n";
   }
 
   idl_file.close();
@@ -98,7 +42,8 @@ bool pdg::PtrSplitIDLGen::runOnModule(Module &M)
 
 void pdg::PtrSplitIDLGen::getAnalysisUsage(AnalysisUsage &AU) const
 {
-  AU.addRequired<pdg::AccessInfoTracker>();
+  // AU.addRequired<pdg::ProgramDependencyGraph>();
+  // AU.addRequired<pdg::AccessInfoTracker>();
   AU.setPreservesAll();
 }
 
