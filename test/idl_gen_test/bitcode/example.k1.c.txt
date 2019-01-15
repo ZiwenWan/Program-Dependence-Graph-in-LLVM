@@ -1,10 +1,16 @@
 <stdin> {
-project <struct unknow type > {
-}project <struct unknow type > {
-	NODE NODE;
-}project <struct unknow type > {
-	devops_ds devops_ds;
-}project <struct unknow type > {
-}project <struct unknow type > {
-	device_operations device_operations;
-}}
+project <struct opaque*> NODE{
+}
+project <struct opaque*> NODE{
+	opaque node;
+}
+project <struct opaque*> devops_ds{
+	opaque device_operations;
+}
+project <struct func ptr*> func ptr{
+}
+project <struct opaque*> device_operations{
+	opaque device_operations;
+	int devop_init_registered;
+}
+}

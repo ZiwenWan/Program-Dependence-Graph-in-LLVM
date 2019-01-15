@@ -11,11 +11,24 @@ void pdg::ProgramDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const
   AU.setPreservesAll();
 }
 
+int pdg::EXPAND_LEVEL;
+int pdg::USEDEBUGINFO;
+llvm::cl::opt<int> expandLevel("l", llvm::cl::desc("Parameter tree expand level"), llvm::cl::value_desc("level"));
+llvm::cl::opt<int> useDebugInfo("debug", llvm::cl::desc("use debug information"), llvm::cl::value_desc("debugInfo"));
+
 bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 {
+  if (!expandLevel)
+    expandLevel = 4;
+  if (!useDebugInfo)
+    useDebugInfo = 0;
+  EXPAND_LEVEL = expandLevel;
+  USEDEBUGINFO = useDebugInfo;
+
+  errs() << "Expand level " << EXPAND_LEVEL << "\n";
+  errs() << "Using Debug Info " << USEDEBUGINFO << "\n";
   module = &M;
   auto &pdgUtils = PDGUtils::getInstance();
-
   pdgUtils.constructFuncMap(M);
   pdgUtils.collectGlobalInsts(M);
   int user_def_func_num = 0;
@@ -262,125 +275,138 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
     }
     else
     {
-      // buildTypeTree(arg, treeTyW, treeTy, getBaseType(argDIType));
-      buildTypeTree(arg, treeTyW, treeTy);
+      if (USEDEBUGINFO) 
+        buildTypeTreeWithDI(arg, treeTyW, treeTy, DIUtils::getBaseDIType(argDIType));
+      else
+        buildTypeTree(arg, treeTyW, treeTy);
     }
   } catch (std::exception &e) {
     errs() << e.what() << "\n";
   }
 }
 
-// void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrapper *treeTyW, TreeType treeTy) 
-// {
-//   auto &pdgUtils = PDGUtils::getInstance();
-//   Function *Func = arg.getParent();
-//   // setup instWQ to avoid recusion processing
-//   std::queue<InstructionWrapper *> instWQ;
-//   instWQ.push(treeTyW);
-//   ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
+void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrapper *treeTyW, TreeType treeTy)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  Function *Func = arg.getParent();
+  // setup instWQ to avoid recusion processing
+  std::queue<InstructionWrapper *> instWQ;
+  instWQ.push(treeTyW);
+  ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
 
-//   if (argW == nullptr)
-//     throw new ArgWrapperIsNullPtr("Argument Wrapper is nullptr");
+  if (argW == nullptr)
+    throw new ArgWrapperIsNullPtr("Argument Wrapper is nullptr");
 
-//   tree<InstructionWrapper *>::iterator insert_loc; // insert location in the parameter tree for the type wrapper
-//   while (!instWQ.empty()) 
-//   {
-//     InstructionWrapper *curTyNode = instWQ.front();
-//     instWQ.pop();
-//     insert_loc = getInstInsertLoc(argW, curTyNode, treeTy);
+  tree<InstructionWrapper *>::iterator insert_loc; // insert location in the parameter tree for the type wrapper
+  int depth = 0;
+  while (!instWQ.empty())
+  {
+    if (depth >= EXPAND_LEVEL)
+      return;
+    depth += 1;
 
-//     // handle recursion type using 1-limit approach
-//     // track back from child to parent, if find same type, stop building.
-//     // The type used here is form llvm type system. 
-//     int height = argW->getTree(treeTy).depth(insert_loc);
-//     if (height != 0)
-//     {
-//       bool recursion_flag = false;
-//       tree<InstructionWrapper *>::iterator backTreeIt = insert_loc;
-//       while (height > 0) {
-//         backTreeIt = argW->getTree(treeTy).parent(backTreeIt);
-//         if ((*insert_loc)->getTreeNodeType() == (*backTreeIt)->getTreeNodeType())
-//         {
-//           errs() << "Find recursion type during parameter tree build for function: " << Func->getName() << "\n";
-//           recursion_flag = true;
-//           break;
-//         }
-//         height -= 1;
-//       }
-//       // process next type, because this type brings in a recursion
-//       if (recursion_flag)
-//         continue;
-//     }
+    int qSize = instWQ.size();
+    while (qSize > 0)
+    {
+      qSize -= 1;
+      InstructionWrapper *curTyNode = instWQ.front();
+      instWQ.pop();
+      insert_loc = getInstInsertLoc(argW, curTyNode, treeTy);
 
-//     // if is pointer type, create node for the pointed type
-//     Type* curNodeTy = curTyNode->getTreeNodeType();
-//     if (curNodeTy->isPointerTy())
-//     {
-//       PointerType *pt = dyn_cast<PointerType>(curTyNode->getTreeNodeType());
-//       Type *pointedNodeTy = pt->getElementType();
-//       InstructionWrapper *pointedTypeW = new TreeTypeWrapper(arg.getParent(),
-//                                                              GraphNodeType::PARAMETER_FIELD,
-//                                                              &arg,
-//                                                              pointedNodeTy,
-//                                                              curTyNode->getTreeNodeType(),
-//                                                              0);
-//       pdgUtils.getFuncInstWMap()[arg.getParent()].insert(pointedTypeW);
-//       argW->getTree(treeTy).append_child(insert_loc, pointedTypeW);
-//       instWQ.push(pointedTypeW); // put the pointed node to queue
-//       continue;
-//     }
+      // handle recursion type using 1-limit approach
+      // track back from child to parent, if find same type, stop building.
+      // The type used here is form llvm type system.
+      int height = argW->getTree(treeTy).depth(insert_loc);
+      if (height != 0)
+      {
+        bool recursion_flag = false;
+        tree<InstructionWrapper *>::iterator backTreeIt = insert_loc;
+        while (height > 0)
+        {
+          backTreeIt = argW->getTree(treeTy).parent(backTreeIt);
+          if ((*insert_loc)->getTreeNodeType() == (*backTreeIt)->getTreeNodeType())
+          {
+            errs() << "Find recursion type during parameter tree build for function: " << Func->getName() << "\n";
+            recursion_flag = true;
+            break;
+          }
+          height -= 1;
+        }
+        // process next type, because this type brings in a recursion
+        if (recursion_flag)
+          continue;
+      }
 
-//     // compose for struct
-//     if (!curNodeTy->isStructTy() )
-//       continue;
+      // if is pointer type, create node for the pointed type
+      Type *curNodeTy = curTyNode->getTreeNodeType();
+      if (curNodeTy->isPointerTy())
+      {
+        PointerType *pt = dyn_cast<PointerType>(curTyNode->getTreeNodeType());
+        Type *pointedNodeTy = pt->getElementType();
+        InstructionWrapper *pointedTypeW = new TreeTypeWrapper(arg.getParent(),
+                                                               GraphNodeType::PARAMETER_FIELD,
+                                                               &arg,
+                                                               pointedNodeTy,
+                                                               curTyNode->getTreeNodeType(),
+                                                               0);
+        pdgUtils.getFuncInstWMap()[arg.getParent()].insert(pointedTypeW);
+        argW->getTree(treeTy).append_child(insert_loc, pointedTypeW);
+        instWQ.push(pointedTypeW); // put the pointed node to queue
+        continue;
+      }
 
-//     // processs non-pointer type
-//     Type *parentType = nullptr;
-//     // for struct type, insert all children to the tree
-//     for (unsigned int child_offset = 0; child_offset < curNodeTy->getNumContainedTypes(); child_offset++)
-//     {
-//       parentType = curTyNode->getTreeNodeType();
-//       // field sensitive processing. Get correspond gep and link tree node with gep.
-//       Type *childType = curNodeTy->getContainedType(child_offset);
-//       InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
-//       InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW);
-//       // link gep with tree node
-//       if (gepInstW != nullptr)
-//         PDG->addDependency(typeFieldW, gepInstW, DependencyType::STRUCT_FIELDS);
+      // compose for struct
+      if (!curNodeTy->isStructTy())
+        continue;
 
-//       pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
-//       // start inserting formal tree instructions
-//       argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
-//       //skip function ptr, FILE*
-//       if (childType->isPointerTy())
-//       {
-//         Type *childEleTy = dyn_cast<PointerType>(childType)->getElementType();
-//         //if field is a function Ptr
-//         if (childEleTy->isFunctionTy())
-//         {
-//           std::string Str;
-//           raw_string_ostream OS(Str);
-//           OS << childType;
-//           continue;
-//         }
-//         if (childEleTy->isStructTy())
-//         {
-//           std::string Str;
-//           raw_string_ostream OS(Str);
-//           OS << childType;
-//           //FILE*, bypass, no need to buildTypeTree
-//           if ("%struct._IO_FILE*" == OS.str() || "%struct._IO_marker*" == OS.str())
-//           {
-//             continue;
-//           }
-//         }
-//       }
-//       instWQ.push(typeFieldW);
-//     }
-//   }
-// }
+      // processs non-pointer type
+      Type *parentType = nullptr;
+      // for struct type, insert all children to the tree
+      for (unsigned int child_offset = 0; child_offset < curNodeTy->getNumContainedTypes(); child_offset++)
+      {
+        parentType = curTyNode->getTreeNodeType();
+        // field sensitive processing. Get correspond gep and link tree node with gep.
+        Type *childType = curNodeTy->getContainedType(child_offset);
+        InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
+        InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW);
+        // link gep with tree node
+        if (gepInstW != nullptr)
+          PDG->addDependency(typeFieldW, gepInstW, DependencyType::STRUCT_FIELDS);
 
-void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, InstructionWrapper *treeTyW, TreeType treeTy, DIType* argDIType)
+        pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
+        // start inserting formal tree instructions
+        argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
+        //skip function ptr, FILE*
+        if (childType->isPointerTy())
+        {
+          Type *childEleTy = dyn_cast<PointerType>(childType)->getElementType();
+          //if field is a function Ptr
+          if (childEleTy->isFunctionTy())
+          {
+            std::string Str;
+            raw_string_ostream OS(Str);
+            OS << childType;
+            continue;
+          }
+          if (childEleTy->isStructTy())
+          {
+            std::string Str;
+            raw_string_ostream OS(Str);
+            OS << childType;
+            //FILE*, bypass, no need to buildTypeTree
+            if ("%struct._IO_FILE*" == OS.str() || "%struct._IO_marker*" == OS.str())
+            {
+              continue;
+            }
+          }
+        }
+        instWQ.push(typeFieldW);
+      }
+    }
+  }
+}
+
+void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, InstructionWrapper *treeTyW, TreeType treeTy, DIType *argDIType)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   Function *Func = arg.getParent();
@@ -398,116 +424,124 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
     throw new ArgHasNoDITypeException("Argument Debug Type is nullptr");
 
   tree<InstructionWrapper *>::iterator insert_loc; // insert location in the parameter tree for the type wrapper
+  int depth = 0;
   while (!instWQ.empty())
   {
-    InstructionWrapper *curTyNode = instWQ.front();
-    DIType* instDIType = DITypeQ.front();
-    instWQ.pop();
-    DITypeQ.pop();
-    insert_loc = getInstInsertLoc(argW, curTyNode, treeTy);
-
-    // handle recursion type using 1-limit approach
-    // track back from child to parent, if find same type, stop building.
-    // The type used here is form llvm type system.
-    int height = argW->getTree(treeTy).depth(insert_loc);
-    if (height != 0)
-    {
-      bool recursion_flag = false;
-      tree<InstructionWrapper *>::iterator backTreeIt = insert_loc;
-      while (height > 0) {
-        backTreeIt = argW->getTree(treeTy).parent(backTreeIt);
-        if ((*insert_loc)->getTreeNodeType() == (*backTreeIt)->getTreeNodeType())
-        {
-          errs() << "Find recursion type during parameter tree build for function: " << Func->getName() << "\n";
-          recursion_flag = true;
-          break;
-        }
-        height -= 1;
-      }
-      // process next type, because this type brings in a recursion
-      if (recursion_flag)
-        continue;
-    }
-
-    // if is pointer type, create a node represent pointer type.
-    Type* curNodeTy = curTyNode->getTreeNodeType();
-    if (curNodeTy->isPointerTy())
-    {
-      PointerType *pt = dyn_cast<PointerType>(curTyNode->getTreeNodeType());
-      Type *pointedNodeTy = pt->getElementType();
-      InstructionWrapper *pointedTypeW = new TreeTypeWrapper(arg.getParent(),
-                                                             GraphNodeType::PARAMETER_FIELD,
-                                                             &arg,
-                                                             pointedNodeTy,
-                                                             curTyNode->getTreeNodeType(),
-                                                             0,
-                                                             getBaseType(instDIType));
-      pdgUtils.getFuncInstWMap()[arg.getParent()].insert(pointedTypeW);
-      argW->getTree(treeTy).append_child(insert_loc, pointedTypeW);
-      instWQ.push(pointedTypeW); // put the pointed node to queue
-      DITypeQ.push(getBaseType(instDIType));
-      continue;
-    }
-
-    // compose for struct
-    if (!curNodeTy->isStructTy() )
-      continue;
-
-    while (instDIType && instDIType->getTag() != dwarf::DW_TAG_structure_type) {
-      instDIType = DITypeQ.front();
-      DITypeQ.pop();
-    }
-
-    if (!instDIType) {
-      errs() << "No DIType left in the queue..." << "\n";
+    if (depth >= EXPAND_LEVEL)
       return;
-    }
-
-    // processs non-pointer type
-    Type *parentType = nullptr;
-    // for struct type, insert all children to the tree
-    auto DINodeArr = dyn_cast<DICompositeType>(instDIType)->getElements();
-    for (unsigned int child_offset = 0; child_offset < curNodeTy->getNumContainedTypes(); child_offset++)
+    depth += 1;
+    int qSize = instWQ.size();
+    while (qSize > 0)
     {
-      parentType = curTyNode->getTreeNodeType();
-      // field sensitive processing. Get correspond gep and link tree node with gep.
-      Type *childType = curNodeTy->getContainedType(child_offset);
-      DIType *childDIType = dyn_cast<DIType>(DINodeArr[child_offset]);
-      InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
-      InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW, childDIType);
-      // link gep with tree node
-      if (gepInstW != nullptr)
-        PDG->addDependency(typeFieldW, gepInstW, DependencyType::STRUCT_FIELDS);
-
-      pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
-      // start inserting formal tree instructions
-      argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
-      //skip function ptr, FILE*
-      if (childType->isPointerTy())
+      qSize -= 1;
+      InstructionWrapper *curTyNode = instWQ.front();
+      DIType *instDIType = DITypeQ.front();
+      instWQ.pop();
+      DITypeQ.pop();
+      insert_loc = getInstInsertLoc(argW, curTyNode, treeTy);
+      // handle recursion type using 1-limit approach
+      // track back from child to parent, if find same type, stop building.
+      // The type used here is form llvm type system.
+      int height = argW->getTree(treeTy).depth(insert_loc);
+      if (height != 0)
       {
-        Type *childEleTy = dyn_cast<PointerType>(childType)->getElementType();
-        //if field is a function Ptr
-        if (childEleTy->isFunctionTy())
+        bool recursion_flag = false;
+        tree<InstructionWrapper *>::iterator backTreeIt = insert_loc;
+        while (height > 0)
         {
-          std::string Str;
-          raw_string_ostream OS(Str);
-          OS << childType;
-          continue;
-        }
-        if (childEleTy->isStructTy())
-        {
-          std::string Str;
-          raw_string_ostream OS(Str);
-          OS << childType;
-          //FILE*, bypass, no need to buildTypeTree
-          if ("%struct._IO_FILE*" == OS.str() || "%struct._IO_marker*" == OS.str())
+          backTreeIt = argW->getTree(treeTy).parent(backTreeIt);
+          if ((*insert_loc)->getTreeNodeType() == (*backTreeIt)->getTreeNodeType())
           {
+            errs() << "Find recursion type during parameter tree build for function: " << Func->getName() << "\n";
+            recursion_flag = true;
+            break;
+          }
+          height -= 1;
+        }
+        // process next type, because this type brings in a recursion
+        if (recursion_flag)
+          continue;
+      }
+
+      // if is pointer type, create a node represent pointer type.
+      Type *curNodeTy = curTyNode->getTreeNodeType();
+      if (curNodeTy->isPointerTy())
+      {
+        PointerType *pt = dyn_cast<PointerType>(curTyNode->getTreeNodeType());
+        Type *pointedNodeTy = pt->getElementType();
+        InstructionWrapper *pointedTypeW = new TreeTypeWrapper(arg.getParent(),
+                                                               GraphNodeType::PARAMETER_FIELD,
+                                                               &arg,
+                                                               pointedNodeTy,
+                                                               curTyNode->getTreeNodeType(),
+                                                               0,
+                                                               DIUtils::getBaseDIType(instDIType));
+        pdgUtils.getFuncInstWMap()[arg.getParent()].insert(pointedTypeW);
+        argW->getTree(treeTy).append_child(insert_loc, pointedTypeW);
+        instWQ.push(pointedTypeW); // put the pointed node to queue
+        DITypeQ.push(DIUtils::getBaseDIType(instDIType));
+        continue;
+      }
+
+      if (!instDIType)
+      {
+        errs() << "No DIType left in the queue..." << "\n";
+        return;
+      }
+
+      // compose for struct
+      if (!curNodeTy->isStructTy())
+        continue;
+
+      if (!isa<DICompositeType>(instDIType))
+        continue;
+
+      // processs non-pointer type
+      Type *parentType = nullptr;
+      // for struct type, insert all children to the tree
+      auto DINodeArr = dyn_cast<DICompositeType>(instDIType)->getElements();
+      for (unsigned int child_offset = 0; child_offset < curNodeTy->getNumContainedTypes(); child_offset++)
+      {
+        parentType = curTyNode->getTreeNodeType();
+        // field sensitive processing. Get correspond gep and link tree node with gep.
+        Type *childType = curNodeTy->getContainedType(child_offset);
+        DIType *childDIType = dyn_cast<DIType>(DINodeArr[child_offset]);
+        InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
+        InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW, childDIType);
+        // link gep with tree node
+        if (gepInstW != nullptr)
+          PDG->addDependency(typeFieldW, gepInstW, DependencyType::STRUCT_FIELDS);
+
+        pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
+        // start inserting formal tree instructions
+        argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
+        //skip function ptr, FILE*
+        if (childType->isPointerTy())
+        {
+          Type *childEleTy = dyn_cast<PointerType>(childType)->getElementType();
+          //if field is a function Ptr
+          if (childEleTy->isFunctionTy())
+          {
+            std::string Str;
+            raw_string_ostream OS(Str);
+            OS << childType;
             continue;
           }
+          if (childEleTy->isStructTy())
+          {
+            std::string Str;
+            raw_string_ostream OS(Str);
+            OS << childType;
+            //FILE*, bypass, no need to buildTypeTree
+            if ("%struct._IO_FILE*" == OS.str() || "%struct._IO_marker*" == OS.str())
+            {
+              continue;
+            }
+          }
         }
+        instWQ.push(typeFieldW);
+        DITypeQ.push(DIUtils::getBaseDIType(childDIType));
       }
-      instWQ.push(typeFieldW);
-      DITypeQ.push(getBaseType(childDIType));
     }
   }
 }

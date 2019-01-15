@@ -9,6 +9,7 @@
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Support/Debug.h"
 #include "DebugInfoUtils.hpp"
+#include "PDGCommandLineOptions.hpp"
 
 namespace pdg
 {
@@ -33,6 +34,7 @@ public:
   void buildFormalTreeForArg(llvm::Argument &arg, TreeType treeTy);
   // void buildTypeTree(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType* argDIType);
   void buildTypeTree(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType);
+  void buildTypeTreeWithDI(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType* argDIType);
   void drawFormalParameterTree(llvm::Function *Func, TreeType treeTy);
   void connectFunctionAndFormalTrees(llvm::Function *callee);
   bool connectAllPossibleFunctions(llvm::CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates);

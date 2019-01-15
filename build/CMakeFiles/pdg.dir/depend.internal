@@ -12,6 +12,7 @@ CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o
  ../include/DependencyNode.hpp
  ../include/FunctionWrapper.hpp
  ../include/InstructionWrapper.hpp
+ ../include/PDGCommandLineOptions.hpp
  ../include/PDGEnums.hpp
  ../include/PDGExceptions.hpp
  ../include/PDGUtils.hpp
@@ -794,6 +795,7 @@ CMakeFiles/pdg.dir/src/DepPrinter.cpp.o
  ../include/DependencyNode.hpp
  ../include/FunctionWrapper.hpp
  ../include/InstructionWrapper.hpp
+ ../include/PDGCommandLineOptions.hpp
  ../include/PDGEnums.hpp
  ../include/PDGExceptions.hpp
  ../include/PDGUtils.hpp
@@ -1202,6 +1204,7 @@ CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o
  ../include/DependencyNode.hpp
  ../include/FunctionWrapper.hpp
  ../include/InstructionWrapper.hpp
+ ../include/PDGCommandLineOptions.hpp
  ../include/PDGEnums.hpp
  ../include/PDGExceptions.hpp
  ../include/PDGUtils.hpp
@@ -1361,6 +1364,7 @@ CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o
  ../include/DependencyNode.hpp
  ../include/FunctionWrapper.hpp
  ../include/InstructionWrapper.hpp
+ ../include/PDGCommandLineOptions.hpp
  ../include/PDGEnums.hpp
  ../include/PDGExceptions.hpp
  ../include/PDGUtils.hpp

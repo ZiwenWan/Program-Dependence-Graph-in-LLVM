@@ -11,6 +11,7 @@ CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o: ../include/DependencyGraph.hpp
 CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o: ../include/DependencyNode.hpp
 CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o: ../include/FunctionWrapper.hpp
 CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o: ../include/InstructionWrapper.hpp
+CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o: ../include/PDGCommandLineOptions.hpp
 CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o: ../include/PDGEnums.hpp
 CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o: ../include/PDGExceptions.hpp
 CMakeFiles/pdg.dir/src/AccessInfoTracker.cpp.o: ../include/PDGUtils.hpp
@@ -793,6 +794,7 @@ CMakeFiles/pdg.dir/src/DepPrinter.cpp.o: ../include/DependencyGraph.hpp
 CMakeFiles/pdg.dir/src/DepPrinter.cpp.o: ../include/DependencyNode.hpp
 CMakeFiles/pdg.dir/src/DepPrinter.cpp.o: ../include/FunctionWrapper.hpp
 CMakeFiles/pdg.dir/src/DepPrinter.cpp.o: ../include/InstructionWrapper.hpp
+CMakeFiles/pdg.dir/src/DepPrinter.cpp.o: ../include/PDGCommandLineOptions.hpp
 CMakeFiles/pdg.dir/src/DepPrinter.cpp.o: ../include/PDGEnums.hpp
 CMakeFiles/pdg.dir/src/DepPrinter.cpp.o: ../include/PDGExceptions.hpp
 CMakeFiles/pdg.dir/src/DepPrinter.cpp.o: ../include/PDGUtils.hpp
@@ -1201,6 +1203,7 @@ CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o: ../include/DependencyGraph.
 CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o: ../include/DependencyNode.hpp
 CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o: ../include/FunctionWrapper.hpp
 CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o: ../include/InstructionWrapper.hpp
+CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o: ../include/PDGCommandLineOptions.hpp
 CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o: ../include/PDGEnums.hpp
 CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o: ../include/PDGExceptions.hpp
 CMakeFiles/pdg.dir/src/ProgramDependencyGraph.cpp.o: ../include/PDGUtils.hpp
@@ -1360,6 +1363,7 @@ CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o: ../include/DependencyGraph.hpp
 CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o: ../include/DependencyNode.hpp
 CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o: ../include/FunctionWrapper.hpp
 CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o: ../include/InstructionWrapper.hpp
+CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o: ../include/PDGCommandLineOptions.hpp
 CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o: ../include/PDGEnums.hpp
 CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o: ../include/PDGExceptions.hpp
 CMakeFiles/pdg.dir/src/PtrSplitIDLGen.cpp.o: ../include/PDGUtils.hpp

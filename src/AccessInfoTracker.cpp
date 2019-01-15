@@ -517,6 +517,9 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW)
        treeI != argW->tree_end(TreeType::FORMAL_IN_TREE);
        ++treeI)
   {
+    if ((argW->getTree(TreeType::FORMAL_IN_TREE).depth(treeI) >= EXPAND_LEVEL))
+      return;
+
     InstructionWrapper *curTyNode = *treeI;
     Type *parentTy = curTyNode->getParentTreeNodeType();
     Type *curType = curTyNode->getTreeNodeType();
@@ -561,6 +564,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
        ++treeI)
   {
     InstructionWrapper *curTyNode = *treeI;
+    if (argW->getTree(TreeType::FORMAL_IN_TREE).depth(treeI) >= EXPAND_LEVEL)
+      return;
     Type *parentTy = curTyNode->getParentTreeNodeType();
     Type *curType = curTyNode->getTreeNodeType();
 
