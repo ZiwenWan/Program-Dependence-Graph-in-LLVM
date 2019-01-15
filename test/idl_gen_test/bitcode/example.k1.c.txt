@@ -1,16 +1,16 @@
 <stdin> {
-project <struct opaque*> NODE{
+project <struct struct*> NODE{
 }
-project <struct opaque*> NODE{
-	opaque node;
+project <struct struct*> NODE{
+	struct node;
 }
-project <struct opaque*> devops_ds{
-	opaque device_operations;
+project <struct struct*> devops_ds{
+	struct device_operations;
 }
-project <struct func ptr*> func ptr{
+project <struct func*> func ptr{
 }
-project <struct opaque*> device_operations{
-	opaque device_operations;
+project <struct struct*> device_operations{
+	struct device_operations;
 	int devop_init_registered;
 }
 }

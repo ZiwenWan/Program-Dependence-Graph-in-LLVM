@@ -19,8 +19,7 @@ public:
 };
 
 class NullPtrException : public std::exception
-{
-private:
+{ private:
   std::string _msg;
 
 public:
@@ -70,6 +69,18 @@ public:
   }
 };
 
+class DITypeIsNullPtr : public std::exception
+{
+private:
+  std::string _msg;
+
+public:
+  DITypeIsNullPtr(const std::string &msg) : _msg(msg) {}
+  virtual const char *what() const noexcept override
+  {
+    return _msg.c_str();
+  }
+};
 } // namespace pdg
 
 #endif

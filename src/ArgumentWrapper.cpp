@@ -35,7 +35,7 @@ void pdg::ArgumentWrapper::copyTree(const tree<pdg::InstructionWrapper *> &srcTr
 {
   if (srcTree.empty())
   {
-    errs() << *arg->getParent() << " arg : " << *arg << " srcTree is empty!\n";
+    errs() << arg->getParent()->getName() << " arg : " << *arg << " srcTree is empty!\n";
     return;
   }
 

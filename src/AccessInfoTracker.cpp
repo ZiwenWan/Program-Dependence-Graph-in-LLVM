@@ -9,6 +9,11 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   auto &pdgUtils = PDGUtils::getInstance();
   PDG = &getAnalysis<pdg::ProgramDependencyGraph>();
 
+  if (!USEDEBUGINFO) {
+    errs() << "[WARNING] No debug information avaliable... \nUse [-debug 1] in the pass to generate debug information\n";
+    exit(0);
+  }
+
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
     Function &F = *FI;
@@ -181,15 +186,16 @@ std::set<InstructionWrapper *> pdg::AccessInfoTracker::getAliasStoreInstsForArg(
 void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForArg(ArgumentWrapper *argW)
 {
   auto argTree = argW->getTree(TreeType::FORMAL_IN_TREE);
-
-  if (argTree.size() == 0) 
+  if (argTree.size() == 0)
     throw new ArgParameterTreeSizeIsZero("Argment tree is empty... Every param should have at least one node...\n");
 
   auto treeI = argW->getTree(TreeType::FORMAL_IN_TREE).begin();
 
-  if (!(*treeI)->getTreeNodeType()->isPointerTy()) 
+  if (!(*treeI)->getTreeNodeType()->isPointerTy()) {
+    errs() << "Find non-pointer type parameter, do not track...\n";
     return;
-  
+  }
+
   AccessType accessType = AccessType::NOACCESS;
   try
   {
@@ -528,8 +534,9 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW)
 
     if (parentTy == nullptr)
     {
-      errs() << "** Root type node **" << "\n";
-      errs() << "Field name: " << DIUtils::getDIFieldName(curTyNode->getDIType())  << "\n";
+      errs() << "** Root type node **"
+             << "\n";
+      errs() << "Field name: " << DIUtils::getDIFieldName(curTyNode->getDIType()) << "\n";
       errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
       errs() << ".............................................\n";
       continue;
@@ -597,7 +604,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
 
 void pdg::AccessInfoTracker::generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss)
 {
-  InstructionWrapper* curTyNode = *treeI;
+  InstructionWrapper *curTyNode = *treeI;
   ss << "\nproject <struct " << curTyNode->getDIType()->getName().str() << "> " << curTyNode->getDIType()->getName().str() << "\n";
   while (subtreeSize > 0)
   {
@@ -628,10 +635,11 @@ bool pdg::isStructPointer(Type *ty)
   return false;
 }
 
-std::string pdg::AccessInfoTracker::getArgAccessInfo(Argument &arg) {
+std::string pdg::AccessInfoTracker::getArgAccessInfo(Argument &arg)
+{
   auto &pdgUtils = PDGUtils::getInstance();
-  std::vector<std::string> mod_info = { "U", "R", "W", "T" };
-  ArgumentWrapper* argW = pdgUtils.getFuncMap()[arg.getParent()]->getArgWByArg(arg);
+  std::vector<std::string> mod_info = {"U", "R", "W", "T"};
+  ArgumentWrapper *argW = pdgUtils.getFuncMap()[arg.getParent()]->getArgWByArg(arg);
   return mod_info[static_cast<int>((*argW->getTree(TreeType::FORMAL_IN_TREE).begin())->getAccessType())];
 }
 
