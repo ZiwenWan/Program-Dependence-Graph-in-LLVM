@@ -121,8 +121,10 @@ std::string pdg::DIUtils::getDIFieldName(DIType *ty)
     return s;
   }
   case dwarf::DW_TAG_subroutine_type:
-  {
     return "func ptr";
+  case dwarf::DW_TAG_const_type: {
+    std::string s = getDIFieldName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
+    return s;
   }
   default:
   {

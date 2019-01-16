@@ -34,7 +34,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
     getInterFuncReadWriteInfo(F);
   }
 
-  std::string file_name = M.getSourceFileName();
+  std::string file_name = "accinfo";
   file_name += ".txt";
   idl_file.open(file_name);
   idl_file << M.getName().str() << " {\n";
@@ -186,11 +186,11 @@ std::set<InstructionWrapper *> pdg::AccessInfoTracker::getAliasStoreInstsForArg(
 void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForArg(ArgumentWrapper *argW)
 {
   auto argTree = argW->getTree(TreeType::FORMAL_IN_TREE);
+
   if (argTree.size() == 0)
     throw new ArgParameterTreeSizeIsZero("Argment tree is empty... Every param should have at least one node...\n");
 
   auto treeI = argW->getTree(TreeType::FORMAL_IN_TREE).begin();
-
   if (!(*treeI)->getTreeNodeType()->isPointerTy()) {
     errs() << "Find non-pointer type parameter, do not track...\n";
     return;
@@ -214,8 +214,7 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForArg(ArgumentWrapper *ar
       (*treeI)->setAccessType(AccessType::WRITE); // means there are multiple writes to the address storing the pointer
     }
 
-    // 2. process the underlying node
-    // move to pointed value.
+    // 2. process the underlying node. move to pointed value.
     treeI++;
     if (treeI == argW->getTree(TreeType::FORMAL_IN_TREE).end())
       return;
@@ -400,9 +399,9 @@ pdg::ArgumentMatchType pdg::AccessInfoTracker::getArgMatchType(Argument *arg1, A
   return pdg::ArgumentMatchType::NOTCONTAINED;
 }
 
-void pdg::AccessInfoTracker::mergeTypeTreeAccessInfo(ArgumentWrapper *callerArgW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom)
+void pdg::AccessInfoTracker::mergeTypeTreeAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom)
 {
-  for (; mergeTo != callerArgW->tree_end(TreeType::FORMAL_IN_TREE); ++mergeTo, ++mergeFrom)
+  for (; mergeTo != callerArgW->tree_end(TreeType::FORMAL_IN_TREE), mergeFrom != calleeArgW->tree_end(TreeType::FORMAL_IN_TREE); ++mergeTo, ++mergeFrom)
   {
     if (static_cast<int>((*mergeFrom)->getAccessType()) > static_cast<int>((*mergeTo)->getAccessType()))
     {
@@ -419,7 +418,7 @@ void pdg::AccessInfoTracker::mergeArgWAccessInfo(ArgumentWrapper *callerArgW, Ar
   auto calleeFuncArgTreeI = calleeArgW->getTree(TreeType::FORMAL_IN_TREE).begin();
   if (argMatchType == ArgumentMatchType::EQUAL)
   {
-    mergeTypeTreeAccessInfo(callerArgW, callerArgW->tree_begin(TreeType::FORMAL_IN_TREE), calleeFuncArgTreeI);
+    mergeTypeTreeAccessInfo(callerArgW, calleeArgW ,callerArgW->tree_begin(TreeType::FORMAL_IN_TREE), calleeFuncArgTreeI);
   }
 
   if (argMatchType == ArgumentMatchType::CONTAINED)
@@ -433,7 +432,7 @@ void pdg::AccessInfoTracker::mergeArgWAccessInfo(ArgumentWrapper *callerArgW, Ar
       {
         continue;
       }
-      mergeTypeTreeAccessInfo(callerArgW, callerArgWTI, calleeFuncArgTreeI);
+      mergeTypeTreeAccessInfo(callerArgW, calleeArgW, callerArgWTI, calleeFuncArgTreeI);
       return;
     }
   }
@@ -523,7 +522,7 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW)
        treeI != argW->tree_end(TreeType::FORMAL_IN_TREE);
        ++treeI)
   {
-    if ((argW->getTree(TreeType::FORMAL_IN_TREE).depth(treeI) >= EXPAND_LEVEL))
+    if ((argW->getTree(TreeType::FORMAL_IN_TREE).depth(treeI) > EXPAND_LEVEL))
       return;
 
     InstructionWrapper *curTyNode = *treeI;
@@ -605,7 +604,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
 void pdg::AccessInfoTracker::generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss)
 {
   InstructionWrapper *curTyNode = *treeI;
-  ss << "\nproject <struct " << curTyNode->getDIType()->getName().str() << "> " << curTyNode->getDIType()->getName().str() << "\n";
+  ss << "\nproject <" << DIUtils::getDITypeName(curTyNode->getDIType()) << "> " << DIUtils::getDITypeName(curTyNode->getDIType()) << "\n";
   while (subtreeSize > 0)
   {
     treeI++;

@@ -14,7 +14,7 @@ void pdg::ProgramDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const
 int pdg::EXPAND_LEVEL;
 int pdg::USEDEBUGINFO;
 llvm::cl::opt<int> expandLevel("l", llvm::cl::desc("Parameter tree expand level"), llvm::cl::value_desc("level"));
-llvm::cl::opt<int> useDebugInfo("debug", llvm::cl::desc("use debug information"), llvm::cl::value_desc("debugInfo"));
+llvm::cl::opt<int> useDebugInfo("d", llvm::cl::desc("use debug information"), llvm::cl::value_desc("debugInfo"));
 
 bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 { 
@@ -80,9 +80,9 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
       continue;
 
     auto argWList = pdgUtils.getFuncMap()[&*FI]->getArgWList();
-    // for (auto argW : argWList) {
-    //   errs() << FI->getName() << ": " << argW->getTree(TreeType::FORMAL_IN_TREE).size() << "\n";
-    // }
+    for (auto argW : argWList) {
+      errs() << FI->getName() << ": " << argW->getTree(TreeType::FORMAL_IN_TREE).size() << "\n";
+    }
   }
   return false;
 }
@@ -133,23 +133,17 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   llvm::Instruction *inst = instW->getInstruction();
-  if (inst != nullptr && instW->getGraphNodeType() == GraphNodeType::INST &&
-      isa<CallInst>(inst) && !instW->getVisited())
+  if (inst != nullptr && isa<CallInst>(inst) && !instW->getVisited())
   {
     CallInst *CI = dyn_cast<CallInst>(inst);
     Function *callee = CI->getCalledFunction();
 
     if (callee == nullptr)
-    {
-      // indirect function call get func type for indirect call inst
-      return processIndirectCallInst(CI, instW);
-    }
+      return processIndirectCallInst(CI, instW); // indirect function call get func type for indirect call inst
 
     // handle intrinsic functions
     if (callee->isIntrinsic())
-    {
       return false;
-    }
 
     // special cases done, common function
     CallWrapper *callW = new CallWrapper(CI);
@@ -197,7 +191,6 @@ void pdg::ProgramDependencyGraph::addNodeDependencies(InstructionWrapper *instW)
   // processing Global instruction
   if (instW->getInstruction() != nullptr)
   {
-
     if (LoadInst *LDInst = dyn_cast<LoadInst>(instW->getInstruction()))
     {
       for (auto GlobalInstW : pdgUtils.getGlobalInstsSet())
@@ -261,7 +254,13 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
     //find the right arg, and set tree root
     ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
     auto treeRoot = argW->getTree(treeTy).set_head(treeTyW);
-
+    if (argW->getTree(treeTy).size() == 0) {
+      std::string err_msg = "Function " + Func->getName().str() + " arg " +
+                            DIUtils::getArgName(arg) +
+                            " has param tree of size 0. Abort...";
+      errs() << err_msg << "\n" ;
+      exit(0);
+    }
     std::string Str;
     raw_string_ostream OS(Str);
     //FILE*, bypass, no need to buildTypeTree

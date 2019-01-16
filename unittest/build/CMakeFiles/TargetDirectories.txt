@@ -1,0 +1,4 @@
+/home/yongzhe/llvm-versions/llvm-5.0/lib/Analysis/PDG/unittest/build/CMakeFiles/rebuild_cache.dir
+/home/yongzhe/llvm-versions/llvm-5.0/lib/Analysis/PDG/unittest/build/CMakeFiles/edit_cache.dir
+/home/yongzhe/llvm-versions/llvm-5.0/lib/Analysis/PDG/unittest/build/CMakeFiles/intrinsics_gen.dir
+/home/yongzhe/llvm-versions/llvm-5.0/lib/Analysis/PDG/unittest/build/CMakeFiles/pdg-test.dir

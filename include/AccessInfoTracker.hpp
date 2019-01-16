@@ -26,7 +26,7 @@ public:
   std::vector<llvm::Instruction*> getArgStackAddrs(llvm::Argument *arg);
   void collectParamCallInstWForArg(ArgumentWrapper *argW);
   void mergeArgWAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW);
-  void mergeTypeTreeAccessInfo(ArgumentWrapper *callerArgW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom);
+  void mergeTypeTreeAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW,tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom);
   void getInterFuncReadWriteInfo(llvm::Function &F);
   AccessType getAccessTypeForInstW(InstructionWrapper *instW);
   void propergateAccessInfoToParent(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator treeI);
