@@ -19,6 +19,7 @@ class DIUtils
     static std::string getDIFieldName(llvm::DIType *dt);
     static std::string getDITypeName(llvm::DIType *dt);
     static std::string getArgName(llvm::Argument &arg);
+    static std::string getArgTypeName(llvm::Argument &arg);
 };
 }
 #endif

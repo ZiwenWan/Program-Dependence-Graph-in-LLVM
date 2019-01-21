@@ -309,19 +309,20 @@ bool pdg::ProgramDependencyGraph::hasRecursiveType(ArgumentWrapper *argW, tree<I
   return false;
 }
 
-bool pdg::ProgramDependencyGraph::isFilePtrOrFuncPtrTy(Type *ty)
+bool pdg::ProgramDependencyGraph::isFilePtrOrFuncTy(Type *ty)
 {
+  //if field is a function Ptr
+  if (ty->isFunctionTy())
+  {
+    std::string Str;
+    raw_string_ostream OS(Str);
+    OS << ty;
+    return true;
+  }
+
   if (ty->isPointerTy())
   {
     Type *childEleTy = dyn_cast<PointerType>(ty)->getElementType();
-    //if field is a function Ptr
-    if (childEleTy->isFunctionTy())
-    {
-      std::string Str;
-      raw_string_ostream OS(Str);
-      OS << ty;
-      return true; 
-    }
     if (childEleTy->isStructTy())
     {
       std::string Str;
@@ -329,9 +330,7 @@ bool pdg::ProgramDependencyGraph::isFilePtrOrFuncPtrTy(Type *ty)
       OS << ty;
       //FILE*, bypass, no need to buildTypeTree
       if ("%struct._IO_FILE*" == OS.str() || "%struct._IO_marker*" == OS.str())
-      {
         return true;
-      }
     }
   }
   return false;
@@ -441,7 +440,7 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
         argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
 
         //skip function ptr, FILE*
-        if (isFilePtrOrFuncPtrTy(childType))
+        if (isFilePtrOrFuncTy(childType))
           continue;
 
         instWQ.push(typeFieldW);
@@ -513,6 +512,7 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
       if (!curNodeTy->isStructTy())
         continue;
 
+      instDIType = DIUtils::getLowestDIType(instDIType);
       if (!isa<DICompositeType>(instDIType))
         continue;
 
@@ -536,7 +536,7 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
         // start inserting formal tree instructions
         argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
         //skip function ptr, FILE*
-        if (isFilePtrOrFuncPtrTy(childType))
+        if (isFilePtrOrFuncTy(childType))
           continue;
         instWQ.push(typeFieldW);
         DITypeQ.push(DIUtils::getBaseDIType(childDIType));

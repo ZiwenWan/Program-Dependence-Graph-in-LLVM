@@ -4,9 +4,14 @@ using namespace llvm;
 
 std::string pdg::DIUtils::getArgName(Argument &arg)
 {
+  std::string argName = arg.getName().str();
+  if (!argName.empty())
+    return argName;
   Function *F = arg.getParent();
   DISubprogram *dsp = F->getSubprogram();
   auto vars = dsp->getVariables();
+  if (vars.size() <= arg.getArgNo())
+    return "no_name";
   return vars[arg.getArgNo()]->getName().str();
 }
 
@@ -14,7 +19,8 @@ DIType *pdg::DIUtils::getLowestDIType(DIType *Ty)
 {
   if (Ty->getTag() == dwarf::DW_TAG_pointer_type ||
       Ty->getTag() == dwarf::DW_TAG_member ||
-      Ty->getTag() == dwarf::DW_TAG_typedef)
+      Ty->getTag() == dwarf::DW_TAG_typedef ||
+      Ty->getTag() == dwarf::DW_TAG_const_type)
   {
     DIType *baseTy = dyn_cast<DIDerivedType>(Ty)->getBaseType().resolve();
     if (!baseTy)
@@ -168,7 +174,8 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
     switch (ty->getTag())
     {
     case dwarf::DW_TAG_typedef:
-      return getDITypeName(getBaseDIType(ty));
+      return ty->getName().str();
+      // return getDITypeName(getBaseDIType(ty));
     case dwarf::DW_TAG_member:
       return getDITypeName(getBaseDIType(ty));
     case dwarf::DW_TAG_array_type:
@@ -186,7 +193,12 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
     case dwarf::DW_TAG_union_type:
       return "union";
     case dwarf::DW_TAG_structure_type:
+    {
+      std::string st_name = ty->getName().str();
+      if (!st_name.empty())
+        return "struct " + st_name;
       return "struct";
+    }
     case dwarf::DW_TAG_const_type:
       return "const " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
     default:
@@ -202,4 +214,9 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
     errs() << e.what();
     exit(0);
   }
+}
+
+std::string pdg::DIUtils::getArgTypeName(Argument &arg)
+{
+  return getDITypeName(getArgDIType(arg));
 }

@@ -34,7 +34,7 @@ public:
   void buildFormalTreeForArg(llvm::Argument &arg, TreeType treeTy);
   // void buildTypeTree(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType* argDIType);
   bool hasRecursiveType(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator insert_loc);
-  bool isFilePtrOrFuncPtrTy(llvm::Type* ty);
+  bool isFilePtrOrFuncTy(llvm::Type* ty);
   InstructionWrapper* buildPointerTypeNode(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator);
   InstructionWrapper *buildPointerTypeNodeWithDI(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator, llvm::DIType *dt);
   void buildTypeTree(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType);

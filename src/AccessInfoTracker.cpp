@@ -37,15 +37,13 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   std::string file_name = "accinfo";
   file_name += ".txt";
   idl_file.open(file_name);
-  idl_file << M.getName().str() << " {\n";
+  idl_file << "module " << M.getSourceFileName() << " {\n";
 
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
     Function &F = *FI;
     if (F.isDeclaration())
-    {
       continue;
-    }
     printFuncArgAccessInfo(F);
     generateIDLforFunc(F);
   }
@@ -401,7 +399,7 @@ pdg::ArgumentMatchType pdg::AccessInfoTracker::getArgMatchType(Argument *arg1, A
 
 void pdg::AccessInfoTracker::mergeTypeTreeAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom)
 {
-  for (; mergeTo != callerArgW->tree_end(TreeType::FORMAL_IN_TREE), mergeFrom != calleeArgW->tree_end(TreeType::FORMAL_IN_TREE); ++mergeTo, ++mergeFrom)
+  for (; mergeTo != callerArgW->tree_end(TreeType::FORMAL_IN_TREE) && mergeFrom != calleeArgW->tree_end(TreeType::FORMAL_IN_TREE); ++mergeTo, ++mergeFrom)
   {
     if (static_cast<int>((*mergeFrom)->getAccessType()) > static_cast<int>((*mergeTo)->getAccessType()))
     {
@@ -543,8 +541,25 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW)
 
     errs() << "sub field name: " << DIUtils::getDIFieldName(curTyNode->getDIType()) << "\n";
     errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
+    errs() << dwarf::TagString(curTyNode->getDIType()->getTag()) << "\n";
     errs() << "..............................................\n";
   }
+}
+
+void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  idl_file << "\trpc " << DIUtils::getDITypeName(DIUtils::getFuncRetDIType(F)) << " " << F.getName().str() << "( ";
+  for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList()) {
+    Type* argType = argW->getArg()->getType();
+    if (isStructPointer(argType))
+      idl_file << "projection " << DIUtils::getArgTypeName(*argW->getArg()) << " " << DIUtils::getArgName(*argW->getArg());
+    else
+      idl_file << DIUtils::getArgTypeName(*argW->getArg()) << " " << DIUtils::getArgName(*argW->getArg()) ;
+    if (argW->getArg()->getArgNo() < F.arg_size() - 1) 
+      idl_file << ", ";
+  }
+  idl_file << " );\n\n";
 }
 
 void pdg::AccessInfoTracker::generateIDLforFunc(Function &F)
@@ -554,75 +569,88 @@ void pdg::AccessInfoTracker::generateIDLforFunc(Function &F)
   {
     generateIDLforArg(argW);
   }
+  // generateRpcForFunc(F);
 }
 
 void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
 {
   // TODO: add correct attribute later
-  std::vector<std::string> attributes = {
-      "[in]",
-      "[out]"};
-
+  std::vector<std::string> attributes = { "[in]", "[out]"};
+  Function &F = *argW->getArg()->getParent();
   // an lambda funciont determining whether a pointer is a struct pointer
   std::stringstream projection_str;
   for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE);
-       treeI != argW->tree_end(TreeType::FORMAL_IN_TREE);
+       treeI != argW->tree_end(TreeType::FORMAL_IN_TREE) && treeI != nullptr;
        ++treeI)
   {
     InstructionWrapper *curTyNode = *treeI;
     if (argW->getTree(TreeType::FORMAL_IN_TREE).depth(treeI) >= EXPAND_LEVEL)
-      return;
+      break;
+
     Type *parentTy = curTyNode->getParentTreeNodeType();
     Type *curType = curTyNode->getTreeNodeType();
 
     if (parentTy == nullptr)
     {
+      if (!isStructPointer(curType) && curType->isStructTy())
+        break;
       // idl for root node.
-      idl_file << "project <struct " << DIUtils::getDITypeName(curTyNode->getDIType()) << "> " << DIUtils::getDIFieldName(curTyNode->getDIType()) << "{\n";
+      if (isStructPointer(curType))
+        generateRpcForFunc(*argW->getArg()->getParent());
+        // idl_file << "\tprojection <" << DIUtils::getDITypeName(curTyNode->getDIType()) << "> " << DIUtils::getDIFieldName(curTyNode->getDIType()) << " {\n";
       continue;
     }
 
     if ((*treeI)->getAccessType() == AccessType::NOACCESS)
-    {
       continue;
-    }
+    // normal case
 
-    if (isStructPointer(curType))
+    if (curType->isStructTy())
     {
       int subtreeSize = argW->getTree(TreeType::FORMAL_IN_TREE).size(treeI);
-      generateIDLforStructField(subtreeSize - 1, treeI, projection_str);
-      continue;
+      treeI = generateIDLforStructField(argW, subtreeSize, treeI, projection_str);
+    } else {
+      errs() << "Field: " << DIUtils::getDITypeName(curTyNode->getDIType()) << "\n";
+      idl_file << "\t\t" << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << DIUtils::getDIFieldName(curTyNode->getDIType()) << ";\n";
     }
-
-    // normal case
-    idl_file << "\t" << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << curTyNode->getDIType()->getName().str() << ";\n";
   }
-  idl_file << "}\n";
+  // idl_file << "\t}\n";
   idl_file << projection_str.str();
 }
 
-void pdg::AccessInfoTracker::generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss)
+tree<InstructionWrapper*>::iterator pdg::AccessInfoTracker::generateIDLforStructField(ArgumentWrapper *argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss)
 {
   InstructionWrapper *curTyNode = *treeI;
-  ss << "\nproject <" << DIUtils::getDITypeName(curTyNode->getDIType()) << "> " << DIUtils::getDITypeName(curTyNode->getDIType()) << "\n";
+  ss << "\tprojection <" << DIUtils::getDITypeName(curTyNode->getDIType()) << "> " << DIUtils::getDITypeName(curTyNode->getDIType()) << " {\n";
+  std::stringstream projection_str;
   while (subtreeSize > 0)
   {
     treeI++;
     subtreeSize -= 1;
-    Type *curType = (*treeI)->getTreeNodeType();
 
+    if (treeI == argW->tree_end(TreeType::FORMAL_IN_TREE))
+      break;
+
+    curTyNode = (*treeI);
+    Type *curType = (*treeI)->getTreeNodeType();
     if ((*treeI)->getAccessType() == AccessType::NOACCESS)
       continue;
 
-    if (isStructPointer(curType))
+    if (curType->isStructTy())
     {
-      generateIDLforStructField(subtreeSize - 1, treeI, ss);
-      continue;
+      treeI = generateIDLforStructField(argW, subtreeSize, treeI, projection_str);
+      if (treeI == argW->tree_end(TreeType::FORMAL_IN_TREE))
+        break;
+    } else {
+      if (isStructPointer(curType))
+        ss << "\t\tprojection " << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << DIUtils::getDIFieldName(curTyNode->getDIType()) << ";\n";
+      else
+        ss << "\t\t" << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << DIUtils::getDIFieldName(curTyNode->getDIType()) << ";\n";
     }
-    ss << "\t" << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << DIUtils::getDIFieldName(curTyNode->getDIType()) << ";\n";
-    // update all status
   }
-  ss << "}\n";
+  ss << "\t}\n\n";
+  ss << projection_str.str();
+  return treeI;
 }
 
 bool pdg::isStructPointer(Type *ty)

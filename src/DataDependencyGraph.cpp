@@ -26,7 +26,7 @@ void pdg::DataDependencyGraph::collectDataDependencyInFunc()
 {
   for (inst_iterator instIt = inst_begin(Func); instIt != inst_end(Func); ++instIt)
   {
-    getNodeByData(&*instIt);
+    getNodeByData(&*instIt); // add node to graph.
     Instruction *inst = dyn_cast<Instruction>(&*instIt);
     collectDefUseDependency(inst);
     collectCallInstDependency(inst);

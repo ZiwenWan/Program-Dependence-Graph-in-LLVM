@@ -33,8 +33,9 @@ public:
   void printFuncArgAccessInfo(llvm::Function &F);
   void printArgAccessInfo(ArgumentWrapper *argW);
   void generateIDLforFunc(llvm::Function &F);
+  void generateRpcForFunc(llvm::Function &F);
   void generateIDLforArg(ArgumentWrapper *argW);
-  void generateIDLforStructField(int subtreeSize, tree<InstructionWrapper *>::iterator &treeI, std::stringstream &ss);
+  tree<InstructionWrapper*>::iterator generateIDLforStructField(ArgumentWrapper* argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss);
   bool reach(InstructionWrapper *instW1, InstructionWrapper *instW2);
   std::string getArgAccessInfo(llvm::Argument &arg);
 
