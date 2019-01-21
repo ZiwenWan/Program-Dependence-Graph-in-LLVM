@@ -1,58 +1,47 @@
-# llvm-pdg-5.0
+# PDG (llvm 5.0) 
 
-## Outline of the project
+## Project Intro
 
-This project aims at printing a program dependency for a program. It is a upgraded version of an old PDG program written in llvm-3.5.
-The program dependency is consisted of two part 
+This project aims at building a program dependency graph(PDG) for C program. The program dependency graph buliding  consists of two part 
 
-1. Control Dependency Graph
+1. Control Dependency Graph 
 2. Data Dependency Graph
 
-## Control Dependency Graph
-
-Control Dependency Graph is built based on the PostDominantTree Pass in LLVM. 
-
-## Data Dependency Graph
-
-Data Dependency Graph is consisted of Def-use chain and flow dependency analysis. 
-Currently, the flow dependency analysis module has not been upgraded.  
+The built program dependency graph is field senstive, context-insensitive, flow-insensitive.
 
 ## How to use
 
-### Standard process
+```shell
+mkdir build
+cd build
+cmake ..
+make
+opt -load libpdg.so -dot-pdg < test.bc
+```
 
-This project is built accord to llvm 5.0 build system. 
+After above commands, a dot file will be created. Open it with [Graphviz](http://www.graphviz.org/).
 
-Just copy all the files in the repository to the `lib/Analysis/CDG`.
-
-The directory CDG is created by yourself and can be renamed to whatever names.
-
-Then, modify the `CMakeLists.txt` file in the lib/Analysis directory and add `add_subdirectory("CDG")`
-
-This should get the llvm to build the pass.
-
-Then, one can print control dependency graph or data dependency graph by following command (should be ran ):
-
-> opt -load path\_to\_your\_so/LLVMCDG.so -dot-cdg path\_to\_test/test\_file.bc
-
-### Plug-in Version
-
-The plug-in version is contributed by Lehigh team. One can use it with only llvm-5.0 binaries(Don't have to build the whole llvm from source). It's on branch **pdg_plugin**. User can simply switch to the branch and type **make** to build the pdg tool. However, before doing this, make sure you have llvm 5.0 project binaries on your machine. After the make,  you can use the opt-5.0 tool to use the pass.
-
-For example: 
-
-> **opt-5.0 -load ../../build/libpdg.so -dot-ddg test.bc**
-
-## How to generate bc file?
+## How to generate bc file
 
 Just write a valid C program and then use. (test.c in this example)
 
-> clang -emit-llvm -S test.c
+> **clang -emit-llvm -S test.c**
 
-This should give you test.ll, which is represented in llvm IR. 
+This should give you **test.ll**.
 
 Then, use the llvm-as tool to generate bc file.
 
-> llvm-as test.ll 
+> **llvm-as test.ll**
 
-This should give you the bc file needed for test.
+This should give you the bc file needed for testing.
+
+## Avaliable Passes
+
+**-pdg:** build program dependency graph in memory (inter-procedural)
+
+**-cdg:** build control dependency graph in memory (intra-procedural)
+
+**-ddg:** build data dependency graph in memory (intra-procedural)
+
+**-dot-*:** virtualize above dependency dependency. (dot)
+

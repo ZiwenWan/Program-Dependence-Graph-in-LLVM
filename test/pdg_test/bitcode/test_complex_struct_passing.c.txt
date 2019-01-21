@@ -1,0 +1,10 @@
+<stdin> {
+project <struct person_t> person_t{
+	int age;
+	char * name;
+	unknow type  s;
+}
+project <struct s.color> s.color
+	int s.length;
+}
+}
