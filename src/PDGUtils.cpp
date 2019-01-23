@@ -20,6 +20,8 @@ void pdg::PDGUtils::constructFuncMap(Module &M)
 {
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
+    if (FI->isDeclaration())
+      continue;
     constructInstMap(*FI);
     if (G_funcMap.find(&*FI) == G_funcMap.end())
     {

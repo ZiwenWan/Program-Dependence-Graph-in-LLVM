@@ -45,10 +45,8 @@ public:
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
   virtual bool runOnFunction(llvm::Function &Func);
   virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
-  virtual llvm::StringRef getPassName() const
-  {
-    return "Data Dependency Graph";
-  }
+  virtual llvm::StringRef getPassName() const { return "Data Dependency Graph"; }
+  DependencyGraph<InstructionWrapper> *_getDDG() {return DDG;}
 
 private:
   DependencyGraph<InstructionWrapper> *DDG;

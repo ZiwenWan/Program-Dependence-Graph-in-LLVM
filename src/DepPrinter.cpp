@@ -28,6 +28,26 @@ struct GraphTraits<pdg::DependencyGraph<pdg::InstructionWrapper> *> : public Gra
   static nodes_iterator nodes_end(pdg::DependencyGraph<InstructionWrapper> *N) { return nodes_iterator(N->getNodeSet().end()); }
 };
 
+// DDG 
+template <>
+struct GraphTraits<pdg::DataDependencyGraph *> : public GraphTraits<pdg::DependencyGraph<InstructionWrapper> *>
+{
+  static NodeRef getEntryNode(pdg::DataDependencyGraph *DG)
+  {
+    return *(DG->_getDDG()->begin_child());
+  }
+
+  static nodes_iterator nodes_begin(pdg::DataDependencyGraph *DG)
+  {
+    return DG->_getDDG()->begin_child();
+  }
+
+  static nodes_iterator nodes_end(pdg::DataDependencyGraph *DG)
+  {
+    return DG->_getDDG()->end_child();
+  }
+};
+
 // CDG 
 template <>
 struct GraphTraits<pdg::ControlDependencyGraph *> : public GraphTraits<pdg::DependencyGraph<InstructionWrapper> *>
@@ -214,6 +234,7 @@ struct DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *> : public DOTGr
 {
   DOTGraphTraits(bool isSimple = false) : DOTGraphTraits<pdg::DependencyNode<InstructionWrapper> *>(isSimple) {}
 
+
   std::string getNodeLabel(pdg::DependencyNode<InstructionWrapper> *Node, pdg::DependencyGraph<InstructionWrapper> *Graph)
   {
     return DOTGraphTraits<pdg::DependencyNode<InstructionWrapper> *>::getNodeLabel(Node, *(Graph->begin_child()));
@@ -237,12 +258,29 @@ struct DOTGraphTraits<pdg::ControlDependencyGraph *> : public DOTGraphTraits<pdg
   }
 };
 
+// DDG
+template <>
+struct DOTGraphTraits<pdg::DataDependencyGraph *> : public DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>
+{
+  DOTGraphTraits(bool isSimple = false) : DOTGraphTraits<pdg::DependencyGraph<pdg::InstructionWrapper> *>(isSimple) {}
+
+  static std::string getGraphName(pdg::DataDependencyGraph *)
+  {
+    return "Data Dependency Graph";
+  }
+
+  std::string getNodeLabel(pdg::DependencyNode<InstructionWrapper> *Node, pdg::DataDependencyGraph *Graph)
+  {
+    return DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>::getNodeLabel(Node, Graph->_getDDG());
+  }
+};
+
 // PDG
 template <>
 struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>
 {
   //using nodes_itr = std::vector<std::pair<pdg::DependencyNode<pdg::InstructionWrapper> *, pdg::DependencyType>>::iterator;
-  DOTGraphTraits(bool isSimple = false) : DOTGraphTraits<pdg::DependencyGraph<pdg::InstructionWrapper> *>(isSimple) {}
+  DOTGraphTraits(bool isSimple = false) : DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>(isSimple) {}
 
   static std::string getGraphName(pdg::ProgramDependencyGraph *)
   {
@@ -254,10 +292,9 @@ struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg
     return DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>::getNodeLabel(Node, Graph->_getPDG());
   }
 
-  std::string
-  getEdgeAttributes(pdg::DependencyNode<InstructionWrapper> *Node,
-                    pdg::DependencyLinkIterator<pdg::InstructionWrapper> &IW,
-                    pdg::ProgramDependencyGraph *PD)
+  std::string getEdgeAttributes(pdg::DependencyNode<InstructionWrapper> *Node,
+                                pdg::DependencyLinkIterator<pdg::InstructionWrapper> &IW,
+                                pdg::ProgramDependencyGraph *PD)
   {
     using namespace pdg;
     switch (IW.getDependencyType())
@@ -360,6 +397,17 @@ static llvm::RegisterPass<ControlDependencyPrinter>
                    "Print control dependency graph of function to 'dot' file",
                    false, false);
 
+
+struct DataDependencyPrinter : public llvm::DOTGraphTraitsPrinter<pdg::DataDependencyGraph, false> {
+    static char ID;
+    DataDependencyPrinter() : DOTGraphTraitsPrinter<pdg::DataDependencyGraph, false>("ddgragh", ID) {}
+};
+
+char DataDependencyPrinter::ID = 0;
+static llvm::RegisterPass<DataDependencyPrinter>
+        DDGPrinter("dot-ddg",
+                   "Print data dependency graph of function to 'dot' file",
+                   false, false);
 
 struct ProgramDependencyPrinter : public llvm::DOTGraphTraitsPrinter<pdg::ProgramDependencyGraph, false>
 {

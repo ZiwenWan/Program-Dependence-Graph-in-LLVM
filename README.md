@@ -45,3 +45,12 @@ This should give you the bc file needed for testing.
 
 **-dot-*:** virtualize above dependency dependency. (dot)
 
+## Running tests
+In this project, we use catch2 to build the project.
+Catch2 is a light wegith C++ testing framework. As catch2 can be used with a couple stand alone header files, they are included in the project.
+It is put under directory lib.
+When building the project, the test is also built. 
+We build all tests into an executable. User can verify the basic utitlies in PDG by running the following command:
+> ./build/test/pdg-test
+
+The test case is built in the pdgtest.cpp file, which is placed under test directory. 
