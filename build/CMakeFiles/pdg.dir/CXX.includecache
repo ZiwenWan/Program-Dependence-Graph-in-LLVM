@@ -175,6 +175,8 @@ string
 -
 
 ../include/PDGUtils.hpp
+llvm/IR/IntrinsicInst.h
+../include/llvm/IR/IntrinsicInst.h
 llvm/IR/Instruction.h
 ../include/llvm/IR/Instruction.h
 llvm/IR/Module.h
@@ -237,6 +239,10 @@ stdio.h
 /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/AccessInfoTracker.cpp
 AccessInfoTracker.hpp
 /Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/AccessInfoTracker.hpp
+
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/DebugInfoUtils.cpp
+DebugInfoUtils.hpp
+/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/src/DebugInfoUtils.hpp
 
 /usr/local/opt/llvm@5/include/llvm-c/Types.h
 llvm/Support/DataTypes.h

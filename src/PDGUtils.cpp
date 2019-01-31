@@ -20,6 +20,9 @@ void pdg::PDGUtils::constructFuncMap(Module &M)
 {
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
+    if (FI->isDeclaration())
+      continue;
+
     constructInstMap(*FI);
     if (G_funcMap.find(&*FI) == G_funcMap.end())
     {
@@ -59,7 +62,8 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
 
     if (CallInst *ci = dyn_cast<CallInst>(inst))
     {
-      G_funcMap[&F]->addCallInst(inst);
+      if (!isa<DbgDeclareInst>(ci))
+        G_funcMap[&F]->addCallInst(inst);
     }
   }
 }

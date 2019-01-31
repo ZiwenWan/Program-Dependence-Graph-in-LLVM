@@ -22,6 +22,16 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
       continue;
     }
     getIntraFuncReadWriteInfoForFunc(F);
+    for (CallInst *CI : pdgUtils.getFuncMap()[&F]->getCallInstList())
+    {
+      if (CI->getCalledFunction())
+      {
+        if (CI->getCalledFunction()->isDeclaration()) 
+          continue;
+        getIntraFuncReadWriteInfoForRetVal(pdgUtils.getCallMap()[CI]);
+        printArgAccessInfo(pdgUtils.getCallMap()[CI]->getRetW(), TreeType::ACTUAL_IN_TREE);
+      }
+    }
   }
 
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
@@ -178,6 +188,99 @@ std::set<InstructionWrapper *> pdg::AccessInfoTracker::getAliasStoreInstsForArg(
     }
   }
   return aliasPtr;
+}
+
+void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForCallInsts(Function* Func)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  for (auto instI = inst_begin(Func); instI != inst_end(Func); ++instI)
+  {
+    if (CallInst *CI = dyn_cast<CallInst>(&*instI))
+    {
+      if (!CI->getCalledFunction())
+      {
+        getIntraFuncReadWriteInfoForRetVal(pdgUtils.getCallMap()[CI]); 
+      }
+    }
+  }
+}
+
+void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForRetVal(CallWrapper *callW)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  ArgumentWrapper* retW = callW->getRetW();
+  // auto retActualInTree = retW->getTree(TreeType::ACTUAL_IN_TREE);
+
+  // if (retActualInTree.size() == 0)
+  //   throw new ArgParameterTreeSizeIsZero("Argment tree is empty... Every param should have at least one node...\n");
+
+  // auto treeI = retW->getTree(TreeType::ACTUAL_IN_TREE).begin();
+  // if (!(*treeI)->getTreeNodeType()->isPointerTy())
+  // {
+  //   errs() << "Find non-pointer type parameter, do not track...\n";
+  //   return;
+  // }
+
+  // AccessType accessType = AccessType::NOACCESS;
+  // CallInst *CI = callW->getCallInst();
+  // InstructionWrapper *CInstW = pdgUtils.getInstMap()[CI];
+  // try
+  // {
+  //   // 1. process the root node.
+  //     AccessType accType = getAccessTypeForInstW(CInstW);
+  //     (*treeI)->setAccessType(accType);
+
+  //     // 2. process the underlying node. move to pointed value.
+  //     treeI++;
+  //     if (treeI == retW->getTree(TreeType::ACTUAL_IN_TREE).end())
+  //       return;
+
+  //     // collect load insts from the stack addr
+  //     std::vector<InstructionWrapper *> loadInstWs;
+  //     auto depDataList = PDG->getNodeDepList(CI);
+  //     for (auto depPair : depDataList)
+  //     {
+  //       if (depPair.second == DependencyType::DATA_RAW)
+  //       {
+  //         InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
+  //         loadInstWs.push_back(depInstW); // collect read instructions
+  //       }
+  //     }
+
+  //     for (InstructionWrapper *instW : loadInstWs)
+  //     {
+  //       AccessType accType = getAccessTypeForInstW(instW);
+  //       (*treeI)->setAccessType(accType);
+  //       if (accType == AccessType::WRITE)
+  //         break;
+  //     }
+
+  //     treeI++;
+  //     if (treeI == retW->getTree(TreeType::ACTUAL_IN_TREE).end())
+  //       return;
+  //     // analysis data dep, find read/write instructions operate one the stack addr for the arg
+
+  //     // 3. process each treenode(field) separately
+  //     for (; treeI != retW->getTree(TreeType::ACTUAL_IN_TREE).end(); ++treeI)
+  //     {
+  //       // if a treenode has a correspond GetElement pointer Instruction
+  //       if (!(*treeI)->getGEPInstW())
+  //         continue;
+  //       // get acces info for the gep instruction, and store access information in treenode
+  //       AccessType gepAccessType = getAccessTypeForInstW((*treeI)->getGEPInstW());
+  //       AccessType oldAccessInfo = (*treeI)->getAccessType();
+  //       if (static_cast<int>(gepAccessType) < static_cast<int>(oldAccessInfo))
+  //         continue; // if access info not changed, continue processing
+
+  //       (*treeI)->setAccessType(gepAccessType);
+  //       propergateAccessInfoToParent(retW, treeI);
+  //     }
+  //   }
+  // catch (std::exception &e)
+  // {
+  //   errs() << e.what() << "\n";
+  //   return;
+  // }
 }
 
 // intra function
@@ -501,29 +604,31 @@ void pdg::AccessInfoTracker::printFuncArgAccessInfo(Function &F)
   errs() << "For function: " << F.getName() << "\n";
   for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
   {
-    printArgAccessInfo(argW);
+    printArgAccessInfo(argW, TreeType::FORMAL_IN_TREE);
   }
   errs() << "......... [ END " << F.getName() << " ] .........\n\n";
 }
 
-void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW)
+void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW, TreeType ty)
 {
   std::vector<std::string> access_name = {
       "No Access",
       "Read",
       "Write"};
-
+   
   errs() << "Arg use information for arg no: " << argW->getArg()->getArgNo() << "\n";
-  errs() << "Size of argW: " << argW->getTree(TreeType::FORMAL_IN_TREE).size() << "\n";
+  errs() << "Size of argW: " << argW->getTree(ty).size() << "\n";
 
-  for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE);
-       treeI != argW->tree_end(TreeType::FORMAL_IN_TREE);
+  for (auto treeI = argW->tree_begin(ty);
+       treeI != argW->tree_end(ty);
        ++treeI)
   {
-    if ((argW->getTree(TreeType::FORMAL_IN_TREE).depth(treeI) > EXPAND_LEVEL))
+    if ((argW->getTree(ty).depth(treeI) > EXPAND_LEVEL))
+      return;
+    InstructionWrapper *curTyNode = *treeI;
+    if (curTyNode->getDIType() == nullptr)
       return;
 
-    InstructionWrapper *curTyNode = *treeI;
     Type *parentTy = curTyNode->getParentTreeNodeType();
     Type *curType = curTyNode->getTreeNodeType();
 
@@ -531,8 +636,7 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW)
 
     if (parentTy == nullptr)
     {
-      errs() << "** Root type node **"
-             << "\n";
+      errs() << "** Root type node **" << "\n";
       errs() << "Field name: " << DIUtils::getDIFieldName(curTyNode->getDIType()) << "\n";
       errs() << "Access Type: " << access_name[static_cast<int>(curTyNode->getAccessType())] << "\n";
       errs() << ".............................................\n";

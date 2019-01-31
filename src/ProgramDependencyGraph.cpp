@@ -232,13 +232,16 @@ void pdg::ProgramDependencyGraph::addNodeDependencies(InstructionWrapper *instW)
 void pdg::ProgramDependencyGraph::buildFormalTreeForFunc(Function *Func)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  for (auto argW : pdgUtils.getFuncMap()[Func]->getArgWList())
+  auto FuncW = pdgUtils.getFuncMap()[Func];
+  for (auto argW : FuncW->getArgWList())
   {
     // build formal in tree first
     buildFormalTreeForArg(*argW->getArg(), TreeType::FORMAL_IN_TREE);
     // then, copy formal in tree content to formal out tree
     argW->copyTree(argW->getTree(TreeType::FORMAL_IN_TREE), TreeType::FORMAL_OUT_TREE);
   }
+
+  buildFormalTreeForArg(*FuncW->getRetW()->getArg(), TreeType::FORMAL_IN_TREE);
   pdgUtils.getFuncMap()[Func]->setTreeFlag(true);
 }
 
@@ -772,8 +775,7 @@ void pdg::ProgramDependencyGraph::buildActualParameterTrees(CallInst *CI)
     std::vector<Function *> indirect_call_candidate = collectIndirectCallCandidates(CI->getFunctionType());
     if (indirect_call_candidate.size() == 0)
     {
-      errs() << "Parameter num 0, no need to build actual parameter tree"
-             << "\n";
+      errs() << "No possible matching candidate, no need to build actual parameter tree" << "\n";
       return;
     }
     // get the first possible candidate
@@ -789,12 +791,38 @@ void pdg::ProgramDependencyGraph::buildActualParameterTrees(CallInst *CI)
 
   auto argFI = pdgUtils.getFuncMap()[called_func]->getArgWList().begin();
   auto argFE = pdgUtils.getFuncMap()[called_func]->getArgWList().end();
-
   //copy Formal Tree to Actual Tree. Actual trees are used by call site.
   for (; argI != argE && argFI != argFE; ++argI, ++argFI)
   {
     (*argI)->copyTree((*argFI)->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_IN_TREE);
     (*argI)->copyTree((*argFI)->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_OUT_TREE);
+  }
+
+  // copy return value wrapper
+  ArgumentWrapper *CIRetW = pdgUtils.getCallMap()[CI]->getRetW();
+  ArgumentWrapper *FuncRetW = pdgUtils.getFuncMap()[called_func]->getRetW();
+
+  if (CIRetW == nullptr)
+    return;
+  CIRetW->copyTree(FuncRetW->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_IN_TREE);
+  CIRetW->copyTree(FuncRetW->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_OUT_TREE);
+  linkGEPsWithTree(CI);
+}
+
+void pdg::ProgramDependencyGraph::linkGEPsWithTree(CallInst* CI)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  CallWrapper *CW = pdgUtils.getCallMap()[CI];
+  ArgumentWrapper *retW = CW->getRetW();
+  if (retW == nullptr)
+    return;
+  InstructionWrapper *CinstW = pdgUtils.getInstMap()[CI]; 
+  auto actualInTree = retW->getTree(TreeType::ACTUAL_IN_TREE);
+  for (auto TI = retW->tree_begin(TreeType::ACTUAL_IN_TREE); TI != retW->tree_end(TreeType::ACTUAL_IN_TREE); ++TI)
+  {
+    InstructionWrapper *gepW = getActualTreeNodeGEP(CinstW, (*TI)->getNodeOffset(), (*TI)->getTreeNodeType(), (*TI)->getParentTreeNodeType());
+    if (gepW)
+      (*TI)->setGEPInstW(gepW);
   }
 }
 
@@ -855,12 +883,52 @@ std::vector<Function *> pdg::ProgramDependencyGraph::collectIndirectCallCandidat
 //
 // -------------------------------
 
+std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getReachableGEPs(InstructionWrapper *instW)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  std::set<InstructionWrapper *> relevantGEPs;
+  std::queue<InstructionWrapper *> instWQ;
+  instWQ.push(instW);
+
+  auto dataDList = PDG->getNodeDepList(instW);
+  for (auto depPair : dataDList)
+  {
+    DependencyType depType = depPair.second;
+    if (depType == DependencyType::DATA_ALIAS)
+    {
+      InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
+      instWQ.push(depInstW);
+    }
+  }
+
+  while (!instWQ.empty())
+  {
+    InstructionWrapper *instW = instWQ.front();
+    instWQ.pop();
+
+    auto dataDList = PDG->getNodeDepList(instW);
+    for (auto depPair : dataDList)
+    {
+      DependencyType depType = depPair.second;
+      if (depType == DependencyType::DATA_DEF_USE)
+      {
+        InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
+        instWQ.push(depInstW);
+        if (depInstW->getInstruction() != nullptr && isa<GetElementPtrInst>(depInstW->getInstruction()))
+          relevantGEPs.insert(depInstW);
+      }
+    }
+  }
+
+  return relevantGEPs;
+}
+
 std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getAllRelevantGEP(Argument &arg)
 {
   std::vector<Instruction *> initialStoreInsts = getArgStoreInsts(arg);
+  auto &pdgUtils = PDGUtils::getInstance();
   std::set<InstructionWrapper *> relevantGEPs;
   std::queue<InstructionWrapper *> instWQ;
-  auto &pdgUtils = PDGUtils::getInstance();
 
   //errs() << depInstW->getInstruction()->getFunction()->getName() << " " << *depInstW->getInstruction() << "\n";
   for (Instruction *storeInst : initialStoreInsts)
@@ -898,6 +966,45 @@ std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getAllRelevantG
   }
 
   return relevantGEPs;
+}
+
+InstructionWrapper *pdg::ProgramDependencyGraph::getActualTreeNodeGEP(InstructionWrapper* callInstW, unsigned field_offset, Type *treeNodeTy, Type *parentNodeTy)
+{
+  std::set<InstructionWrapper *> instReachableGEPs = getReachableGEPs(callInstW);
+  for (auto GEPInstW : instReachableGEPs)
+  {
+    int operand_num = GEPInstW->getInstruction()->getNumOperands();
+    llvm::Value *last_idx = GEPInstW->getInstruction()->getOperand(operand_num - 1);
+    // cast the last_idx to int type
+    if (llvm::ConstantInt *constInt = dyn_cast<ConstantInt>(last_idx))
+    {
+      // make sure type is matched
+      if (!isa<GetElementPtrInst>(GEPInstW->getInstruction()) || parentNodeTy == nullptr)
+        continue;
+      auto GEP = dyn_cast<GetElementPtrInst>(GEPInstW->getInstruction());
+      llvm::Type *GEPResTy = GEP->getResultElementType();
+      llvm::Type *GEPSrcTy = GEP->getSourceElementType();
+
+      // get access field idx from GEP
+      int field_idx = constInt->getSExtValue();
+      // plus one. Since for struct, the 0 index is used by the parent struct
+      // type parent_type must be a pointer. Since only sub fields can have
+      // parent that is not nullptr
+      if (parentNodeTy->isPointerTy())
+        parentNodeTy = parentNodeTy->getPointerElementType();
+
+      // check the src type in GEP inst is equal to parent_type (GET FROM)
+      // check if the offset is equal
+      bool srcTypeMatch = (GEPSrcTy == parentNodeTy);
+      bool resTypeMatch = (GEPResTy == treeNodeTy);
+      bool offsetMatch = field_idx == field_offset;
+
+      if (offsetMatch && resTypeMatch && srcTypeMatch)
+        return GEPInstW;
+    }
+  }
+
+  return nullptr;
 }
 
 InstructionWrapper *pdg::ProgramDependencyGraph::getTreeNodeGEP(Argument &arg, unsigned field_offset, Type *treeNodeTy, Type *parentNodeTy)

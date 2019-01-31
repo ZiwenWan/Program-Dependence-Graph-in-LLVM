@@ -32,7 +32,6 @@ public:
   void drawActualParameterTree(llvm::CallInst *CI, TreeType treeTy);
   void buildFormalTreeForFunc(llvm::Function *Func);
   void buildFormalTreeForArg(llvm::Argument &arg, TreeType treeTy);
-  // void buildTypeTree(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType* argDIType);
   bool hasRecursiveType(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator insert_loc);
   bool isFilePtrOrFuncTy(llvm::Type* ty);
   InstructionWrapper* buildPointerTypeNode(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator);
@@ -44,6 +43,9 @@ public:
   bool connectAllPossibleFunctions(llvm::CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates);
   bool connectCallerAndCallee(InstructionWrapper *instW, llvm::Function *callee);
   // field sensitive related functions
+  void linkGEPsWithTree(llvm::CallInst* CI);
+  InstructionWrapper *getActualTreeNodeGEP(InstructionWrapper* callInstW, unsigned field_offset, llvm::Type *treeNodeTy, llvm::Type *parentNodeTy);
+  std::set<pdg::InstructionWrapper *> getReachableGEPs(InstructionWrapper *instW);
   std::set<pdg::InstructionWrapper *> getAllRelevantGEP(llvm::Argument &arg);
   InstructionWrapper *getTreeNodeGEP(llvm::Argument &arg, unsigned field_offset, llvm::Type *treeNodeTy, llvm::Type *parentNodeTy);
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);

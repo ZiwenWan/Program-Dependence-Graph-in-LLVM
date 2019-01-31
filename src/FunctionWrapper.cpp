@@ -1,4 +1,5 @@
 #include "FunctionWrapper.hpp"
+#include "llvm/ADT/Twine.h"
 
 using namespace llvm;
 
@@ -13,6 +14,10 @@ pdg::FunctionWrapper::FunctionWrapper(Function *Func)
     ArgumentWrapper *argW = new ArgumentWrapper(&*argIt);
     argWList.push_back(argW);
   }
+
+  const Twine t = "ret"; 
+  Argument *ret = new Argument(Func->getReturnType(), t, Func, 100);
+  this->retW = new ArgumentWrapper(ret);
 }
 
 bool pdg::FunctionWrapper::hasTrees()
@@ -27,6 +32,9 @@ bool pdg::FunctionWrapper::isVisited()
 
 pdg::ArgumentWrapper *pdg::FunctionWrapper::getArgWByArg(Argument &arg)
 {
+  if (arg.getArgNo() == 100)
+    return retW;
+
   for (auto argW : argWList) 
   {
     if (argW->getArg() == &arg) {

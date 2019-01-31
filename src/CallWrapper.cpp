@@ -12,6 +12,14 @@ pdg::CallWrapper::CallWrapper(llvm::CallInst *CI)
     ArgumentWrapper *argW = new ArgumentWrapper(arg);
     argWList.push_back(argW);
   }
+
+  const Twine t = "ret"; 
+  Function* F = CI->getCalledFunction();
+  retW = nullptr;
+  if (F == nullptr)
+    return;
+  Argument *ret = new Argument(F->getReturnType(), t, F, 100);
+  retW = new ArgumentWrapper(ret);
 }
 
 pdg::CallWrapper::CallWrapper(CallInst *CI, std::vector<Function *> indirect_call_candidates)
@@ -26,4 +34,5 @@ pdg::CallWrapper::CallWrapper(CallInst *CI, std::vector<Function *> indirect_cal
     ArgumentWrapper *argW = new ArgumentWrapper(arg);
     argWList.push_back(argW);
   }
+  retW = nullptr;
 }

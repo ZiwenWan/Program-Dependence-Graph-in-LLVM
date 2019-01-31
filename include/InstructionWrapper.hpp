@@ -64,6 +64,7 @@ class InstructionWrapper {
     virtual InstructionWrapper *getGEPInstW() const { return nullptr; }
     virtual int getNodeOffset() const { return -1; }
     virtual llvm::DIType *getDIType() const { return nullptr; }
+    virtual void setGEPInstW(InstructionWrapper *gepInstW) const {};
 
   private:
     llvm::Instruction *Inst;
@@ -148,6 +149,7 @@ class TreeTypeWrapper : public InstructionWrapper
     InstructionWrapper *getGEPInstW() const override { return gepInstW; }
     int getNodeOffset() const override { return node_offset; }
     llvm::DIType *getDIType() const override { return dt; }
+    void setGEPInstW(InstructionWrapper *gepInstW) { this->gepInstW = gepInstW; }
 
   private:
     llvm::Argument *arg;

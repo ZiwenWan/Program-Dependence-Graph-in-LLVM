@@ -15,10 +15,12 @@ public:
   CallWrapper(llvm::CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates);
   llvm::CallInst *getCallInst() { return CI; }
   std::vector<ArgumentWrapper *> &getArgWList() { return argWList; }
+  ArgumentWrapper *getRetW() { return retW; }
 
 private:
   llvm::CallInst *CI;
   std::vector<ArgumentWrapper *> argWList;
+  ArgumentWrapper *retW; // wrapper for return type
 };
 } // namespace pdg
 

@@ -59,7 +59,10 @@ DIType *pdg::DIUtils::getArgDIType(Argument &arg)
       const auto &TypeRef = subRoutine->getTypeArray();
       if (F.arg_size() >= TypeRef.size())
         break;
-      const auto &ArgTypeRef = TypeRef[arg.getArgNo() + 1]; // + 1 to skip return type
+      int metaDataLoc = 0;
+      if (arg.getArgNo() != 100)
+        metaDataLoc = arg.getArgNo() + 1;
+      const auto &ArgTypeRef = TypeRef[metaDataLoc]; // + 1 to skip return type
       DIType *Ty = ArgTypeRef.resolve();
       return Ty;
     }

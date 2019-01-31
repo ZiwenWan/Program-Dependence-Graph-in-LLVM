@@ -1,0 +1,20 @@
+module example.k1.c {
+	rpc void init( projection NODE* no_name );
+
+	rpc NODE* add( projection NODE* no_name, projection devops_ds* no_name );
+
+	projection <struct node> struct node {
+	}
+
+	rpc NODE* add( projection NODE* no_name, projection devops_ds* no_name );
+
+	projection <struct device_operations> struct device_operations {
+	}
+
+	rpc void mimix_open( projection struct device_operations* no_name );
+
+	projection <struct device_operations> struct device_operations {
+		int devop_init_registered;
+	}
+
+}

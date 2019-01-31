@@ -27,6 +27,7 @@ public:
   void copyTree(const tree<InstructionWrapper *> &srcTree, TreeType treeTy);
   tree<InstructionWrapper *>::iterator tree_begin(TreeType treeTy);
   tree<InstructionWrapper *>::iterator tree_end(TreeType treeTy);
+  llvm::Function *getFunc() { return Func; }
 };
 
 } // namespace pdg

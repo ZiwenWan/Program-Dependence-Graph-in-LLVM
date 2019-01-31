@@ -32,6 +32,7 @@ public:
   void addCallInst(llvm::Instruction *inst); 
   ArgumentWrapper *getArgWByArg(llvm::Argument &arg);
   ArgumentWrapper *getArgWByIdx(int idx);
+  ArgumentWrapper *getRetW() { return retW; }
 
 private:
   llvm::Function *Func;
@@ -43,6 +44,7 @@ private:
   std::vector<ArgumentWrapper *> argWList;
   std::set<llvm::Function *> dependent_funcs;
   std::set<llvm::Value *> ptrSet;
+  ArgumentWrapper* retW; 
   bool treeFlag;
   bool RWFlag;
   bool visited;
