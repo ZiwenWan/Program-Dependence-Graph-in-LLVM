@@ -1,19 +1,34 @@
-module example.k1.c {
-	rpc void init( projection NODE* no_name );
+module example.k4.c {
+	rpc void init( projection opaque* no_name );
 
-	rpc NODE* add( projection NODE* no_name, projection devops_ds* no_name );
+	rpc void register_device( projection opaque* no_name );
 
-	projection <struct node> struct node {
+	projection <opaque> opaque {
 	}
 
-	rpc NODE* add( projection NODE* no_name, projection devops_ds* no_name );
+	rpc int open( projection opaque* no_name );
 
-	projection <struct device_operations> struct device_operations {
+	projection <opaque> opaque {
+		func* open;
+		char* name;
+		int devop_init_registered;
 	}
 
-	rpc void mimix_open( projection struct device_operations* no_name );
+		int int;
+		char char;
+	rpc opaque* lookup_device( char* no_name );
 
-	projection <struct device_operations> struct device_operations {
+	rpc opaque* lookup_device( char* no_name );
+
+	rpc void dev1_open( projection opaque* no_name );
+
+	projection <opaque> opaque {
+		int devop_init_registered;
+	}
+
+	rpc void dev2_open( projection opaque* no_name );
+
+	projection <opaque> opaque {
 		int devop_init_registered;
 	}
 

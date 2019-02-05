@@ -36,10 +36,12 @@ public:
   void printArgAccessInfo(ArgumentWrapper *argW, TreeType ty);
   void generateIDLforFunc(llvm::Function &F);
   void generateRpcForFunc(llvm::Function &F);
-  void generateIDLforArg(ArgumentWrapper *argW);
-  tree<InstructionWrapper*>::iterator generateIDLforStructField(ArgumentWrapper* argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss);
+  void generateIDLForCallInstW(CallWrapper *CW);
+  void generateIDLforArg(ArgumentWrapper *argW, TreeType ty);
+  tree<InstructionWrapper*>::iterator generateIDLforStructField(ArgumentWrapper* argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss, TreeType ty);
   bool reach(InstructionWrapper *instW1, InstructionWrapper *instW2);
   std::string getArgAccessInfo(llvm::Argument &arg);
+  ProgramDependencyGraph *_getPDG() { return PDG; }
 
 private:
   ProgramDependencyGraph *PDG;

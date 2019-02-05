@@ -209,8 +209,6 @@ void pdg::ProgramDependencyGraph::addNodeDependencies(InstructionWrapper *instW)
   }
 
   // copy data dependency
-  // auto *dataDNode = ddg->getNodeByData(instW);
-  // auto dataDList = dataDNode->getDependencyList();
   auto dataDList = ddg->getNodeDepList(instW->getInstruction());
   for (auto dependencyPair : dataDList)
   {

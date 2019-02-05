@@ -16,6 +16,7 @@ public:
   PtrSplitIDLGen() : llvm::ModulePass(ID) {}
   static char ID;
   bool runOnModule(llvm::Module &M);
+  bool isOnlyUsedinProcessCall(ArgumentWrapper *argW);
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
 private:
   ProgramDependencyGraph *PDG;
