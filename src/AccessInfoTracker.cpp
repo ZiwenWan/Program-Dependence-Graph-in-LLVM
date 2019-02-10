@@ -6,41 +6,41 @@ char pdg::AccessInfoTracker::ID = 0;
 
 bool pdg::AccessInfoTracker::runOnModule(Module &M)
 {
+  std::set<std::string> func_list = {
+      "unregister_foobar",
+      "alloc_foobardev",
+      "register_foobar",
+      "free_foobardev"};
+
   auto &pdgUtils = PDGUtils::getInstance();
   PDG = &getAnalysis<pdg::ProgramDependencyGraph>();
-
+  
   if (!USEDEBUGINFO) {
     errs() << "[WARNING] No debug information avaliable... \nUse [-debug 1] in the pass to generate debug information\n";
     exit(0);
   }
-
+  
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
     Function &F = *FI;
-    if (F.isDeclaration())
+    if (F.isDeclaration() )
+      continue;
+    // if not imported functions, track call insts
+    if (func_list.find(F.getName().str()) == func_list.end())
     {
+      getIntraFuncReadWriteInfoForCallInsts(F, func_list);
       continue;
     }
     getIntraFuncReadWriteInfoForFunc(F);
-    for (CallInst *CI : pdgUtils.getFuncMap()[&F]->getCallInstList())
-    {
-      if (CI->getCalledFunction())
-      {
-        if (CI->getCalledFunction()->isDeclaration()) 
-          continue;
-        getIntraFuncReadWriteInfoForRetVal(pdgUtils.getCallMap()[CI]);
-        printArgAccessInfo(pdgUtils.getCallMap()[CI]->getRetW(), TreeType::ACTUAL_IN_TREE);
-      }
-    }
   }
 
+  // inter-procedure access info analysis
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
     Function &F = *FI;
-    if (F.isDeclaration())
-    {
+    if (F.isDeclaration() || func_list.find(F.getName().str()) == func_list.end())
       continue;
-    }
+
     getInterFuncReadWriteInfo(F);
   }
 
@@ -52,20 +52,17 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
     Function &F = *FI;
+
     if (F.isDeclaration())
       continue;
+
+    if (func_list.find(F.getName().str()) == func_list.end()) {
+      generateIDLForCallInsts(F);
+      continue;
+    }
+
     printFuncArgAccessInfo(F);
     generateIDLforFunc(F);
-    for (CallInst *CI : pdgUtils.getFuncMap()[&F]->getCallInstList())
-    {
-      if (CI->getCalledFunction())
-      {
-        if (CI->getCalledFunction()->isDeclaration())
-          continue;
-        errs() << "Generating for return type\n";
-        generateIDLforArg(pdgUtils.getCallMap()[CI]->getRetW(), TreeType::ACTUAL_IN_TREE);
-      }
-    }
   }
 
   idl_file << "}";
@@ -200,15 +197,18 @@ std::set<InstructionWrapper *> pdg::AccessInfoTracker::getAliasStoreInstsForArg(
   return aliasPtr;
 }
 
-void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForCallInsts(Function* Func)
+void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForCallInsts(Function& Func, std::set<std::string> func_list)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   for (auto instI = inst_begin(Func); instI != inst_end(Func); ++instI)
   {
     if (CallInst *CI = dyn_cast<CallInst>(&*instI))
     {
-      if (!CI->getCalledFunction())
+      if (CI->getCalledFunction())
       {
+        std::string funcName = CI->getCalledFunction()->getName().str();
+        if (func_list.find(funcName) == func_list.end())
+          return;
         getIntraFuncReadWriteInfoForRetVal(pdgUtils.getCallMap()[CI]); 
       }
     }
@@ -219,78 +219,78 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForRetVal(CallWrapper *cal
 {
   auto &pdgUtils = PDGUtils::getInstance();
   ArgumentWrapper* retW = callW->getRetW();
-  // auto retActualInTree = retW->getTree(TreeType::ACTUAL_IN_TREE);
+  auto retActualInTree = retW->getTree(TreeType::ACTUAL_IN_TREE);
+  if (retActualInTree.size() == 0)
+    return;
+    // throw new ArgParameterTreeSizeIsZero("Argment tree is empty... Every param should have at least one node...\n");
+  
+  auto treeI = retW->getTree(TreeType::ACTUAL_IN_TREE).begin();
+  if (!(*treeI)->getTreeNodeType()->isPointerTy())
+  {
+    errs() << "Find non-pointer type parameter, do not track...\n";
+    return;
+  }
 
-  // if (retActualInTree.size() == 0)
-  //   throw new ArgParameterTreeSizeIsZero("Argment tree is empty... Every param should have at least one node...\n");
+  AccessType accessType = AccessType::NOACCESS;
+  CallInst *CI = callW->getCallInst();
+  InstructionWrapper *CInstW = pdgUtils.getInstMap()[CI];
+  try
+  {
+    // 1. process the root node.
+      AccessType accType = getAccessTypeForInstW(CInstW);
+      (*treeI)->setAccessType(accType);
 
-  // auto treeI = retW->getTree(TreeType::ACTUAL_IN_TREE).begin();
-  // if (!(*treeI)->getTreeNodeType()->isPointerTy())
-  // {
-  //   errs() << "Find non-pointer type parameter, do not track...\n";
-  //   return;
-  // }
+      // 2. process the underlying node. move to pointed value.
+      treeI++;
+      if (treeI == retW->getTree(TreeType::ACTUAL_IN_TREE).end())
+        return;
 
-  // AccessType accessType = AccessType::NOACCESS;
-  // CallInst *CI = callW->getCallInst();
-  // InstructionWrapper *CInstW = pdgUtils.getInstMap()[CI];
-  // try
-  // {
-  //   // 1. process the root node.
-  //     AccessType accType = getAccessTypeForInstW(CInstW);
-  //     (*treeI)->setAccessType(accType);
+      // collect load insts from the stack addr
+      std::vector<InstructionWrapper *> loadInstWs;
+      auto depDataList = PDG->getNodeDepList(CI);
+      for (auto depPair : depDataList)
+      {
+        if (depPair.second == DependencyType::DATA_RAW)
+        {
+          InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
+          loadInstWs.push_back(depInstW); // collect read instructions
+        }
+      }
 
-  //     // 2. process the underlying node. move to pointed value.
-  //     treeI++;
-  //     if (treeI == retW->getTree(TreeType::ACTUAL_IN_TREE).end())
-  //       return;
+      for (InstructionWrapper *instW : loadInstWs)
+      {
+        AccessType accType = getAccessTypeForInstW(instW);
+        (*treeI)->setAccessType(accType);
+        if (accType == AccessType::WRITE)
+          break;
+      }
 
-  //     // collect load insts from the stack addr
-  //     std::vector<InstructionWrapper *> loadInstWs;
-  //     auto depDataList = PDG->getNodeDepList(CI);
-  //     for (auto depPair : depDataList)
-  //     {
-  //       if (depPair.second == DependencyType::DATA_RAW)
-  //       {
-  //         InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-  //         loadInstWs.push_back(depInstW); // collect read instructions
-  //       }
-  //     }
+      treeI++;
+      if (treeI == retW->getTree(TreeType::ACTUAL_IN_TREE).end())
+        return;
+      // analysis data dep, find read/write instructions operate one the stack addr for the arg
 
-  //     for (InstructionWrapper *instW : loadInstWs)
-  //     {
-  //       AccessType accType = getAccessTypeForInstW(instW);
-  //       (*treeI)->setAccessType(accType);
-  //       if (accType == AccessType::WRITE)
-  //         break;
-  //     }
+      // 3. process each treenode(field) separately
+      for (; treeI != retW->getTree(TreeType::ACTUAL_IN_TREE).end(); ++treeI)
+      {
+        // if a treenode has a correspond GetElement pointer Instruction
+        if (!(*treeI)->getGEPInstW())
+          continue;
+        // get acces info for the gep instruction, and store access information in treenode
+        AccessType gepAccessType = getAccessTypeForInstW((*treeI)->getGEPInstW());
+        AccessType oldAccessInfo = (*treeI)->getAccessType();
+        if (static_cast<int>(gepAccessType) < static_cast<int>(oldAccessInfo))
+          continue; // if access info not changed, continue processing
 
-  //     treeI++;
-  //     if (treeI == retW->getTree(TreeType::ACTUAL_IN_TREE).end())
-  //       return;
-  //     // analysis data dep, find read/write instructions operate one the stack addr for the arg
-
-  //     // 3. process each treenode(field) separately
-  //     for (; treeI != retW->getTree(TreeType::ACTUAL_IN_TREE).end(); ++treeI)
-  //     {
-  //       // if a treenode has a correspond GetElement pointer Instruction
-  //       if (!(*treeI)->getGEPInstW())
-  //         continue;
-  //       // get acces info for the gep instruction, and store access information in treenode
-  //       AccessType gepAccessType = getAccessTypeForInstW((*treeI)->getGEPInstW());
-  //       AccessType oldAccessInfo = (*treeI)->getAccessType();
-  //       if (static_cast<int>(gepAccessType) < static_cast<int>(oldAccessInfo))
-  //         continue; // if access info not changed, continue processing
-
-  //       (*treeI)->setAccessType(gepAccessType);
-  //       propergateAccessInfoToParent(retW, treeI);
-  //     }
-  //   }
-  // catch (std::exception &e)
-  // {
-  //   errs() << e.what() << "\n";
-  //   return;
-  // }
+        (*treeI)->setAccessType(gepAccessType);
+        propergateAccessInfoToParent(retW, treeI);
+      }
+    }
+  catch (std::exception &e)
+  {
+    errs() << e.what() << "\n";
+    return;
+  }
 }
 
 // intra function
@@ -676,6 +676,20 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   idl_file << " );\n\n";
 }
 
+void pdg::AccessInfoTracker::generateIDLForCallInsts(Function &F) {
+  auto &pdgUtils = PDGUtils::getInstance();
+  for (CallInst *CI : pdgUtils.getFuncMap()[&F]->getCallInstList())
+  {
+    if (CI->getCalledFunction())
+    {
+      if (CI->getCalledFunction()->isDeclaration())
+        continue;
+      errs() << "Generating for return type\n";
+      generateIDLforArg(pdgUtils.getCallMap()[CI]->getRetW(), TreeType::ACTUAL_IN_TREE);
+    }
+  }
+}
+
 void pdg::AccessInfoTracker::generateIDLforFunc(Function &F)
 {
   auto &pdgUtils = PDGUtils::getInstance();
@@ -683,12 +697,11 @@ void pdg::AccessInfoTracker::generateIDLforFunc(Function &F)
   {
     generateIDLforArg(argW, TreeType::FORMAL_IN_TREE);
   }
-  // generateRpcForFunc(F);
+  generateRpcForFunc(F);
 }
 
 void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType ty)
 {
-  // TODO: add correct attribute later
   std::vector<std::string> attributes = { "[in]", "[out]"};
   Function &F = *argW->getArg()->getParent();
   // an lambda funciont determining whether a pointer is a struct pointer

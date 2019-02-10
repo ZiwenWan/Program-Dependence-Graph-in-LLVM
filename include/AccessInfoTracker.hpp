@@ -19,7 +19,7 @@ public:
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);
   std::set<InstructionWrapper *> getAliasStoreInstsForArg(ArgumentWrapper *argW);
   std::set<InstructionWrapper *> getAliasLoadInstsForArg(ArgumentWrapper *argW);
-  void getIntraFuncReadWriteInfoForCallInsts(llvm::Function* Func);
+  void getIntraFuncReadWriteInfoForCallInsts(llvm::Function& Func, std::set<std::string> func_list);
   void getIntraFuncReadWriteInfoForRetVal(CallWrapper *callW);
   void getIntraFuncReadWriteInfoForArg(ArgumentWrapper *argW);
   void getIntraFuncReadWriteInfoForFunc(llvm::Function &F);
@@ -34,6 +34,7 @@ public:
   void propergateAccessInfoToParent(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator treeI);
   void printFuncArgAccessInfo(llvm::Function &F);
   void printArgAccessInfo(ArgumentWrapper *argW, TreeType ty);
+  void generateIDLForCallInsts(llvm::Function &F);
   void generateIDLforFunc(llvm::Function &F);
   void generateRpcForFunc(llvm::Function &F);
   void generateIDLForCallInstW(CallWrapper *CW);
