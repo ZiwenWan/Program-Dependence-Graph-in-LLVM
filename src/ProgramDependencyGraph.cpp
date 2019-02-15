@@ -139,8 +139,13 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
     Function *callee = CI->getCalledFunction();
 
     if (callee == nullptr)
-      return processIndirectCallInst(CI, instW); // indirect function call get func type for indirect call inst
-
+    {
+      if (Function *f = dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts())) // handle case for bitcast
+        callee = f;
+      else
+        return processIndirectCallInst(CI, instW); // indirect function call get func type for indirect call inst
+    } 
+    
     // handle intrinsic functions
     if (callee->isIntrinsic())
       return false;
@@ -495,7 +500,7 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
         InstructionWrapper* pointedTypeW = buildPointerTypeNodeWithDI(argW, curTyNode, insert_loc, instDIType);
         instWQ.push(pointedTypeW); // put the pointed node to queue
         try {
-          DITypeQ.push(DIUtils::getBaseDIType(instDIType));
+          DITypeQ.push(DIUtils::getBaseDIType(instDIType)); // put the debug info node to the queue
         } catch (std::exception &e) {
           errs() << e.what() << "\n";
           exit(0);
@@ -517,16 +522,26 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
       if (!isa<DICompositeType>(instDIType))
         continue;
 
-      // processs non-pointer type
       Type *parentType = nullptr;
       // for struct type, insert all children to the tree
       auto DINodeArr = dyn_cast<DICompositeType>(instDIType)->getElements();
-      for (unsigned int child_offset = 0; child_offset < curNodeTy->getNumContainedTypes(); child_offset++)
+      for (unsigned int child_offset = 0; child_offset < curNodeTy->getStructNumElements(); child_offset++)
       {
         parentType = curTyNode->getTreeNodeType();
         // field sensitive processing. Get correspond gep and link tree node with gep.
-        Type *childType = curNodeTy->getContainedType(child_offset);
+        Type *childType = curNodeTy->getStructElementType(child_offset);
         DIType *childDIType = dyn_cast<DIType>(DINodeArr[child_offset]);
+
+        auto isFuncPtr = [](Type *ty) {
+          if (ty->isPointerTy())
+          {
+            errs() << ty->getPointerElementType()->getTypeID();
+            return ty->getPointerElementType()->isFunctionTy();
+          }
+          return ty->isFunctionTy();
+        };
+
+        errs() << "Struct Type: " << DIUtils::getDIFieldName(childDIType) << " " << isFuncPtr(childType) << "\n";
         InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
         InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW, childDIType);
         // link gep with tree node
@@ -770,14 +785,21 @@ void pdg::ProgramDependencyGraph::buildActualParameterTrees(CallInst *CI)
   // processing indirect call. Pick the first candidate function
   if (CI->getCalledFunction() == nullptr)
   {
-    std::vector<Function *> indirect_call_candidate = collectIndirectCallCandidates(CI->getFunctionType());
-    if (indirect_call_candidate.size() == 0)
+    if (Function *f = dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts())) // Call to bitcast case
     {
-      errs() << "No possible matching candidate, no need to build actual parameter tree" << "\n";
-      return;
+      called_func = f;
     }
-    // get the first possible candidate
-    called_func = indirect_call_candidate[0];
+    else
+    {
+      std::vector<Function *> indirect_call_candidate = collectIndirectCallCandidates(CI->getFunctionType());
+      if (indirect_call_candidate.size() == 0)
+      {
+        errs() << "No possible matching candidate, no need to build actual parameter tree" << "\n";
+        return;
+      }
+      // get the first possible candidate
+      called_func = indirect_call_candidate[0];
+    }
   }
   else
   {
@@ -819,7 +841,7 @@ void pdg::ProgramDependencyGraph::linkGEPsWithTree(CallInst* CI)
   for (auto TI = retW->tree_begin(TreeType::ACTUAL_IN_TREE); TI != retW->tree_end(TreeType::ACTUAL_IN_TREE); ++TI)
   {
     InstructionWrapper *gepW = getActualTreeNodeGEP(CinstW, (*TI)->getNodeOffset(), (*TI)->getTreeNodeType(), (*TI)->getParentTreeNodeType());
-    if (gepW)
+    if (gepW) 
       (*TI)->setGEPInstW(gepW);
   }
 }
@@ -917,7 +939,7 @@ std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getReachableGEP
       }
     }
   }
-
+ 
   return relevantGEPs;
 }
 
@@ -928,7 +950,6 @@ std::set<pdg::InstructionWrapper *> pdg::ProgramDependencyGraph::getAllRelevantG
   std::set<InstructionWrapper *> relevantGEPs;
   std::queue<InstructionWrapper *> instWQ;
 
-  //errs() << depInstW->getInstruction()->getFunction()->getName() << " " << *depInstW->getInstruction() << "\n";
   for (Instruction *storeInst : initialStoreInsts)
   {
     instWQ.push(pdgUtils.getInstMap()[storeInst]); // push the initial store instruction to the instQ
@@ -1047,6 +1068,18 @@ InstructionWrapper *pdg::ProgramDependencyGraph::getTreeNodeGEP(Argument &arg, u
 std::vector<Instruction *> pdg::ProgramDependencyGraph::getArgStoreInsts(Argument &arg)
 {
   std::vector<Instruction *> initialStoreInsts;
+  if (arg.getArgNo() == RETVALARGNO)
+  {
+    auto &pdgUtils = PDGUtils::getInstance();
+    Function* func = arg.getParent();
+    for (StoreInst* st : pdgUtils.getFuncMap()[func]->getStoreInstList())
+    {
+      if (st->getValueOperand()->getType() == arg.getType())
+        initialStoreInsts.push_back(st);
+    }
+    return initialStoreInsts;
+  }
+
   for (auto UI = arg.user_begin(); UI != arg.user_end(); ++UI)
   {
     if (isa<StoreInst>(*UI))

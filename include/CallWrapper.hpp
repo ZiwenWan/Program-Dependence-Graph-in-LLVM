@@ -1,5 +1,7 @@
 #ifndef CALLWRAPPER_H_
 #define CALLWRAPPER_H_
+
+#define RETVALARGNO 100
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "InstructionWrapper.hpp"
