@@ -112,7 +112,7 @@ DIType *pdg::DIUtils::getBaseDIType(DIType *Ty) {
 
 std::string pdg::DIUtils::getDIFieldName(DIType *ty)
 {
-  if (ty == nullptr) 
+  if (ty == nullptr)
     return "void";
   switch (ty->getTag())
   {
@@ -132,7 +132,8 @@ std::string pdg::DIUtils::getDIFieldName(DIType *ty)
   }
   case dwarf::DW_TAG_subroutine_type:
     return "func ptr";
-  case dwarf::DW_TAG_const_type: {
+  case dwarf::DW_TAG_const_type:
+  {
     std::string s = getDIFieldName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
     return s;
   }
@@ -145,34 +146,54 @@ std::string pdg::DIUtils::getDIFieldName(DIType *ty)
   }
 }
 
+std::string pdg::DIUtils::getFuncSigName(DIType *ty)
+{
+  std::string func_type_str = "";
+  if (DISubroutineType *subRoutine = dyn_cast<DISubroutineType>(ty))
+  {
+    const auto &typeRefArr = subRoutine->getTypeArray();
+    DIType *retType = typeRefArr[0].resolve();
+    if (retType == nullptr)
+      func_type_str += "void ";
+    else
+      func_type_str += getDITypeName(retType);
+
+    func_type_str += "(";
+    // func_type_str += funcName;
+    func_type_str += ")";
+
+    func_type_str += "(";
+    for (int i = 1; i < typeRefArr.size(); ++i)
+    {
+      DIType *d = typeRefArr[i].resolve();
+      if (d == nullptr) // void type
+      { 
+        func_type_str += "void ";
+      }
+      else
+      {
+        if (DIDerivedType *dit = dyn_cast<DIDerivedType>(d))
+        {
+          if (dit->getBaseType().resolve()->getTag() == dwarf::DW_TAG_structure_type)
+            func_type_str = func_type_str + "projection " + getDITypeName(d) + " " + getDIFieldName(d);
+        }
+        else
+          func_type_str = func_type_str + getDITypeName(d) + " " + getDIFieldName(d);
+      }
+    }
+    func_type_str += ")";
+    return func_type_str;
+  }
+  return "void";
+}
+
 std::string pdg::DIUtils::getFuncDITypeName(DIType *ty, std::string funcName)
 {
   if (ty == nullptr)
     return "void";
 
   if (!ty->getTag() || ty == NULL) // process function type, which has not tag
-  {
-    std::string func_type_str = "";
-    if (DISubroutineType *subRoutine = dyn_cast<DISubroutineType>(ty))
-    {
-      func_type_str += "( ";
-      for (const auto &argTypeRef : subRoutine->getTypeArray())
-      {
-        DIType *d = argTypeRef.resolve();
-        if (d == nullptr) // void type
-        {
-          func_type_str += "void ";
-        }
-        else
-        {
-          func_type_str += getDITypeName(d);
-        }
-      }
-      func_type_str += " )";
-      return func_type_str;
-    }
-    return "void";
-  }
+    return getFuncSigName(ty);
 
   try
   {
@@ -192,22 +213,23 @@ std::string pdg::DIUtils::getFuncDITypeName(DIType *ty, std::string funcName)
     case dwarf::DW_TAG_pointer_type:
     {
       std::string s = getFuncDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve(), funcName);
-      return (s + "_" + funcName + " *");
+      return (s + "_" + funcName + "*");
     }
     case dwarf::DW_TAG_subroutine_type:
-      return "func";
+      return getFuncSigName(ty);
     case dwarf::DW_TAG_union_type:
       return "union";
     case dwarf::DW_TAG_structure_type:
     {
       std::string st_name = ty->getName().str();
       if (!st_name.empty())
-        return st_name;
+        return  st_name;
         // return "struct " + st_name;
       return "struct";
     }
     case dwarf::DW_TAG_const_type:
-      return "const " + getFuncDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve(), funcName);
+      return getFuncDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve(), funcName);
+      // return "const " + getFuncDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve(), funcName);
     default:
     {
       if (!ty->getName().str().empty())
@@ -230,28 +252,7 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
     return "void";
 
   if (!ty->getTag() || ty == NULL) // process function type, which has not tag
-  {
-    std::string func_type_str = "";
-    if (DISubroutineType *subRoutine = dyn_cast<DISubroutineType>(ty))
-    {
-      func_type_str += "( ";
-      for (const auto &argTypeRef : subRoutine->getTypeArray())
-      {
-        DIType *d = argTypeRef.resolve();
-        if (d == nullptr) // void type
-        {
-          func_type_str += "void ";
-        }
-        else
-        {
-          func_type_str += getDITypeName(d);
-        }
-      }
-      func_type_str += " )";
-      return func_type_str;
-    }
-    return "void";
-  }
+    return getFuncSigName(ty);
 
   try
   {
@@ -273,7 +274,7 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
       return s + "*";
     }
     case dwarf::DW_TAG_subroutine_type:
-      return "func";
+      return getFuncSigName(ty);
     case dwarf::DW_TAG_union_type:
       return "union";
     case dwarf::DW_TAG_structure_type:
@@ -285,7 +286,8 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
       return "struct";
     }
     case dwarf::DW_TAG_const_type:
-      return "const " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
+      return getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
+      // return "const " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
     default:
     {
       if (!ty->getName().str().empty())

@@ -786,7 +786,7 @@ tree<InstructionWrapper*>::iterator pdg::AccessInfoTracker::generateIDLforStruct
 {
   InstructionWrapper *curTyNode = *treeI;
   std::string func_name = argW->getArg()->getParent()->getName().str();
-  ss << "\tprojection <" << DIUtils::getDITypeName(curTyNode->getDIType()) << "> " << DIUtils::getDITypeName(curTyNode->getDIType()) << "_" << func_name << " {\n";
+  ss << "\tprojection <struct " << DIUtils::getDITypeName(curTyNode->getDIType()) << "> " << DIUtils::getDITypeName(curTyNode->getDIType()) << "_" << func_name << " {\n";
   std::stringstream projection_str;
   while (subtreeSize > 0)
   {
@@ -811,7 +811,7 @@ tree<InstructionWrapper*>::iterator pdg::AccessInfoTracker::generateIDLforStruct
     else
     {
       if (isFuncPointer(curType))
-        ss << "\t\trpc " << getAccessAttribute(treeI) << " " << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << DIUtils::getDIFieldName(curTyNode->getDIType()) << ";\n";
+        ss << "\t\trpc " << getAccessAttribute(treeI) << " " << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << DIUtils::getDIFieldName(curTyNode->getDIType()) << ";\n"; 
       else if (isStructPointer(curType)) {
         std::string typeName = DIUtils::getFuncDITypeName(curTyNode->getDIType(), func_name); 
         if (seen_projections.find(typeName) == seen_projections.end()) 

@@ -21,6 +21,7 @@ class DIUtils
     static std::string getFuncDITypeName(llvm::DIType *dt, std::string funcName);
     static std::string getArgName(llvm::Argument &arg);
     static std::string getArgTypeName(llvm::Argument &arg);
+    static std::string getFuncSigName(llvm::DIType *ty);
 };
 }
 #endif
