@@ -70,9 +70,7 @@ void pdg::AccessInfoTracker::propergateAccessInfoToParent(ArgumentWrapper *argW,
 {
   AccessType newAccessType = (*treeI)->getAccessType();
   if (argW->getTree(TreeType::FORMAL_IN_TREE).depth(treeI) == 0)
-  {
     return;
-  }
 
   auto parentTI = argW->getTree(TreeType::FORMAL_IN_TREE).parent(treeI);
   while (argW->getTree(TreeType::FORMAL_IN_TREE).depth(parentTI) != 0)

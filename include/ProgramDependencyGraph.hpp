@@ -28,6 +28,7 @@ public:
   void addNodeDependencies(InstructionWrapper *instW);
   // parameter tree building
   std::vector<llvm::Function *> collectIndirectCallCandidates(llvm::FunctionType *funcType);
+  void copyFormalTreeToActualTree(llvm::CallInst *CI, llvm::Function* func);
   void buildActualParameterTrees(llvm::CallInst *CI);
   void drawActualParameterTree(llvm::CallInst *CI, TreeType treeTy);
   void buildFormalTreeForFunc(llvm::Function *Func);
@@ -41,6 +42,7 @@ public:
   void drawFormalParameterTree(llvm::Function *Func, TreeType treeTy);
   void connectFunctionAndFormalTrees(llvm::Function *callee);
   bool connectAllPossibleFunctions(llvm::CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates);
+  void connectActualTreeToFormalTree(llvm::CallInst *CI, llvm::Function* called_func);
   bool connectCallerAndCallee(InstructionWrapper *instW, llvm::Function *callee);
   // field sensitive related functions
   void linkGEPsWithTree(llvm::CallInst* CI);

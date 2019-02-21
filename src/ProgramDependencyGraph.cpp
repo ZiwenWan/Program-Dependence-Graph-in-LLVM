@@ -52,10 +52,6 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     if (!pdgUtils.getFuncMap()[Func]->hasTrees())
     {
       buildFormalTreeForFunc(Func);
-      drawFormalParameterTree(Func, TreeType::FORMAL_IN_TREE);
-      drawFormalParameterTree(Func, TreeType::FORMAL_OUT_TREE);
-      connectFunctionAndFormalTrees(Func);
-      pdgUtils.getFuncMap()[Func]->setTreeFlag(true);
     }
   }
 
@@ -70,7 +66,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     for (CallInst *inst : callInstsList)
     {
       if (!processCallInst(pdgUtils.getInstMap()[inst]))
-        continue;
+        throw NullCalledFunction("Called Function is null. Possbile no matching function found for indirect call");
     }
   }
 
@@ -101,7 +97,7 @@ bool pdg::ProgramDependencyGraph::processIndirectCallInst(CallInst *CI, Instruct
   }
   CallWrapper *callW = new CallWrapper(CI, indirect_call_candidates);
   pdgUtils.getCallMap()[CI] = callW;
-  errs() << "indirect call, called Type t = " << *t << "\n";
+  
   // build formal tree for all candidiates.
   for (Function *indirect_called_func : indirect_call_candidates)
   {
@@ -113,14 +109,8 @@ bool pdg::ProgramDependencyGraph::processIndirectCallInst(CallInst *CI, Instruct
       continue;
     errs() << "Building tree for indirect func: " << indirect_called_func->getName() << "\n";
     buildFormalTreeForFunc(indirect_called_func);
-    drawFormalParameterTree(indirect_called_func, TreeType::FORMAL_IN_TREE);
-    drawFormalParameterTree(indirect_called_func, TreeType::FORMAL_OUT_TREE);
-    connectFunctionAndFormalTrees(indirect_called_func);
-    pdgUtils.getFuncMap()[indirect_called_func]->setTreeFlag(true);
   }
   buildActualParameterTrees(CI);
-  drawActualParameterTree(CI, TreeType::ACTUAL_IN_TREE);
-  drawActualParameterTree(CI, TreeType::ACTUAL_OUT_TREE);
   // connect actual tree with all possible candidaites.
   if (connectAllPossibleFunctions(CI, indirect_call_candidates))
   {
@@ -160,14 +150,8 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
         if (pdgUtils.getFuncMap()[callee]->hasTrees() != true)
         {
           buildFormalTreeForFunc(callee);
-          drawFormalParameterTree(callee, TreeType::FORMAL_IN_TREE);
-          drawFormalParameterTree(callee, TreeType::FORMAL_OUT_TREE);
-          connectFunctionAndFormalTrees(callee);
-          pdgUtils.getFuncMap()[callee]->setTreeFlag(true);
         }
         buildActualParameterTrees(CI);
-        drawActualParameterTree(CI, TreeType::ACTUAL_IN_TREE);
-        drawActualParameterTree(CI, TreeType::ACTUAL_OUT_TREE);
       } // end if !callee
 
       connectCallerAndCallee(instW, callee);
@@ -232,64 +216,6 @@ void pdg::ProgramDependencyGraph::addNodeDependencies(InstructionWrapper *instW)
   }
 }
 
-void pdg::ProgramDependencyGraph::buildFormalTreeForFunc(Function *Func)
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  auto FuncW = pdgUtils.getFuncMap()[Func];
-  for (auto argW : FuncW->getArgWList())
-  {
-    // build formal in tree first
-    buildFormalTreeForArg(*argW->getArg(), TreeType::FORMAL_IN_TREE);
-    // then, copy formal in tree content to formal out tree
-    argW->copyTree(argW->getTree(TreeType::FORMAL_IN_TREE), TreeType::FORMAL_OUT_TREE);
-  }
-
-  buildFormalTreeForArg(*FuncW->getRetW()->getArg(), TreeType::FORMAL_IN_TREE);
-  pdgUtils.getFuncMap()[Func]->setTreeFlag(true);
-}
-
-void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType treeTy)
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  Function *Func = arg.getParent();
-  try
-  {
-    DIType *argDIType = DIUtils::getArgDIType(arg);
-    InstructionWrapper *treeTyW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::FORMAL_IN, &arg, arg.getType(), nullptr, 0, argDIType);
-    pdgUtils.getFuncInstWMap()[Func].insert(treeTyW);
-    //find the right arg, and set tree root
-    ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
-    auto treeRoot = argW->getTree(treeTy).set_head(treeTyW);
-    if (argW->getTree(treeTy).size() == 0) {
-      std::string err_msg = "Function " + Func->getName().str() + " arg " +
-                            DIUtils::getArgName(arg) +
-                            " has param tree of size 0. Abort...";
-      errs() << err_msg << "\n" ;
-      exit(0);
-    }
-    std::string Str;
-    raw_string_ostream OS(Str);
-    //FILE*, bypass, no need to buildTypeTree
-    if ("%struct._IO_FILE*" == OS.str() || "%struct._IO_marker*" == OS.str())
-    {
-      errs() << "OS.str() = " << OS.str() << " FILE* appears, stop buildTypeTree\n";
-    }
-    else if (treeTyW->getTreeNodeType()->isPointerTy() && treeTyW->getTreeNodeType()->getContainedType(0)->isFunctionTy())
-    {
-      errs() << *arg.getParent()->getFunctionType() << " DEBUG 312: in buildFormalTree: function pointer arg = " << *treeTyW->getTreeNodeType() << "\n";
-    }
-    else
-    {
-      if (USEDEBUGINFO) 
-        buildTypeTreeWithDI(arg, treeTyW, treeTy, DIUtils::getBaseDIType(argDIType));
-      else
-        buildTypeTree(arg, treeTyW, treeTy);
-    }
-  } catch (std::exception &e) {
-    errs() << e.what() << "\n";
-  }
-}
-
 bool pdg::ProgramDependencyGraph::hasRecursiveType(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator insert_loc)
 {
   TreeType treeTy = TreeType::FORMAL_IN_TREE;
@@ -340,6 +266,139 @@ bool pdg::ProgramDependencyGraph::isFilePtrOrFuncTy(Type *ty)
     }
   }
   return false;
+}
+
+std::vector<Instruction *> pdg::ProgramDependencyGraph::getArgStoreInsts(Argument &arg)
+{
+  std::vector<Instruction *> initialStoreInsts;
+  if (arg.getArgNo() == RETVALARGNO)
+  {
+    auto &pdgUtils = PDGUtils::getInstance();
+    Function* func = arg.getParent();
+    for (StoreInst* st : pdgUtils.getFuncMap()[func]->getStoreInstList())
+    {
+      if (st->getValueOperand()->getType() == arg.getType())
+        initialStoreInsts.push_back(st);
+    }
+    return initialStoreInsts;
+  }
+
+  for (auto UI = arg.user_begin(); UI != arg.user_end(); ++UI)
+  {
+    if (isa<StoreInst>(*UI))
+    {
+      Instruction *st = dyn_cast<Instruction>(*UI);
+      initialStoreInsts.push_back(st);
+    }
+  }
+
+  return initialStoreInsts;
+}
+
+bool pdg::ProgramDependencyGraph::isFuncTypeMatch(FunctionType *funcTy1, FunctionType *funcTy2)
+{
+  if (funcTy1->getNumParams() != funcTy2->getNumParams())
+  {
+    return false;
+  }
+
+  if (funcTy1->getReturnType() != funcTy2->getReturnType())
+  {
+    return false;
+  }
+
+  unsigned param_len = funcTy1->getNumParams();
+  for (unsigned i = 0; i < param_len; ++i)
+  {
+    if (funcTy1->getParamType(i) != funcTy2->getParamType(i))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+tree<pdg::InstructionWrapper *>::iterator pdg::ProgramDependencyGraph::getInstInsertLoc(pdg::ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy)
+{
+  tree<pdg::InstructionWrapper *>::iterator insert_loc = argW->getTree(treeTy).begin();
+  while ((*insert_loc) != tyW && insert_loc != argW->getTree(treeTy).end())
+  {
+    insert_loc++;
+  }
+  return insert_loc;
+}
+
+typename pdg::DependencyNode<pdg::InstructionWrapper>::DependencyLinkList pdg::ProgramDependencyGraph::getNodeDepList(Instruction *inst)
+{
+  return PDG->getNodeDepList(PDGUtils::getInstance().getInstMap()[inst]);
+}
+
+// --------------------------------------
+// --------------------------------------
+// Build tree functions
+// --------------------------------------
+// --------------------------------------
+
+void pdg::ProgramDependencyGraph::buildFormalTreeForFunc(Function *Func)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto FuncW = pdgUtils.getFuncMap()[Func];
+  for (auto argW : FuncW->getArgWList())
+  {
+    // build formal in tree first
+    buildFormalTreeForArg(*argW->getArg(), TreeType::FORMAL_IN_TREE);
+    // then, copy formal in tree content to formal out tree
+    argW->copyTree(argW->getTree(TreeType::FORMAL_IN_TREE), TreeType::FORMAL_OUT_TREE);
+  }
+  buildFormalTreeForArg(*FuncW->getRetW()->getArg(), TreeType::FORMAL_IN_TREE);
+  pdgUtils.getFuncMap()[Func]->setTreeFlag(true);
+
+  drawFormalParameterTree(Func, TreeType::FORMAL_IN_TREE);
+  drawFormalParameterTree(Func, TreeType::FORMAL_OUT_TREE);
+  connectFunctionAndFormalTrees(Func);
+  pdgUtils.getFuncMap()[Func]->setTreeFlag(true);
+}
+
+void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType treeTy)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  Function *Func = arg.getParent();
+  try
+  {
+    DIType *argDIType = DIUtils::getArgDIType(arg);
+    InstructionWrapper *treeTyW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::FORMAL_IN, &arg, arg.getType(), nullptr, 0, argDIType);
+    pdgUtils.getFuncInstWMap()[Func].insert(treeTyW);
+    //find the right arg, and set tree root
+    ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
+    auto treeRoot = argW->getTree(treeTy).set_head(treeTyW);
+    if (argW->getTree(treeTy).size() == 0) {
+      std::string err_msg = "Function " + Func->getName().str() + " arg " +
+                            DIUtils::getArgName(arg) +
+                            " has param tree of size 0. Abort...";
+      errs() << err_msg << "\n" ;
+      exit(0);
+    }
+    std::string Str;
+    raw_string_ostream OS(Str);
+    //FILE*, bypass, no need to buildTypeTree
+    if ("%struct._IO_FILE*" == OS.str() || "%struct._IO_marker*" == OS.str())
+    {
+      errs() << "OS.str() = " << OS.str() << " FILE* appears, stop buildTypeTree\n";
+    }
+    else if (treeTyW->getTreeNodeType()->isPointerTy() && treeTyW->getTreeNodeType()->getContainedType(0)->isFunctionTy())
+    {
+      errs() << *arg.getParent()->getFunctionType() << " DEBUG 312: in buildFormalTree: function pointer arg = " << *treeTyW->getTreeNodeType() << "\n";
+    }
+    else
+    {
+      if (USEDEBUGINFO) 
+        buildTypeTreeWithDI(arg, treeTyW, treeTy, DIUtils::getBaseDIType(argDIType));
+      else
+        buildTypeTree(arg, treeTyW, treeTy);
+    }
+  } catch (std::exception &e) {
+    errs() << e.what() << "\n";
+  }
 }
 
 InstructionWrapper *pdg::ProgramDependencyGraph::buildPointerTypeNode(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator insert_loc)
@@ -427,12 +486,10 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
       // compose for struct
       if (!curNodeTy->isStructTy())
         continue;
-      // processs non-pointer type
-      Type *parentType = nullptr;
       // for struct type, insert all children to the tree
       for (unsigned int child_offset = 0; child_offset < curNodeTy->getNumContainedTypes(); child_offset++)
       {
-        parentType = curTyNode->getTreeNodeType();
+        Type *parentType = curTyNode->getTreeNodeType();
         // field sensitive processing. Get correspond gep and link tree node with gep.
         Type *childType = curNodeTy->getContainedType(child_offset);
         InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
@@ -444,11 +501,9 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
         pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
         // start inserting formal tree instructions
         argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
-
         //skip function ptr, FILE*
         if (isFilePtrOrFuncTy(childType))
           continue;
-
         instWQ.push(typeFieldW);
       }
     }
@@ -531,19 +586,23 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
         // field sensitive processing. Get correspond gep and link tree node with gep.
         Type *childType = curNodeTy->getStructElementType(child_offset);
         DIType *childDIType = dyn_cast<DIType>(DINodeArr[child_offset]);
-
-        auto isFuncPtr = [](Type *ty) {
-          if (ty->isPointerTy())
-          {
-            errs() << ty->getPointerElementType()->getTypeID();
-            return ty->getPointerElementType()->isFunctionTy();
-          }
-          return ty->isFunctionTy();
-        };
-
-        errs() << "Struct Type: " << DIUtils::getDIFieldName(childDIType) << " " << isFuncPtr(childType) << "\n";
         InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
         InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW, childDIType);
+        // does bit field processing
+        if (curNodeTy->isIntegerTy() && instDIType->isBitField())
+        {
+          unsigned bitFieldPackingSizeInBits = curNodeTy->getIntegerBitWidth();
+          while (bitFieldPackingSizeInBits > 0 && instDIType->isBitField())
+          {
+            uint64_t bitFieldSize = instDIType->getSizeInBits();
+            bitFieldPackingSizeInBits -= bitFieldSize;
+            instDIType = DITypeQ.front();
+            if (!instDIType->isBitField())
+              break;
+            DITypeQ.pop();
+          }
+          continue;
+        }
         // link gep with tree node
         if (gepInstW != nullptr)
           PDG->addDependency(typeFieldW, gepInstW, DependencyType::STRUCT_FIELDS);
@@ -615,9 +674,6 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
         break;
       }
 
-      // link specific field with GEP if there is any.
-      //linkTypeNodeWithGEPInst(*argI, formal_in_TI);
-
       // connect formal-in-tree type nodes with storeinst in call_func
       if (tree<InstructionWrapper *>::depth(formal_in_TI) == 0)
       {
@@ -641,17 +697,13 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
         break;
       }
 
-      if ((*formal_out_TI)->getTreeNodeType() != nullptr)
+      if ((*formal_out_TI)->getTreeNodeType() == nullptr)
+        return;
+
+      for (LoadInst *loadInst : pdgUtils.getFuncMap()[callee]->getLoadInstList())
       {
-        for (LoadInst *loadInst : pdgUtils.getFuncMap()[callee]->getLoadInstList())
-        {
-          if ((*formal_out_TI)->getTreeNodeType() == loadInst->getPointerOperand()->getType()->getContainedType(0))
-          {
-            PDG->addDependency(pdgUtils.getInstMap()[loadInst],
-                               *formal_out_TI,
-                               DependencyType::DATA_GENERAL);
-          }
-        }
+        if ((*formal_out_TI)->getTreeNodeType() == loadInst->getPointerOperand()->getType()->getContainedType(0))
+          PDG->addDependency(pdgUtils.getInstMap()[loadInst], *formal_out_TI, DependencyType::DATA_GENERAL);
       }
     }
   }
@@ -671,57 +723,13 @@ bool pdg::ProgramDependencyGraph::connectAllPossibleFunctions(CallInst *CI, std:
   return true;
 }
 
-bool pdg::ProgramDependencyGraph::connectCallerAndCallee(InstructionWrapper *instW, Function *callee)
+void pdg::ProgramDependencyGraph::connectActualTreeToFormalTree(CallInst *CI, Function *called_func)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  if (instW == nullptr || callee == nullptr)
-    return false;
-
-  // callInst in caller --> Entry Node in callee
-  PDG->addDependency(instW, pdgUtils.getFuncMap()[callee]->getEntryW(), DependencyType::CONTROL);
-  Function *caller = instW->getInstruction()->getFunction();
-  // ReturnInst in callee --> CallInst in caller
-  for (Instruction *retInst : pdgUtils.getFuncMap()[callee]->getReturnInstList())
-  {
-    for (InstructionWrapper *tmpInstW : pdgUtils.getFuncInstWMap()[caller])
-    {
-      if (retInst == tmpInstW->getInstruction())
-      {
-        if (dyn_cast<ReturnInst>(tmpInstW->getInstruction())->getReturnValue() != nullptr)
-          PDG->addDependency(tmpInstW, instW, DependencyType::DATA_GENERAL);
-        else
-          errs() << "void ReturnInst: " << *tmpInstW->getInstruction();
-      }
-    }
-  }
-
-  // connect caller InstW with ACTUAL IN/OUT parameter trees
-  CallInst *CI = dyn_cast<CallInst>(instW->getInstruction());
-
-  for (ArgumentWrapper *argW : pdgUtils.getCallMap()[CI]->getArgWList())
-  {
-    InstructionWrapper *actual_inW = *(argW->getTree(TreeType::ACTUAL_IN_TREE).begin());
-    InstructionWrapper *actual_outW = *(argW->getTree(TreeType::ACTUAL_OUT_TREE).begin());
-
-    if (instW == actual_inW || instW == actual_outW)
-      continue;
-
-    PDG->addDependency(instW, actual_inW, DependencyType::PARAMETER);
-    PDG->addDependency(instW, actual_outW, DependencyType::PARAMETER);
-  }
-
   // old way, process four trees at the same time, remove soon
-  std::vector<ArgumentWrapper *>::iterator formal_argI;
-  formal_argI = pdgUtils.getFuncMap()[callee]->getArgWList().begin();
-
-  std::vector<ArgumentWrapper *>::iterator formal_argE;
-  formal_argE = pdgUtils.getFuncMap()[callee]->getArgWList().end();
-
-  std::vector<ArgumentWrapper *>::iterator actual_argI;
-  actual_argI = pdgUtils.getCallMap()[CI]->getArgWList().begin();
-
-  std::vector<ArgumentWrapper *>::iterator actual_argE;
-  actual_argE = pdgUtils.getCallMap()[CI]->getArgWList().end();
+  std::vector<ArgumentWrapper *>::iterator formal_argI = pdgUtils.getFuncMap()[called_func]->getArgWList().begin();
+  std::vector<ArgumentWrapper *>::iterator formal_argE = pdgUtils.getFuncMap()[called_func]->getArgWList().end();
+  std::vector<ArgumentWrapper *>::iterator actual_argI = pdgUtils.getCallMap()[CI]->getArgWList().begin();
 
   // increase formal/actual tree iterator simutaneously
   for (; formal_argI != formal_argE; ++formal_argI, ++actual_argI)
@@ -743,38 +751,94 @@ bool pdg::ProgramDependencyGraph::connectCallerAndCallee(InstructionWrapper *ins
                          *actual_out_TI, DependencyType::PARAMETER);
 
     } // end for(tree...) intra-connection between actual/formal
+  }
+}
 
-    // 3. ACTUAL_OUT --> LoadInsts in #Caller# function
-    for (tree<InstructionWrapper *>::iterator
-             actual_out_TI = (*actual_argI)->getTree(TreeType::ACTUAL_OUT_TREE).begin(),
-             actual_out_TE = (*actual_argI)->getTree(TreeType::ACTUAL_OUT_TREE).end();
-         actual_out_TI != actual_out_TE; ++actual_out_TI)
+bool pdg::ProgramDependencyGraph::connectCallerAndCallee(InstructionWrapper *instW, Function *callee)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  if (instW == nullptr || callee == nullptr)
+    return false;
+
+  // callInst in caller --> Entry Node in callee
+  PDG->addDependency(instW, pdgUtils.getFuncMap()[callee]->getEntryW(), DependencyType::CONTROL);
+  Function *caller = instW->getInstruction()->getFunction();
+  // ReturnInst in callee --> CallInst in caller
+  for (Instruction *retInst : pdgUtils.getFuncMap()[callee]->getReturnInstList())
+  {
+    for (InstructionWrapper *tmpInstW : pdgUtils.getFuncInstWMap()[caller])
     {
-      // must handle nullptr case first
-      if ((*actual_out_TI)->getTreeNodeType() == nullptr)
+      if (retInst == tmpInstW->getInstruction())
       {
-        errs() << "DEBUG ACTUAL_OUT->LoadInst: actual_out_TI->getFieldType() is empty!\n";
-        break;
-      }
-
-      if ((*actual_out_TI)->getTreeNodeType() != nullptr)
-      {
-        for (LoadInst *loadInst : pdgUtils.getFuncMap()[instW->getFunction()]->getLoadInstList())
-        {
-          if ((*actual_out_TI)->getTreeNodeType() == loadInst->getType())
-          {
-            for (InstructionWrapper *tmpInstW : pdgUtils.getFuncInstWMap()[callee])
-            {
-              if (tmpInstW->getInstruction() == dyn_cast<Instruction>(loadInst))
-                PDG->addDependency(*actual_out_TI, tmpInstW, DependencyType::DATA_GENERAL);
-            }
-          }
-        }
+        if (dyn_cast<ReturnInst>(tmpInstW->getInstruction())->getReturnValue() != nullptr)
+          PDG->addDependency(tmpInstW, instW, DependencyType::DATA_GENERAL);
       }
     }
   }
+  
+  // connect caller InstW with ACTUAL IN/OUT parameter trees
+  CallInst *CI = dyn_cast<CallInst>(instW->getInstruction());
+  for (ArgumentWrapper *argW : pdgUtils.getCallMap()[CI]->getArgWList())
+  {
+    InstructionWrapper *actual_inW = *(argW->getTree(TreeType::ACTUAL_IN_TREE).begin());
+    InstructionWrapper *actual_outW = *(argW->getTree(TreeType::ACTUAL_OUT_TREE).begin());
 
+    if (instW == actual_inW || instW == actual_outW)
+      continue;
+
+    PDG->addDependency(instW, actual_inW, DependencyType::PARAMETER);
+    PDG->addDependency(instW, actual_outW, DependencyType::PARAMETER);
+  }
+
+  connectActualTreeToFormalTree(CI, callee);
+  // // 3. ACTUAL_OUT --> LoadInsts in #Caller# function
+  // for (tree<InstructionWrapper *>::iterator
+  //          actual_out_TI = (*actual_argI)->getTree(TreeType::ACTUAL_OUT_TREE).begin(),
+  //          actual_out_TE = (*actual_argI)->getTree(TreeType::ACTUAL_OUT_TREE).end();
+  //      actual_out_TI != actual_out_TE; ++actual_out_TI)
+  // {
+  //   for (LoadInst *loadInst : pdgUtils.getFuncMap()[instW->getFunction()]->getLoadInstList())
+  //   {
+  //     if ((*actual_out_TI)->getTreeNodeType() != loadInst->getType())
+  //       continue;
+
+  //     for (InstructionWrapper *tmpInstW : pdgUtils.getFuncInstWMap()[callee])
+  //     {
+  //       if (tmpInstW->getInstruction() == dyn_cast<Instruction>(loadInst))
+  //         PDG->addDependency(*actual_out_TI, tmpInstW, DependencyType::DATA_GENERAL);
+  //     }
+  //   }
+  // }
+  // }
   return true;
+}
+
+void pdg::ProgramDependencyGraph::copyFormalTreeToActualTree(CallInst *CI, Function *func)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  CallWrapper *CW = pdgUtils.getCallMap()[CI];
+  FunctionWrapper *funcW = pdgUtils.getFuncMap()[func];
+  auto argI = CW->getArgWList().begin();
+  auto argE = CW->getArgWList().end();
+  auto argFI = funcW->getArgWList().begin();
+  auto argFE = funcW->getArgWList().end();
+
+  //copy Formal Tree to Actual Tree. Actual trees are used by call site.
+  for (; argI != argE && argFI != argFE; ++argI, ++argFI)
+  {
+    (*argI)->copyTree((*argFI)->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_IN_TREE);
+    (*argI)->copyTree((*argFI)->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_OUT_TREE);
+  }
+
+  // copy return value wrapper
+  ArgumentWrapper *CIRetW = pdgUtils.getCallMap()[CI]->getRetW();
+  ArgumentWrapper *FuncRetW = pdgUtils.getFuncMap()[func]->getRetW();
+
+  if (CIRetW == nullptr)
+    return;
+  CIRetW->copyTree(FuncRetW->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_IN_TREE);
+  CIRetW->copyTree(FuncRetW->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_OUT_TREE);
+  linkGEPsWithTree(CI);
 }
 
 void pdg::ProgramDependencyGraph::buildActualParameterTrees(CallInst *CI)
@@ -806,27 +870,9 @@ void pdg::ProgramDependencyGraph::buildActualParameterTrees(CallInst *CI)
     called_func = CI->getCalledFunction();
   }
 
-  auto argI = pdgUtils.getCallMap()[CI]->getArgWList().begin();
-  auto argE = pdgUtils.getCallMap()[CI]->getArgWList().end();
-
-  auto argFI = pdgUtils.getFuncMap()[called_func]->getArgWList().begin();
-  auto argFE = pdgUtils.getFuncMap()[called_func]->getArgWList().end();
-  //copy Formal Tree to Actual Tree. Actual trees are used by call site.
-  for (; argI != argE && argFI != argFE; ++argI, ++argFI)
-  {
-    (*argI)->copyTree((*argFI)->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_IN_TREE);
-    (*argI)->copyTree((*argFI)->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_OUT_TREE);
-  }
-
-  // copy return value wrapper
-  ArgumentWrapper *CIRetW = pdgUtils.getCallMap()[CI]->getRetW();
-  ArgumentWrapper *FuncRetW = pdgUtils.getFuncMap()[called_func]->getRetW();
-
-  if (CIRetW == nullptr)
-    return;
-  CIRetW->copyTree(FuncRetW->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_IN_TREE);
-  CIRetW->copyTree(FuncRetW->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_OUT_TREE);
-  linkGEPsWithTree(CI);
+  copyFormalTreeToActualTree(CI, called_func);
+  drawActualParameterTree(CI, TreeType::ACTUAL_IN_TREE);
+  drawActualParameterTree(CI, TreeType::ACTUAL_OUT_TREE);
 }
 
 void pdg::ProgramDependencyGraph::linkGEPsWithTree(CallInst* CI)
@@ -872,7 +918,6 @@ void pdg::ProgramDependencyGraph::drawActualParameterTree(CallInst *CI, pdg::Tre
         PDG->addDependency(*TI, childW, DependencyType::PARAMETER);
       }
     }
-
     ARG_POS++;
   }
 }
@@ -1003,7 +1048,6 @@ InstructionWrapper *pdg::ProgramDependencyGraph::getActualTreeNodeGEP(Instructio
       auto GEP = dyn_cast<GetElementPtrInst>(GEPInstW->getInstruction());
       llvm::Type *GEPResTy = GEP->getResultElementType();
       llvm::Type *GEPSrcTy = GEP->getSourceElementType();
-
       // get access field idx from GEP
       int field_idx = constInt->getSExtValue();
       // plus one. Since for struct, the 0 index is used by the parent struct
@@ -1011,7 +1055,6 @@ InstructionWrapper *pdg::ProgramDependencyGraph::getActualTreeNodeGEP(Instructio
       // parent that is not nullptr
       if (parentNodeTy->isPointerTy())
         parentNodeTy = parentNodeTy->getPointerElementType();
-
       // check the src type in GEP inst is equal to parent_type (GET FROM)
       // check if the offset is equal
       bool srcTypeMatch = (GEPSrcTy == parentNodeTy);
@@ -1022,7 +1065,6 @@ InstructionWrapper *pdg::ProgramDependencyGraph::getActualTreeNodeGEP(Instructio
         return GEPInstW;
     }
   }
-
   return nullptr;
 }
 
@@ -1065,70 +1107,6 @@ InstructionWrapper *pdg::ProgramDependencyGraph::getTreeNodeGEP(Argument &arg, u
   return nullptr;
 }
 
-std::vector<Instruction *> pdg::ProgramDependencyGraph::getArgStoreInsts(Argument &arg)
-{
-  std::vector<Instruction *> initialStoreInsts;
-  if (arg.getArgNo() == RETVALARGNO)
-  {
-    auto &pdgUtils = PDGUtils::getInstance();
-    Function* func = arg.getParent();
-    for (StoreInst* st : pdgUtils.getFuncMap()[func]->getStoreInstList())
-    {
-      if (st->getValueOperand()->getType() == arg.getType())
-        initialStoreInsts.push_back(st);
-    }
-    return initialStoreInsts;
-  }
-
-  for (auto UI = arg.user_begin(); UI != arg.user_end(); ++UI)
-  {
-    if (isa<StoreInst>(*UI))
-    {
-      Instruction *st = dyn_cast<Instruction>(*UI);
-      initialStoreInsts.push_back(st);
-    }
-  }
-
-  return initialStoreInsts;
-}
-
-bool pdg::ProgramDependencyGraph::isFuncTypeMatch(FunctionType *funcTy1, FunctionType *funcTy2)
-{
-  if (funcTy1->getNumParams() != funcTy2->getNumParams())
-  {
-    return false;
-  }
-
-  if (funcTy1->getReturnType() != funcTy2->getReturnType())
-  {
-    return false;
-  }
-
-  unsigned param_len = funcTy1->getNumParams();
-  for (unsigned i = 0; i < param_len; ++i)
-  {
-    if (funcTy1->getParamType(i) != funcTy2->getParamType(i))
-    {
-      return false;
-    }
-  }
-  return true;
-}
-
-tree<pdg::InstructionWrapper *>::iterator pdg::ProgramDependencyGraph::getInstInsertLoc(pdg::ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy)
-{
-  tree<pdg::InstructionWrapper *>::iterator insert_loc = argW->getTree(treeTy).begin();
-  while ((*insert_loc) != tyW && insert_loc != argW->getTree(treeTy).end())
-  {
-    insert_loc++;
-  }
-  return insert_loc;
-}
-
-typename pdg::DependencyNode<pdg::InstructionWrapper>::DependencyLinkList pdg::ProgramDependencyGraph::getNodeDepList(Instruction *inst)
-{
-  return PDG->getNodeDepList(PDGUtils::getInstance().getInstMap()[inst]);
-}
 
 static RegisterPass<pdg::ProgramDependencyGraph>
     PDG("pdg", "Program Dependency Graph Construction", false, true);

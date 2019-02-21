@@ -81,6 +81,20 @@ public:
     return _msg.c_str();
   }
 };
+
+class NullCalledFunction : public std::exception
+{
+private:
+  std::string _msg;
+
+public:
+  NullCalledFunction(const std::string &msg) : _msg(msg) {}
+  virtual const char *what() const noexcept override
+  {
+    return _msg.c_str();
+  }
+};
+
 } // namespace pdg
 
 #endif
