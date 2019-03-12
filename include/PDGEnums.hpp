@@ -16,7 +16,8 @@ enum class DependencyType
   PARAMETER,
   STRUCT_FIELDS,
   NO_DEPENDENCY,
-  GLOBAL_DEP
+  GLOBAL_DEP,
+  VAL_DEP
 };
 
 enum class GraphNodeType

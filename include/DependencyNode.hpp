@@ -26,6 +26,7 @@ public:
   DependencyLinkList &getDependencyList() { return dependencyList; }
   bool isDepends(const DependencyNode<NodeT> *dNode);
   DependencyType getDependencyType(const DependencyNode<NodeT> *dNode) const;
+  DependencyLinkList getNodesWithDepType(DependencyType type) const;
 
 private:
   const NodeT *dataNode;

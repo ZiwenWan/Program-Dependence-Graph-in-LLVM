@@ -47,3 +47,15 @@ DependencyType DependencyNode<NodeT>::getDependencyType(const DependencyNode<Nod
 
   return DependencyType::NO_DEPENDENCY;
 }
+
+template <typename NodeT>
+typename DependencyNode<NodeT>::DependencyLinkList DependencyNode<NodeT>::getNodesWithDepType(DependencyType depType) const
+{
+  DependencyLinkList ret;
+  for (auto pair : dependencyList)
+  {
+    if (pair.second == depType)
+      ret.push_back(pair);
+  }
+  return ret;
+}

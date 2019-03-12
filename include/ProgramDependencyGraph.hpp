@@ -51,8 +51,12 @@ public:
   std::set<pdg::InstructionWrapper *> getAllRelevantGEP(llvm::Argument &arg);
   InstructionWrapper *getTreeNodeGEP(llvm::Argument &arg, unsigned field_offset, llvm::Type *treeNodeTy, llvm::Type *parentNodeTy);
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);
+  llvm::Instruction *getArgAllocaInst(llvm::Argument &arg);
   // tree building helper functions
+  std::vector<InstructionWrapper*> getReadInstsOnInst(llvm::Instruction* inst);
+  std::vector<InstructionWrapper *> getAllAlias(llvm::Instruction *inst);
   bool isFuncTypeMatch(llvm::FunctionType *funcTy1, llvm::FunctionType *funcTy2);
+  bool isTreeNodeGEPMatch(InstructionWrapper *treeNode, llvm::Instruction *GEP);
   tree<InstructionWrapper *>::iterator getInstInsertLoc(ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy);
   //  dep printer related functions
   std::vector<DependencyNode<InstructionWrapper> *> getNodeSet() { return PDG->getNodeSet(); }

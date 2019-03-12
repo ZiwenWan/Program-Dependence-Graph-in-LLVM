@@ -49,14 +49,10 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
     Instruction *inst = dyn_cast<Instruction>(&*I);
 
     if (isa<StoreInst>(inst))
-    {
       G_funcMap[&F]->addStoreInst(inst);
-    }
 
     if (isa<LoadInst>(inst))
-    {
       G_funcMap[&F]->addLoadInst(inst);
-    }
 
     if (isa<ReturnInst>(inst))
       G_funcMap[&F]->addReturnInst(inst);
@@ -66,5 +62,11 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
       if (!isa<DbgDeclareInst>(ci))
         G_funcMap[&F]->addCallInst(inst);
     }
+
+    if (BitCastInst *bci = dyn_cast<BitCastInst>(inst))
+      G_funcMap[&F]->addBitCastInst(inst);
+    
+    if (IntrinsicInst *ii = dyn_cast<IntrinsicInst>(inst))
+      G_funcMap[&F]->addIntrinsicInst(inst);
   }
 }

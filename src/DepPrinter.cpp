@@ -262,6 +262,12 @@ struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg
     {
       return "style=dotted, label=\"{S_FIELD}\", color=\"red\", penwidth=\"2.0\"";
     }
+    case DependencyType::VAL_DEP:
+    {
+      return "style=dotted, label=\"{S_FIELD}\", color=\"red\", penwidth=\"1.0\"";
+    }
+    case DependencyType::DATA_ALIAS:
+      return "style=dotted, label=\"{alias}\", color=\"green\", penwidth=\"1.0\"";
     default:
       return "";
       //return "style=dotted,label=\"{UNDEFINED}\"";

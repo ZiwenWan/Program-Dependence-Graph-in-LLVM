@@ -37,13 +37,43 @@ void pdg::DataDependencyGraph::collectDataDependencyInFunc()
       collectRAWDependency(inst);
       collectNonLocalDependency(inst);
     }
+    
+    if (isa<GetElementPtrInst>(inst))
+      collectReadFromDependency(inst);
   }
 }
 
-void pdg::DataDependencyGraph::collectAliasInst()
+void pdg::DataDependencyGraph::collectAliasDependencies()
 {
-  std::vector<StoreInst *> storeVec = PDGUtils::getInstance().getFuncMap()[Func]->getStoreInstList();
-  std::vector<LoadInst *> loadVec = PDGUtils::getInstance().getFuncMap()[Func]->getLoadInstList();
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto storeVec = pdgUtils.getFuncMap()[Func]->getStoreInstList();
+  auto loadVec = pdgUtils.getFuncMap()[Func]->getLoadInstList();
+  auto intrinsicInstVec = pdgUtils.getFuncMap()[Func]->getIntrinsicInstList();
+  auto bitCastVec = pdgUtils.getFuncMap()[Func]->getBitCastInstList();
+
+  for (auto bc : bitCastVec)
+  {
+    if (auto inst = dyn_cast<Instruction>(bc->getOperand(0)))
+    {
+      DDG->addDependency(pdgUtils.getInstMap()[bc], pdgUtils.getInstMap()[inst], DependencyType::DATA_ALIAS);
+      DDG->addDependency(pdgUtils.getInstMap()[inst], pdgUtils.getInstMap()[bc], DependencyType::DATA_ALIAS);
+    }
+  }
+
+  for (auto ii : intrinsicInstVec)
+  {
+    if (auto memIntrinsic = dyn_cast<MemTransferInst>(ii))
+    {
+      if (auto srcI = dyn_cast<Instruction>(memIntrinsic->getDest()))
+      {
+        if (auto destI = dyn_cast<Instruction>(memIntrinsic->getSource()))
+        {
+          DDG->addDependency(pdgUtils.getInstMap()[srcI], pdgUtils.getInstMap()[destI], DependencyType::DATA_ALIAS);
+          DDG->addDependency(pdgUtils.getInstMap()[destI], pdgUtils.getInstMap()[srcI], DependencyType::DATA_ALIAS);
+        }
+      }
+    }
+  }
 
   for (StoreInst *si : storeVec)
   {
@@ -52,11 +82,10 @@ void pdg::DataDependencyGraph::collectAliasInst()
     {
       MemoryLocation l_loc = MemoryLocation::get(li);
       AliasResult andersAAResult = andersAA->alias(s_loc, l_loc);
-      // AliasResult steensAAResult = steenAA->alias(s_loc, l_loc);
       if (andersAAResult != NoAlias)
       {
-        InstructionWrapper *loadInstW = PDGUtils::getInstance().getInstMap()[li];
-        InstructionWrapper *storeInstW = PDGUtils::getInstance().getInstMap()[si];
+        InstructionWrapper *loadInstW = pdgUtils.getInstMap()[li];
+        InstructionWrapper *storeInstW = pdgUtils.getInstMap()[si];
         DDG->addDependency(storeInstW, loadInstW, DependencyType::DATA_ALIAS);
         DDG->addDependency(loadInstW, storeInstW, DependencyType::DATA_ALIAS);
       }
@@ -67,9 +96,10 @@ void pdg::DataDependencyGraph::collectAliasInst()
         continue;
       MemoryLocation s1_loc = MemoryLocation::get(si1);
       AliasResult andersAAResult = andersAA->alias(s_loc, s1_loc);
-      if (andersAAResult != NoAlias) {
-        InstructionWrapper *store1InstW = PDGUtils::getInstance().getInstMap()[si];
-        InstructionWrapper *store2InstW = PDGUtils::getInstance().getInstMap()[si1];
+      if (andersAAResult != NoAlias)
+      {
+        InstructionWrapper *store1InstW = pdgUtils.getInstMap()[si];
+        InstructionWrapper *store2InstW = pdgUtils.getInstMap()[si1];
         DDG->addDependency(store1InstW, store2InstW, DependencyType::DATA_ALIAS);
         DDG->addDependency(store2InstW, store1InstW, DependencyType::DATA_ALIAS);
       }
@@ -82,9 +112,8 @@ void pdg::DataDependencyGraph::collectAliasInst()
     for (LoadInst *li2 : loadVec)
     {
       if (li1 == li2)
-      {
         continue;
-      }
+
       MemoryLocation li1_loc = MemoryLocation::get(li1);
       MemoryLocation li2_loc = MemoryLocation::get(li2);
 
@@ -104,13 +133,25 @@ void pdg::DataDependencyGraph::collectAliasInst()
       }
     }
   }
+
+
 }
 
 void pdg::DataDependencyGraph::collectReadFromDependency(llvm::Instruction *inst)
 {
-  if (LoadInst *li = dyn_cast<LoadInst>(inst))
+  if (auto li = dyn_cast<LoadInst>(inst))
   {
     if (Instruction *pInst = dyn_cast<Instruction>(li->getPointerOperand()))
+    {
+      DDG->addDependency(PDGUtils::getInstance().getInstMap()[pInst],
+                         PDGUtils::getInstance().getInstMap()[inst],
+                         DependencyType::DATA_READ);
+    }
+  }
+
+  if (auto gep = dyn_cast<GetElementPtrInst>(inst))
+  {
+    if (Instruction *pInst = dyn_cast<Instruction>(gep->getPointerOperand()))
     {
       DDG->addDependency(PDGUtils::getInstance().getInstMap()[pInst],
                          PDGUtils::getInstance().getInstMap()[inst],
@@ -230,7 +271,7 @@ bool pdg::DataDependencyGraph::runOnFunction(Function &F)
   initializeMemoryDependencyPasses();
   constructFuncMapAndCreateFunctionEntry();
   collectDataDependencyInFunc();
-  collectAliasInst();
+  collectAliasDependencies();
   return false;
 }
 
