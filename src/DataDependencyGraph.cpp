@@ -187,12 +187,12 @@ void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst
     {
       if (Instruction *tmpInst = dyn_cast<Instruction>(&*arg_iter))
       {
-        // DDG->addDependency(PDGUtils::getInstance().getInstMap()[tmpInst],
-        //                    PDGUtils::getInstance().getInstMap()[inst],
-        //                    DependencyType::DATA_CALL_PARA);
-        DDG->addDependency(PDGUtils::getInstance().getInstMap()[inst],
-                           PDGUtils::getInstance().getInstMap()[tmpInst],
+        DDG->addDependency(PDGUtils::getInstance().getInstMap()[tmpInst],
+                           PDGUtils::getInstance().getInstMap()[inst],
                            DependencyType::DATA_CALL_PARA);
+        // DDG->addDependency(PDGUtils::getInstance().getInstMap()[inst],
+        //                    PDGUtils::getInstance().getInstMap()[tmpInst],
+        //                    DependencyType::DATA_CALL_PARA);
       }
     }
   }

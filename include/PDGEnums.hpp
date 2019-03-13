@@ -29,6 +29,7 @@ enum class GraphNodeType
   ACTUAL_OUT,
   RETURN,
   POINTER_RW,
+  ARG_ALLOC,
   PARAMETER_FIELD,
   ENTRY,
   STRUCT_FIELD,

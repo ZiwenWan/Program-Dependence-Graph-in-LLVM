@@ -363,6 +363,10 @@ typename pdg::DependencyNode<pdg::InstructionWrapper>::DependencyLinkList pdg::P
   return PDG->getNodeDepList(PDGUtils::getInstance().getInstMap()[inst]);
 }
 
+typename DependencyNode<InstructionWrapper>::DependencyLinkList pdg::ProgramDependencyGraph::getNodesWithDepType(const InstructionWrapper *instW, DependencyType depType) {
+  auto node = PDG->getNodeByData(instW);
+  return node->getNodesWithDepType(depType);
+}
 // --------------------------------------
 // --------------------------------------
 // Build tree functions
@@ -522,11 +526,9 @@ void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrappe
         Type *parentType = curTyNode->getTreeNodeType();
         // field sensitive processing. Get correspond gep and link tree node with gep.
         Type *childType = curNodeTy->getContainedType(child_offset);
-        InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
-        InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW);
+        // InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
+        InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset);
         // link gep with tree node
-        if (gepInstW != nullptr)
-          PDG->addDependency(typeFieldW, gepInstW, DependencyType::VAL_DEP);
         pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
         // start inserting formal tree instructions
         argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
@@ -615,8 +617,8 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
         // field sensitive processing. Get correspond gep and link tree node with gep.
         Type *childType = curNodeTy->getStructElementType(child_offset);
         DIType *childDIType = dyn_cast<DIType>(DINodeArr[child_offset]);
-        InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
-        InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, gepInstW, childDIType);
+        // InstructionWrapper *gepInstW = getTreeNodeGEP(arg, child_offset, childType, parentType);
+        InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, childDIType);
         // does bit field processing
         if (curNodeTy->isIntegerTy() && instDIType->isBitField())
         {
@@ -632,9 +634,9 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
           }
           continue;
         }
-        // link gep with tree node
-        if (gepInstW != nullptr)
-          PDG->addDependency(typeFieldW, gepInstW, DependencyType::VAL_DEP);
+        // // link gep with tree node
+        // if (gepInstW != nullptr)
+        //   PDG->addDependency(typeFieldW, gepInstW, DependencyType::VAL_DEP);
 
         pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
         // start inserting formal tree instructions
@@ -729,8 +731,9 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
     PDG->addDependency(pdgUtils.getFuncMap()[callee]->getEntryW(), *formalOutTreeBegin, DependencyType::PARAMETER);
     // find store instructions represent values for root. The value operand of
     // sotre instruction is the argument we interested.
-    auto argAllocs = getArgAllocaInst(*(*argI)->getArg());
-    PDG->addDependency(*formalInTreeBegin, pdgUtils.getInstMap()[argAllocs], DependencyType::VAL_DEP);
+    auto argAlloc = getArgAllocaInst(*(*argI)->getArg());
+    pdgUtils.getInstMap()[argAlloc]->setGraphNodeType(GraphNodeType::ARG_ALLOC);
+    PDG->addDependency(*formalInTreeBegin, pdgUtils.getInstMap()[argAlloc], DependencyType::VAL_DEP);
 
     // two things: (1) formal-in --> callee's Store; (2) callee's Load --> formal-out
     for (tree<InstructionWrapper *>::iterator
@@ -747,7 +750,7 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
         continue;
       // for tree nodes that are not root, get parent's values and then find loadInst or GEP Inst from parent's loads instructions
       auto ParentI = tree<InstructionWrapper*>::parent(formal_in_TI);
-      auto parentValDepNodes = PDG->getNodeByData((*ParentI))->getNodesWithDepType(DependencyType::VAL_DEP);
+      auto parentValDepNodes = getNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
       for (auto pair : parentValDepNodes)
       {
         auto depInstW = pair.first->getData();
@@ -925,7 +928,7 @@ void pdg::ProgramDependencyGraph::copyFormalTreeToActualTree(CallInst *CI, Funct
     return;
   CIRetW->copyTree(FuncRetW->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_IN_TREE);
   CIRetW->copyTree(FuncRetW->getTree(TreeType::FORMAL_IN_TREE), TreeType::ACTUAL_OUT_TREE);
-  linkGEPsWithTree(CI);
+  // linkGEPsWithTree(CI);
 }
 
 void pdg::ProgramDependencyGraph::buildActualParameterTrees(CallInst *CI)
@@ -962,22 +965,22 @@ void pdg::ProgramDependencyGraph::buildActualParameterTrees(CallInst *CI)
   drawActualParameterTree(CI, TreeType::ACTUAL_OUT_TREE);
 }
 
-void pdg::ProgramDependencyGraph::linkGEPsWithTree(CallInst* CI)
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  CallWrapper *CW = pdgUtils.getCallMap()[CI];
-  ArgumentWrapper *retW = CW->getRetW();
-  if (retW == nullptr)
-    return;
-  InstructionWrapper *CinstW = pdgUtils.getInstMap()[CI]; 
-  auto actualInTree = retW->getTree(TreeType::ACTUAL_IN_TREE);
-  for (auto TI = retW->tree_begin(TreeType::ACTUAL_IN_TREE); TI != retW->tree_end(TreeType::ACTUAL_IN_TREE); ++TI)
-  {
-    InstructionWrapper *gepW = getActualTreeNodeGEP(CinstW, (*TI)->getNodeOffset(), (*TI)->getTreeNodeType(), (*TI)->getParentTreeNodeType());
-    if (gepW) 
-      (*TI)->setGEPInstW(gepW);
-  }
-}
+// void pdg::ProgramDependencyGraph::linkGEPsWithTree(CallInst* CI)
+// {
+//   auto &pdgUtils = PDGUtils::getInstance();
+//   CallWrapper *CW = pdgUtils.getCallMap()[CI];
+//   ArgumentWrapper *retW = CW->getRetW();
+//   if (retW == nullptr)
+//     return;
+//   InstructionWrapper *CinstW = pdgUtils.getInstMap()[CI]; 
+//   auto actualInTree = retW->getTree(TreeType::ACTUAL_IN_TREE);
+//   for (auto TI = retW->tree_begin(TreeType::ACTUAL_IN_TREE); TI != retW->tree_end(TreeType::ACTUAL_IN_TREE); ++TI)
+//   {
+//     InstructionWrapper *gepW = getActualTreeNodeGEP(CinstW, (*TI)->getNodeOffset(), (*TI)->getTreeNodeType(), (*TI)->getParentTreeNodeType());
+//     if (gepW) 
+//       (*TI)->setGEPInstW(gepW);
+//   }
+// }
 
 void pdg::ProgramDependencyGraph::drawActualParameterTree(CallInst *CI, pdg::TreeType treeTy)
 {

@@ -92,6 +92,7 @@ void pdg::ArgumentWrapper::copyTree(const tree<pdg::InstructionWrapper *> &srcTr
                                       ((TreeTypeWrapper *)srcTreeW)->getNodeOffset(),
                                       ((TreeTypeWrapper *)srcTreeW)->getDIType());
     }
+
     *TI = treeTypeW;
     PDGUtils::getInstance().getFuncInstWMap()[srcTreeW->getFunction()].insert(treeTypeW);
   }

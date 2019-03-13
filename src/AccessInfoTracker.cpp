@@ -23,7 +23,8 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
     Function &F = *FI;
-    if (F.isDeclaration() || func_list.find(F.getName().str()) == func_list.end())
+    // if (F.isDeclaration() || func_list.find(F.getName().str()) == func_list.end())
+    if (F.isDeclaration())
       continue;
 
     getIntraFuncReadWriteInfoForFunc(F);
@@ -33,7 +34,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
     Function &F = *FI;
-    if (F.isDeclaration() || func_list.find(F.getName().str()) == func_list.end())
+    if (F.isDeclaration())
       continue;
 
     getInterFuncReadWriteInfo(F);
@@ -48,7 +49,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   {
     Function &F = *FI;
 
-    if (F.isDeclaration() || func_list.find(F.getName().str()) == func_list.end())
+    if (F.isDeclaration())
       continue;
 
     printFuncArgAccessInfo(F);
@@ -66,23 +67,7 @@ void pdg::AccessInfoTracker::getAnalysisUsage(AnalysisUsage &AU) const
   AU.setPreservesAll();
 }
 
-void pdg::AccessInfoTracker::propergateAccessInfoToParent(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator treeI)
-{
-  AccessType newAccessType = (*treeI)->getAccessType();
-  if (argW->getTree(TreeType::FORMAL_IN_TREE).depth(treeI) == 0)
-    return;
-
-  auto parentTI = argW->getTree(TreeType::FORMAL_IN_TREE).parent(treeI);
-  while (argW->getTree(TreeType::FORMAL_IN_TREE).depth(parentTI) != 0)
-  {
-    //errs() << "Traversing back to parent\n";
-    (*parentTI)->setAccessType(newAccessType);
-    parentTI = argW->getTree(TreeType::FORMAL_IN_TREE).parent(parentTI);
-  }
-  (*parentTI)->setAccessType(newAccessType);
-}
-
-AccessType pdg::AccessInfoTracker::getAccessTypeForInstW(InstructionWrapper *instW)
+AccessType pdg::AccessInfoTracker::getAccessTypeForInstW(const InstructionWrapper *instW)
 {
   auto dataDList = PDG->getNodeDepList(instW->getInstruction());
   AccessType accessType = AccessType::NOACCESS;
@@ -103,6 +88,8 @@ AccessType pdg::AccessInfoTracker::getAccessTypeForInstW(InstructionWrapper *ins
       {
         if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction())
         {
+          if (instW->getGraphNodeType() == GraphNodeType::ARG_ALLOC) // ignore the store inst that store arg to stack mem
+            break;
           accessType = AccessType::WRITE;
           break;
         }
@@ -110,77 +97,6 @@ AccessType pdg::AccessInfoTracker::getAccessTypeForInstW(InstructionWrapper *ins
     }
   }
   return accessType;
-}
-
-std::vector<Instruction *> pdg::AccessInfoTracker::getArgStoreInsts(Argument &arg)
-{
-  std::vector<Instruction *> initialStoreInsts;
-  for (auto UI = arg.user_begin(); UI != arg.user_end(); ++UI)
-  {
-    if (isa<StoreInst>(*UI))
-    {
-      Instruction *st = dyn_cast<Instruction>(*UI);
-      initialStoreInsts.push_back(st);
-    }
-  }
-
-  return initialStoreInsts;
-}
-
-std::set<InstructionWrapper *> pdg::AccessInfoTracker::getAliasLoadInstsForArg(ArgumentWrapper *argW)
-{
-    std::set<InstructionWrapper *> argAliasLoadInstsSet;
-    std::vector<Instruction* > argStackAddrs = getArgStackAddrs(argW->getArg());
-    std::set<InstructionWrapper *> argAliasStoreInstsSet = getAliasStoreInstsForArg(argW);
-    for (Instruction *argStackAddr : argStackAddrs)
-    {
-      auto depDataList = PDG->getNodeDepList(argStackAddr);
-      for (auto depPair : depDataList)
-      {
-        if (depPair.second == DependencyType::DATA_RAW)
-        {
-          InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-          argAliasLoadInstsSet.insert(depInstW); // collect read instructions
-        }
-      }
-    }
-    return argAliasLoadInstsSet;
-}
-
-std::vector<Instruction*> pdg::AccessInfoTracker::getArgStackAddrs(Argument *arg)
-{
-  std::vector<Instruction *> argStoreInsts = getArgStoreInsts(*arg);
-  std::vector<Instruction *> argStackAddrs;
-  for (Instruction *inst : argStoreInsts)
-  {
-    StoreInst *st = cast<StoreInst>(inst);
-    if (st->getValueOperand() == cast<Value>(arg))
-      argStackAddrs.push_back(st); // the pointer operand is the address
-  }
-  return argStackAddrs;
-}
-
-std::set<InstructionWrapper *> pdg::AccessInfoTracker::getAliasStoreInstsForArg(ArgumentWrapper *argW)
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  std::vector<Instruction *> argStackAddrs = getArgStackAddrs(argW->getArg());
-  std::set<InstructionWrapper *> aliasPtr;
-  for (Instruction *argStackAddr : argStackAddrs)
-  {
-    auto dataDList = PDG->getNodeDepList(argStackAddr);
-    // collect alias instructions, including store and load instructions
-    aliasPtr.insert(pdgUtils.getInstMap()[argStackAddr]);
-    for (auto depPair : dataDList)
-    {
-      DependencyType depType = depPair.second;
-      InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-      if (depType == DependencyType::DATA_ALIAS && isa<StoreInst>(depInstW->getInstruction()))
-      {
-        aliasPtr.insert(depInstW);
-      }
-    }
-  }
-  return aliasPtr;
 }
 
 void pdg::AccessInfoTracker::printRetValueAccessInfo(Function &Func, std::set<std::string> func_list)
@@ -192,108 +108,6 @@ void pdg::AccessInfoTracker::printRetValueAccessInfo(Function &Func, std::set<st
     errs() << "Ret Value Acc Info.." << "\n";
     printArgAccessInfo(CW->getRetW(), TreeType::ACTUAL_IN_TREE);
     errs() << "......... [ END " << Func.getName() << " ] .........\n\n";
-  }
-}
-
-void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForCallInsts(Function& Func, std::set<std::string> func_list)
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  for (CallInst *CI : pdgUtils.getFuncMap()[&Func]->getCallInstList())
-  {
-    if (CI->getCalledFunction() || isa<Function>(CI->getCalledValue()->stripPointerCasts()))
-    {
-      std::string funcName;
-      if (CI->getCalledFunction())
-        funcName = CI->getCalledFunction()->getName().str();
-
-      if (Function *F = dyn_cast<Function>(&*CI->getCalledValue()->stripPointerCasts()))
-        funcName = F->getName();
-
-      if (func_list.find(funcName) == func_list.end())
-        return;
-
-      getIntraFuncReadWriteInfoForRetVal(pdgUtils.getCallMap()[CI]);
-    }
-  }
-}
-
-void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForRetVal(CallWrapper *callW)
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  ArgumentWrapper* retW = callW->getRetW();
-  auto retActualInTree = retW->getTree(TreeType::ACTUAL_IN_TREE);
-  if (retActualInTree.size() == 0) {
-    return;
-  }
-    // throw new ArgParameterTreeSizeIsZero("Argment tree is empty... Every param should have at least one node...\n");
-  
-  auto treeI = retW->getTree(TreeType::ACTUAL_IN_TREE).begin();
-
-  if (!(*treeI)->getTreeNodeType()->isPointerTy())
-  {
-    errs() << "Find non-pointer type parameter, do not track...\n";
-    return;
-  }
-
-  AccessType accessType = AccessType::NOACCESS;
-  CallInst *CI = callW->getCallInst();
-  InstructionWrapper *CInstW = pdgUtils.getInstMap()[CI];
-  try
-  {
-    // 1. process the root node.
-      AccessType accType = getAccessTypeForInstW(CInstW);
-      (*treeI)->setAccessType(accType);
-
-      // 2. process the underlying node. move to pointed value.
-      treeI++;
-      if (treeI == retW->getTree(TreeType::ACTUAL_IN_TREE).end())
-        return;
-
-      // collect load insts from the stack addr
-      std::vector<InstructionWrapper *> loadInstWs;
-      auto depDataList = PDG->getNodeDepList(CI);
-      for (auto depPair : depDataList)
-      {
-        if (depPair.second == DependencyType::DATA_RAW)
-        {
-          InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-          loadInstWs.push_back(depInstW); // collect read instructions
-        }
-      }
-
-      for (InstructionWrapper *instW : loadInstWs)
-      {
-        AccessType accType = getAccessTypeForInstW(instW);
-        (*treeI)->setAccessType(accType);
-        if (accType == AccessType::WRITE)
-          break;
-      }
-
-      treeI++;
-      if (treeI == retW->getTree(TreeType::ACTUAL_IN_TREE).end())
-        return;
-      // analysis data dep, find read/write instructions operate one the stack addr for the arg
-
-      // 3. process each treenode(field) separately
-      for (; treeI != retW->getTree(TreeType::ACTUAL_IN_TREE).end(); ++treeI)
-      {
-        // if a treenode has a correspond GetElement pointer Instruction
-        if (!(*treeI)->getGEPInstW())
-          continue;
-        // get acces info for the gep instruction, and store access information in treenode
-        AccessType gepAccessType = getAccessTypeForInstW((*treeI)->getGEPInstW());
-        AccessType oldAccessInfo = (*treeI)->getAccessType();
-        if (static_cast<int>(gepAccessType) < static_cast<int>(oldAccessInfo))
-          continue; // if access info not changed, continue processing
-
-        (*treeI)->setAccessType(gepAccessType);
-        propergateAccessInfoToParent(retW, treeI);
-      }
-    }
-  catch (std::exception &e)
-  {
-    errs() << e.what() << "\n";
-    return;
   }
 }
 
@@ -311,76 +125,14 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForArg(ArgumentWrapper *ar
   }
 
   AccessType accessType = AccessType::NOACCESS;
-  try
+  for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE); treeI != argW->tree_end(TreeType::FORMAL_IN_TREE); ++treeI)
   {
-   // 1. process the root parameter.
-    std::vector<Instruction* > argStackAddrs = getArgStackAddrs(argW->getArg());
-    std::set<InstructionWrapper *> argAliasStoreInstsSet = getAliasStoreInstsForArg(argW);
-    for (InstructionWrapper *argStackAddrW : argAliasStoreInstsSet) // tracking for the pointer itself. May not quick useful when doing value passing, but do it for completeness
-    {
-      AccessType accType = getAccessTypeForInstW(argStackAddrW);
+    auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+    for (auto valDepPair : valDepPairList) {
+      auto dataW = valDepPair.first->getData();
+      AccessType accType = getAccessTypeForInstW(dataW);
       (*treeI)->setAccessType(accType);
-      if (accType == AccessType::WRITE)
-        break;
     }
-
-    if (argAliasStoreInstsSet.size() > 1) {
-      (*treeI)->setAccessType(AccessType::WRITE); // means there are multiple writes to the address storing the pointer
-    }
-
-    // 2. process the underlying node. move to pointed value.
-    treeI++;
-    if (treeI == argW->getTree(TreeType::FORMAL_IN_TREE).end())
-      return;
-
-    // collect load insts from the stack addr
-    std::vector<InstructionWrapper *> argLoadInstWs;
-    for (Instruction *argStackAddr : argStackAddrs)
-    {
-      auto depDataList = PDG->getNodeDepList(argStackAddr);
-      for (auto depPair : depDataList)
-      {
-        if (depPair.second == DependencyType::DATA_RAW)
-        {
-          InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-          argLoadInstWs.push_back(depInstW); // collect read instructions
-        }
-      }
-    }
-
-    for (InstructionWrapper *instW : argLoadInstWs)
-    {
-      AccessType accType = getAccessTypeForInstW(instW);
-      (*treeI)->setAccessType(accType);
-      if (accType == AccessType::WRITE)
-        break;
-    }
-
-    treeI++;
-    if (treeI == argW->getTree(TreeType::FORMAL_IN_TREE).end())
-      return;
-    // analysis data dep, find read/write instructions operate one the stack addr for the arg
-
-    // 3. process each treenode(field) separately
-    for (; treeI != argW->getTree(TreeType::FORMAL_IN_TREE).end(); ++treeI)
-    {
-      // if a treenode has a correspond GetElement pointer Instruction
-      if (!(*treeI)->getGEPInstW())
-        continue;
-      // get acces info for the gep instruction, and store access information in treenode
-      AccessType gepAccessType = getAccessTypeForInstW((*treeI)->getGEPInstW());
-      AccessType oldAccessInfo = (*treeI)->getAccessType();
-      if (static_cast<int>(gepAccessType) < static_cast<int>(oldAccessInfo))
-        continue; // if access info not changed, continue processing
-
-      (*treeI)->setAccessType(gepAccessType);
-      propergateAccessInfoToParent(argW, treeI);
-    }
-  }
-  catch (std::exception &e)
-  {
-    errs() << e.what() << "\n";
-    return;
   }
 }
 
@@ -391,94 +143,11 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForFunc(Function &F)
   // for arguments
   for (auto argW : funcW->getArgWList())
   {
-    try {
-      getIntraFuncReadWriteInfoForArg(argW);
-      collectParamCallInstWForArg(argW);
-    } catch (std::exception &e) {
-      errs() << e.what() << "\n";
-    }
+    getIntraFuncReadWriteInfoForArg(argW);
   }
   // for return value
   ArgumentWrapper *retW = funcW->getRetW();
   getIntraFuncReadWriteInfoForArg(retW);
-}
-
-bool pdg::AccessInfoTracker::reach(InstructionWrapper *instW1, InstructionWrapper *instW2)
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  std::queue<InstructionWrapper *> instWQ;
-  std::set<InstructionWrapper *> seenInstW;
-  instWQ.push(instW1);
-  seenInstW.insert(instW1);
-
-  auto dataDList = PDG->getNodeDepList(instW1->getInstruction());
-  for (auto depPair : dataDList)
-  {
-    DependencyType depType = depPair.second;
-    InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-    if (depInstW == instW2)
-      return true;
-    
-    if (seenInstW.find(depInstW) == seenInstW.end())
-    {
-      instWQ.push(depInstW);
-      seenInstW.insert(depInstW);
-    }
-  }
-
-  while (!instWQ.empty())
-  {
-    InstructionWrapper *instW = instWQ.front();
-    instWQ.pop();
-
-    if (instW->getInstruction() == instW2->getInstruction())
-      return true;
-
-    auto dataDList = PDG->getNodeDepList(instW->getInstruction());
-    for (auto depPair : dataDList)
-    {
-      DependencyType depType = depPair.second;
-      if (depType == DependencyType::DATA_DEF_USE || depType == DependencyType::DATA_RAW)
-      {
-        InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-        if (seenInstW.find(depInstW) == seenInstW.end())
-        {
-          instWQ.push(depInstW);
-          seenInstW.insert(depInstW);
-        }
-      }
-    }
-  }
-
-  return false;
-}
-
-// inter function.
-void pdg::AccessInfoTracker::collectParamCallInstWForArg(ArgumentWrapper *argW)
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  Function* func = argW->getArg()->getParent();
-  std::vector<CallInst* > funcCallInsts = pdgUtils.getFuncMap()[func]->getCallInstList();
-  for (auto argStackAddr : getArgStackAddrs(argW->getArg()))
-  {
-    for (CallInst *callinst : funcCallInsts) {
-      InstructionWrapper *argStackAddrW = pdgUtils.getInstMap()[argStackAddr];
-      InstructionWrapper *callInstW = pdgUtils.getInstMap()[callinst];
-      auto dataDList = PDG->getNodeDepList(callinst);
-      for (auto depPair : dataDList)
-      {
-        if (depPair.second == DependencyType::DATA_CALL_PARA)
-        {
-          InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-          if (reach(argStackAddrW, depInstW))
-          {
-            // check if value could flow from argument to the parameter, if so make a pair between arg stored stack and the call inst
-            argW->addParamCallInstW(std::make_pair(depInstW, callInstW));
-          }
-        }
-      }
-    }
-  }
 }
 
 pdg::ArgumentMatchType pdg::AccessInfoTracker::getArgMatchType(Argument *arg1, Argument *arg2)
@@ -520,41 +189,21 @@ pdg::ArgumentMatchType pdg::AccessInfoTracker::getArgMatchType(Argument *arg1, A
   return pdg::ArgumentMatchType::NOTCONTAINED;
 }
 
-void pdg::AccessInfoTracker::mergeTypeTreeAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW, tree<InstructionWrapper *>::iterator mergeTo, tree<InstructionWrapper *>::iterator mergeFrom)
+void pdg::AccessInfoTracker::mergeArgAccessInfo(ArgumentWrapper* callerArgW, ArgumentWrapper* calleeArgW, tree<InstructionWrapper *>::iterator callerParamI)
 {
-  for (; mergeTo != callerArgW->tree_end(TreeType::FORMAL_IN_TREE) && mergeFrom != calleeArgW->tree_end(TreeType::FORMAL_IN_TREE); ++mergeTo, ++mergeFrom)
-  {
-    if (static_cast<int>((*mergeFrom)->getAccessType()) > static_cast<int>((*mergeTo)->getAccessType()))
-    {
-      // here, we only copy the write state
-      (*mergeTo)->setAccessType((*mergeFrom)->getAccessType());
-      propergateAccessInfoToParent(callerArgW, mergeTo);
-    }
-  }
-}
-
-void pdg::AccessInfoTracker::mergeArgWAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW)
-{
-  ArgumentMatchType argMatchType = getArgMatchType(callerArgW->getArg(), calleeArgW->getArg());
-  auto calleeFuncArgTreeI = calleeArgW->getTree(TreeType::FORMAL_IN_TREE).begin();
-  if (argMatchType == ArgumentMatchType::EQUAL)
-  {
-    mergeTypeTreeAccessInfo(callerArgW, calleeArgW ,callerArgW->tree_begin(TreeType::FORMAL_IN_TREE), calleeFuncArgTreeI);
+  unsigned callerParamTreeSize = callerArgW->getTree(TreeType::FORMAL_IN_TREE).size(callerParamI);
+  unsigned calleeParamTreeSize = calleeArgW->getTree(TreeType::FORMAL_IN_TREE).size();
+  errs() << callerParamTreeSize << " - " << calleeParamTreeSize << "\n";
+  if ( callerParamTreeSize != calleeParamTreeSize ) {
+    return;
   }
 
-  if (argMatchType == ArgumentMatchType::CONTAINED)
+  auto calleeParamI = calleeArgW->tree_begin(TreeType::FORMAL_IN_TREE);
+  for (; callerParamI != callerArgW->tree_end(TreeType::FORMAL_IN_TREE); ++callerParamI, ++calleeParamI)
   {
-    auto callerArgWTI = callerArgW->tree_begin(TreeType::FORMAL_IN_TREE);
-    auto callerArgWTIE = callerArgW->tree_end(TreeType::FORMAL_IN_TREE);
-    for (; callerArgWTI != callerArgWTIE; ++callerArgWTI)
+    if (static_cast<int>((*callerParamI)->getAccessType()) < static_cast<int>((*calleeParamI)->getAccessType()))
     {
-      InstructionWrapper *gepInstW = (*callerArgWTI)->getGEPInstW();
-      if (gepInstW == nullptr)
-      {
-        continue;
-      }
-      mergeTypeTreeAccessInfo(callerArgW, calleeArgW, callerArgWTI, calleeFuncArgTreeI);
-      return;
+      (*callerParamI)->setAccessType((*calleeParamI)->getAccessType());
     }
   }
 }
@@ -564,38 +213,45 @@ void pdg::AccessInfoTracker::getInterFuncReadWriteInfo(Function &F)
   auto &pdgUtils = PDGUtils::getInstance();
   for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
   {
-    for (auto paramCallInstPair : argW->getParamCallInstPair())
+    for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE); treeI != argW->tree_end(TreeType::FORMAL_IN_TREE); ++treeI)
     {
-      int paraIdx = getCallParamIdx(paramCallInstPair.first, paramCallInstPair.second);
-      CallInst *calleeInst = dyn_cast<CallInst>(paramCallInstPair.second->getInstruction());
-      Function *calledFunction = calleeInst->getCalledFunction();
-      // handle indirect call
-      if (!calledFunction)
+      // find related instruction nodes
+      auto treeNodeDepVals = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+      for (auto pair : treeNodeDepVals)
       {
-        errs() << "Handling indr call" << "\n";
-        Type *t = calleeInst->getCalledValue()->getType();
-        FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
-        std::vector<llvm::Function *> indirect_call_candidates = PDG->collectIndirectCallCandidates(funcTy);
-        errs() << indirect_call_candidates.size() << "\n";
-        for (llvm::Function *indirect_call : indirect_call_candidates)
+        auto depInstW = pair.first->getData();
+        auto depCallInsts = PDG->getNodesWithDepType(depInstW, DependencyType::DATA_CALL_PARA);
+        for (auto depCallPair : depCallInsts)
         {
-          FunctionWrapper *calleeFuncW = pdgUtils.getFuncMap()[indirect_call];
-          ArgumentWrapper *calleeArgW = calleeFuncW->getArgWByIdx(paraIdx);
-          mergeArgWAccessInfo(argW, calleeArgW);
+          auto depCallInstW = depCallPair.first->getData();
+          int paraIdx = getCallParamIdx(depInstW, depCallInstW);
+          auto callInst = dyn_cast<CallInst>(depCallInstW->getInstruction());
+          //direct call
+          if (Function* f = dyn_cast<Function>(callInst->getCalledValue()->stripPointerCasts()))
+          {
+            // direct call
+            FunctionWrapper *calleeFuncW = pdgUtils.getFuncMap()[f];
+            ArgumentWrapper *calleeArgW = calleeFuncW->getArgWByIdx(paraIdx);
+            mergeArgAccessInfo(argW, calleeArgW, tree<InstructionWrapper*>::parent(treeI));
+          } else {
+            Type *t = callInst->getCalledValue()->getType();
+            FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
+            auto indirect_call_candidates = PDG->collectIndirectCallCandidates(funcTy);
+            for (auto indirect_call : indirect_call_candidates)
+            {
+              auto calleeFuncW   = pdgUtils.getFuncMap()[indirect_call];
+              auto calleeArgW = calleeFuncW->getArgWByIdx(paraIdx);
+              mergeArgAccessInfo(argW, calleeArgW, tree<InstructionWrapper*>::parent(treeI));
+            }
+          }
         }
       }
-      else
-      {
-        // direct call
-        FunctionWrapper *calleeFuncW = pdgUtils.getFuncMap()[calledFunction];
-        ArgumentWrapper *calleeArgW = calleeFuncW->getArgWByIdx(paraIdx);
-        mergeArgWAccessInfo(argW, calleeArgW);
-      }
     }
+
   }
 }
 
-int pdg::AccessInfoTracker::getCallParamIdx(InstructionWrapper* instW, InstructionWrapper* callInstW)
+int pdg::AccessInfoTracker::getCallParamIdx(const InstructionWrapper* instW, const InstructionWrapper* callInstW)
 {
     Instruction *inst = instW->getInstruction();
     Instruction *callInst = callInstW->getInstruction();

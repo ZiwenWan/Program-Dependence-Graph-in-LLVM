@@ -258,9 +258,9 @@ struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg
                << "\n";
       return ret_str;
     }
-    case DependencyType::STRUCT_FIELDS:
+    case DependencyType::DATA_CALL_PARA:
     {
-      return "style=dotted, label=\"{S_FIELD}\", color=\"red\", penwidth=\"2.0\"";
+      return "style=dotted, label=\"{CALL_PARA}\", color=\"yellow\", penwidth=\"2.0\"";
     }
     case DependencyType::VAL_DEP:
     {

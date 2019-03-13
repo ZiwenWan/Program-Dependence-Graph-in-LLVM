@@ -1,0 +1,37 @@
+module example.k4.c {
+	rpc init_void init( projection init_node* no_name );
+
+	projection <struct device> device_register_device {
+	}
+
+	rpc register_device_void register_device( projection register_device_device* no_name );
+
+	projection <struct device> device_open {
+		rpc [in] void ()(projection device* device)* open;
+		void ()(projection device* device) [in] func ptr;
+		char* [in] name;
+		char [in] char;
+		int [in, out] devop_init_registered;
+	}
+
+	rpc open_int open( projection open_device* no_name );
+
+	rpc device_reset_void device_reset( int* no_name );
+
+	rpc projection lookup_device_device* [alloc(caller)] lookup_device( char* no_name );
+
+	rpc main_int main(  );
+
+	projection <struct device> device_dev1_open {
+		int [in] devop_init_registered;
+	}
+
+	rpc dev1_open_void dev1_open( projection dev1_open_device* no_name );
+
+	projection <struct device> device_dev2_open {
+		int [in, out] devop_init_registered;
+	}
+
+	rpc dev2_open_void dev2_open( projection dev2_open_device* no_name );
+
+}

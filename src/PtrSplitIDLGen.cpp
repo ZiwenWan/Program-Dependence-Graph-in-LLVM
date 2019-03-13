@@ -67,31 +67,31 @@ bool pdg::PtrSplitIDLGen::runOnModule(Module &M)
   return false;
 }
 
-bool pdg::PtrSplitIDLGen::isOnlyUsedinProcessCall(ArgumentWrapper *argW)
-{
-  std::set<InstructionWrapper *> argAliasLoadInsts = accInfoTracker->getAliasLoadInstsForArg(argW);
-  for (InstructionWrapper* instW : argAliasLoadInsts)
-  {
-    auto dataDList = accInfoTracker->_getPDG()->getNodeDepList(instW->getInstruction());
-    for (auto dependencyPair : dataDList)
-    {
-      DependencyType depType = dependencyPair.second;
-      InstructionWrapper *DNodeW2 = const_cast<InstructionWrapper *>(dependencyPair.first->getData());
-      if (depType == DependencyType::DATA_READ)
-        return false;
-      if (depType == DependencyType::DATA_DEF_USE)
-      {
-        if (StoreInst *st = dyn_cast<StoreInst>(DNodeW2->getInstruction()))
-        {
-          if (st->getPointerOperand() == instW->getInstruction())
-            return false;
-        }
-      }
-    }
-  }
+// bool pdg::PtrSplitIDLGen::isOnlyUsedinProcessCall(ArgumentWrapper *argW)
+// {
+//   std::set<InstructionWrapper *> argAliasLoadInsts = accInfoTracker->getAliasLoadInstsForArg(argW);
+//   for (InstructionWrapper* instW : argAliasLoadInsts)
+//   {
+//     auto dataDList = accInfoTracker->_getPDG()->getNodeDepList(instW->getInstruction());
+//     for (auto dependencyPair : dataDList)
+//     {
+//       DependencyType depType = dependencyPair.second;
+//       InstructionWrapper *DNodeW2 = const_cast<InstructionWrapper *>(dependencyPair.first->getData());
+//       if (depType == DependencyType::DATA_READ)
+//         return false;
+//       if (depType == DependencyType::DATA_DEF_USE)
+//       {
+//         if (StoreInst *st = dyn_cast<StoreInst>(DNodeW2->getInstruction()))
+//         {
+//           if (st->getPointerOperand() == instW->getInstruction())
+//             return false;
+//         }
+//       }
+//     }
+//   }
 
-  return true;
-}
+//   return true;
+// }
 
 void pdg::PtrSplitIDLGen::getAnalysisUsage(AnalysisUsage &AU) const
 {
