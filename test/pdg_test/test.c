@@ -4,14 +4,9 @@ struct Person {
     char *name;
 };
 
-int k(struct Person** p) {
-    return 0;
-}
-
 int f(struct Person* p) {
-    /* struct Person p1 = *p; */
-    /* printf("%d\n", p1.age); */
-    k(&p);
+    struct Person p1 = *p;
+    printf("%d\n", p1.age);
     return 0;
 }
 

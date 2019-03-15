@@ -11,6 +11,7 @@
 #include "DebugInfoUtils.hpp"
 #include "PDGCommandLineOptions.hpp"
 
+
 namespace pdg
 {
 class ProgramDependencyGraph : public llvm::ModulePass
@@ -45,11 +46,7 @@ public:
   void connectActualTreeToFormalTree(llvm::CallInst *CI, llvm::Function* called_func);
   bool connectCallerAndCallee(InstructionWrapper *instW, llvm::Function *callee);
   // field sensitive related functions
-  void linkGEPsWithTree(llvm::CallInst* CI);
   InstructionWrapper *getActualTreeNodeGEP(InstructionWrapper* callInstW, unsigned field_offset, llvm::Type *treeNodeTy, llvm::Type *parentNodeTy);
-  std::set<pdg::InstructionWrapper *> getReachableGEPs(InstructionWrapper *instW);
-  std::set<pdg::InstructionWrapper *> getAllRelevantGEP(llvm::Argument &arg);
-  InstructionWrapper *getTreeNodeGEP(llvm::Argument &arg, unsigned field_offset, llvm::Type *treeNodeTy, llvm::Type *parentNodeTy);
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);
   llvm::Instruction *getArgAllocaInst(llvm::Argument &arg);
   // tree building helper functions
