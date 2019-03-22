@@ -15,7 +15,7 @@ pdg::FunctionWrapper::FunctionWrapper(Function *Func)
     argWList.push_back(argW);
   }
 
-  const Twine t = "ret";
+  const Twine t = "";
   Argument *ret = new Argument(Func->getReturnType(), t, Func, 100);
   this->retW = new ArgumentWrapper(ret);
 }

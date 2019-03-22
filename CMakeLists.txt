@@ -13,6 +13,7 @@ link_directories(${LLVM_LIBRARY_DIRS})
 #
 # Files associated with libtmplugin.so
 #
+option(ENABLE_FUNC_LIST "generate result based on func list" OFF)
 
 include_directories("include")
 include_directories("src")
@@ -27,6 +28,10 @@ add_library(pdg MODULE
     ${TPPSRC}
     ${SOURCES}
 )
+
+if (ENABLE_FUNC_LIST)
+    add_definitions(-DFUNC_LIST)
+endif()
 
 #
 # Turn on C++11, turn off C++ RTTI.

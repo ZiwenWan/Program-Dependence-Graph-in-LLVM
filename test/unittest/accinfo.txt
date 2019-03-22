@@ -1,4 +1,0 @@
-module test.c {
-		int int;
-		int int;
-}

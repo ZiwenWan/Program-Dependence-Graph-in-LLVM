@@ -163,17 +163,27 @@ void pdg::DataDependencyGraph::collectReadFromDependency(llvm::Instruction *inst
 void pdg::DataDependencyGraph::collectDefUseDependency(llvm::Instruction *inst)
 {
   // check for def-use dependencies
-  for (Instruction::const_op_iterator cuit = inst->op_begin();
-       cuit != inst->op_end(); ++cuit)
+  for (auto user : inst->users())
   {
-    if (Instruction *pInst = dyn_cast<Instruction>(*cuit))
+    if (Instruction *pInst = dyn_cast<Instruction>(user))
     {
       // add info flow from the instruction to current instruction
-      DDG->addDependency(PDGUtils::getInstance().getInstMap()[pInst],
-                         PDGUtils::getInstance().getInstMap()[inst],
+      DDG->addDependency(PDGUtils::getInstance().getInstMap()[inst],
+                         PDGUtils::getInstance().getInstMap()[pInst],
                          DependencyType::DATA_DEF_USE);
     }
   }
+  // for (Instruction::const_op_iterator cuit = inst->op_begin();
+  //      cuit != inst->op_end(); ++cuit)
+  // {
+  //   if (Instruction *pInst = dyn_cast<Instruction>(*cuit))
+  //   {
+  //     // add info flow from the instruction to current instruction
+  //     DDG->addDependency(PDGUtils::getInstance().getInstMap()[pInst],
+  //                        PDGUtils::getInstance().getInstMap()[inst],
+  //                        DependencyType::DATA_DEF_USE);
+  //   }
+  // }
 }
 
 void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst)

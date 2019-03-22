@@ -80,6 +80,24 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
       errs() << FI->getName() << ": " << argW->getTree(TreeType::FORMAL_IN_TREE).size() << "\n";
     }
   }
+
+  // for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
+  // {
+  //   if (FI->isDeclaration())
+  //     continue;
+
+  //   for (auto I = inst_begin(*FI); I != inst_end(*FI); ++I)
+  //   {
+  //     auto DepList = getNodeDepList(&*I);
+  //     errs() << "-----------------" << "\n";
+  //     errs() << *I << "\n";
+  //     for (auto pair : DepList) {
+  //       errs() << *(pair.first->getData()->getInstruction()) << "\n";
+  //     }
+  //     errs() << "-----------------" << "\n";
+  //   }
+  // }
+
   return false;
 }
 
@@ -740,11 +758,12 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
         for (auto depInstAlias : depInstAliasList)
         {
           if (depInstAlias->getInstruction() == nullptr)
-            return;
+            continue;
+          PDG->addDependency(*ParentI, depInstAlias, DependencyType::VAL_DEP);
           auto readInsts = getReadInstsOnInst(depInstAlias->getInstruction());
           for (auto readInstW : readInsts)
           {
-            if (isa<LoadInst>(readInstW->getInstruction()))
+            if (isa<LoadInst>(readInstW->getInstruction())) 
               PDG->addDependency(*formal_in_TI, readInstW, DependencyType::VAL_DEP);
 
             if (isa<GetElementPtrInst>(readInstW->getInstruction()))

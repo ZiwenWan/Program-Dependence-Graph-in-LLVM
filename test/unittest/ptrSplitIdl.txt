@@ -1,3 +1,0 @@
-int f2 (int* no_name)( R )
-int f1 (int* no_name)( T )
-int main (void)( void )
