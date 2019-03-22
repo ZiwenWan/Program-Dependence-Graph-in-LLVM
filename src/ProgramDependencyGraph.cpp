@@ -81,22 +81,22 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     }
   }
 
-  // for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
-  // {
-  //   if (FI->isDeclaration())
-  //     continue;
+  for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
+  {
+    if (FI->isDeclaration())
+      continue;
 
-  //   for (auto I = inst_begin(*FI); I != inst_end(*FI); ++I)
-  //   {
-  //     auto DepList = getNodeDepList(&*I);
-  //     errs() << "-----------------" << "\n";
-  //     errs() << *I << "\n";
-  //     for (auto pair : DepList) {
-  //       errs() << *(pair.first->getData()->getInstruction()) << "\n";
-  //     }
-  //     errs() << "-----------------" << "\n";
-  //   }
-  // }
+    for (auto I = inst_begin(*FI); I != inst_end(*FI); ++I)
+    {
+      auto DepList = getNodeDepList(&*I);
+      errs() << "-----------------" << "\n";
+      errs() << *I << "\n";
+      for (auto pair : DepList) {
+        errs() << *(pair.first->getData()->getInstruction()) << "\n";
+      }
+      errs() << "-----------------" << "\n";
+    }
+  }
 
   return false;
 }

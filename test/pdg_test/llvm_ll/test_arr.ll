@@ -3,40 +3,50 @@ source_filename = "test_arr.c"
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.14.0"
 
-%struct.P = type { i16, i8 }
-
-@main.p = private unnamed_addr constant %struct.P { i16 1, i8 119 }, align 2
-
 ; Function Attrs: noinline nounwind optnone ssp uwtable
-define i32 @main() #0 !dbg !8 {
-  %1 = alloca i32, align 4
-  %2 = alloca %struct.P, align 2
-  store i32 0, i32* %1, align 4
-  call void @llvm.dbg.declare(metadata %struct.P* %2, metadata !12, metadata !27), !dbg !28
-  %3 = bitcast %struct.P* %2 to i8*, !dbg !28
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %3, i8* bitcast (%struct.P* @main.p to i8*), i64 4, i32 2, i1 false), !dbg !28
-  %4 = getelementptr inbounds %struct.P, %struct.P* %2, i32 0, i32 1, !dbg !29
-  %5 = load i8, i8* %4, align 2, !dbg !30
-  %6 = and i8 %5, -13, !dbg !30
-  %7 = or i8 %6, 12, !dbg !30
-  store i8 %7, i8* %4, align 2, !dbg !30
-  %8 = getelementptr inbounds %struct.P, %struct.P* %2, i32 0, i32 1, !dbg !31
-  %9 = load i8, i8* %8, align 2, !dbg !32
-  %10 = and i8 %9, -17, !dbg !32
-  %11 = or i8 %10, 16, !dbg !32
-  store i8 %11, i8* %8, align 2, !dbg !32
-  ret i32 0, !dbg !33
+define void @test() #0 !dbg !8 {
+  %1 = alloca [10 x i32], align 16
+  %2 = alloca [10 x i32], align 16
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  call void @llvm.dbg.declare(metadata [10 x i32]* %1, metadata !11, metadata !16), !dbg !17
+  call void @llvm.dbg.declare(metadata [10 x i32]* %2, metadata !18, metadata !16), !dbg !19
+  call void @llvm.dbg.declare(metadata i32* %3, metadata !20, metadata !16), !dbg !21
+  call void @llvm.dbg.declare(metadata i32* %4, metadata !22, metadata !16), !dbg !23
+  %5 = load i32, i32* %4, align 4, !dbg !24
+  %6 = icmp ne i32 %5, 0, !dbg !24
+  br i1 %6, label %7, label %13, !dbg !26
+
+; <label>:7:                                      ; preds = %0
+  %8 = getelementptr inbounds [10 x i32], [10 x i32]* %2, i64 0, i64 1, !dbg !27
+  %9 = load i32, i32* %8, align 4, !dbg !27
+  %10 = sext i32 %9 to i64, !dbg !29
+  %11 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 %10, !dbg !29
+  %12 = load i32, i32* %11, align 4, !dbg !29
+  store i32 %12, i32* %3, align 4, !dbg !30
+  br label %19, !dbg !31
+
+; <label>:13:                                     ; preds = %0
+  %14 = getelementptr inbounds [10 x i32], [10 x i32]* %2, i64 0, i64 2, !dbg !32
+  %15 = load i32, i32* %14, align 8, !dbg !32
+  %16 = sext i32 %15 to i64, !dbg !34
+  %17 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 %16, !dbg !34
+  %18 = load i32, i32* %17, align 4, !dbg !34
+  store i32 %18, i32* %3, align 4, !dbg !35
+  br label %19
+
+; <label>:19:                                     ; preds = %13, %7
+  %20 = load i32, i32* %3, align 4, !dbg !36
+  %21 = add nsw i32 %20, 1, !dbg !36
+  store i32 %21, i32* %3, align 4, !dbg !36
+  ret void, !dbg !37
 }
 
 ; Function Attrs: nounwind readnone speculatable
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
-; Function Attrs: argmemonly nounwind
-declare void @llvm.memcpy.p0i8.p0i8.i64(i8* nocapture writeonly, i8* nocapture readonly, i64, i32, i1) #2
-
 attributes #0 = { noinline nounwind optnone ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone speculatable }
-attributes #2 = { argmemonly nounwind }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!3, !4, !5, !6}
@@ -50,29 +60,33 @@ attributes #2 = { argmemonly nounwind }
 !5 = !{i32 1, !"wchar_size", i32 4}
 !6 = !{i32 7, !"PIC Level", i32 2}
 !7 = !{!"clang version 5.0.2 (tags/RELEASE_502/final)"}
-!8 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 13, type: !9, isLocal: false, isDefinition: true, scopeLine: 13, isOptimized: false, unit: !0, variables: !2)
+!8 = distinct !DISubprogram(name: "test", scope: !1, file: !1, line: 2, type: !9, isLocal: false, isDefinition: true, scopeLine: 3, isOptimized: false, unit: !0, variables: !2)
 !9 = !DISubroutineType(types: !10)
-!10 = !{!11}
-!11 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
-!12 = !DILocalVariable(name: "p", scope: !8, file: !1, line: 14, type: !13)
-!13 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "P", file: !1, line: 3, size: 32, elements: !14)
-!14 = !{!15, !19, !22, !23, !24, !25, !26}
-!15 = !DIDerivedType(tag: DW_TAG_member, name: "queue_mapping", scope: !13, file: !1, line: 4, baseType: !16, size: 16)
-!16 = !DIDerivedType(tag: DW_TAG_typedef, name: "__uint16_t", file: !17, line: 43, baseType: !18)
-!17 = !DIFile(filename: "/usr/include/i386/_types.h", directory: "/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/test/pdg_test")
-!18 = !DIBasicType(name: "unsigned short", size: 16, encoding: DW_ATE_unsigned)
-!19 = !DIDerivedType(tag: DW_TAG_member, name: "cloned", scope: !13, file: !1, line: 5, baseType: !20, size: 1, offset: 16, flags: DIFlagBitField, extraData: i64 16)
-!20 = !DIDerivedType(tag: DW_TAG_typedef, name: "__uint8_t", file: !17, line: 41, baseType: !21)
-!21 = !DIBasicType(name: "unsigned char", size: 8, encoding: DW_ATE_unsigned_char)
-!22 = !DIDerivedType(tag: DW_TAG_member, name: "nohdr", scope: !13, file: !1, line: 6, baseType: !20, size: 1, offset: 17, flags: DIFlagBitField, extraData: i64 16)
-!23 = !DIDerivedType(tag: DW_TAG_member, name: "fclone", scope: !13, file: !1, line: 7, baseType: !20, size: 2, offset: 18, flags: DIFlagBitField, extraData: i64 16)
-!24 = !DIDerivedType(tag: DW_TAG_member, name: "peeked", scope: !13, file: !1, line: 8, baseType: !20, size: 1, offset: 20, flags: DIFlagBitField, extraData: i64 16)
-!25 = !DIDerivedType(tag: DW_TAG_member, name: "head_frag", scope: !13, file: !1, line: 9, baseType: !20, size: 1, offset: 21, flags: DIFlagBitField, extraData: i64 16)
-!26 = !DIDerivedType(tag: DW_TAG_member, name: "xmit_more", scope: !13, file: !1, line: 10, baseType: !20, size: 1, offset: 22, flags: DIFlagBitField, extraData: i64 16)
-!27 = !DIExpression()
-!28 = !DILocation(line: 14, column: 14, scope: !8)
-!29 = !DILocation(line: 15, column: 7, scope: !8)
-!30 = !DILocation(line: 15, column: 14, scope: !8)
-!31 = !DILocation(line: 16, column: 7, scope: !8)
-!32 = !DILocation(line: 16, column: 14, scope: !8)
-!33 = !DILocation(line: 17, column: 5, scope: !8)
+!10 = !{null}
+!11 = !DILocalVariable(name: "a", scope: !8, file: !1, line: 4, type: !12)
+!12 = !DICompositeType(tag: DW_TAG_array_type, baseType: !13, size: 320, elements: !14)
+!13 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
+!14 = !{!15}
+!15 = !DISubrange(count: 10)
+!16 = !DIExpression()
+!17 = !DILocation(line: 4, column: 6, scope: !8)
+!18 = !DILocalVariable(name: "a2", scope: !8, file: !1, line: 5, type: !12)
+!19 = !DILocation(line: 5, column: 6, scope: !8)
+!20 = !DILocalVariable(name: "b", scope: !8, file: !1, line: 5, type: !13)
+!21 = !DILocation(line: 5, column: 13, scope: !8)
+!22 = !DILocalVariable(name: "key", scope: !8, file: !1, line: 7, type: !13)
+!23 = !DILocation(line: 7, column: 6, scope: !8)
+!24 = !DILocation(line: 9, column: 5, scope: !25)
+!25 = distinct !DILexicalBlock(scope: !8, file: !1, line: 9, column: 5)
+!26 = !DILocation(line: 9, column: 5, scope: !8)
+!27 = !DILocation(line: 11, column: 9, scope: !28)
+!28 = distinct !DILexicalBlock(scope: !25, file: !1, line: 10, column: 2)
+!29 = !DILocation(line: 11, column: 7, scope: !28)
+!30 = !DILocation(line: 11, column: 5, scope: !28)
+!31 = !DILocation(line: 12, column: 2, scope: !28)
+!32 = !DILocation(line: 15, column: 9, scope: !33)
+!33 = distinct !DILexicalBlock(scope: !25, file: !1, line: 14, column: 2)
+!34 = !DILocation(line: 15, column: 7, scope: !33)
+!35 = !DILocation(line: 15, column: 5, scope: !33)
+!36 = !DILocation(line: 17, column: 3, scope: !8)
+!37 = !DILocation(line: 18, column: 2, scope: !8)

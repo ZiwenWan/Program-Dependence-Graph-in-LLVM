@@ -1,0 +1,27 @@
+<stdin> {
+project <struct node *> {
+
+}project <struct device *> {
+	device device;
+
+}project <struct device *> {
+	device device;
+	open open;
+	name name;
+	devop_init_registered devop_init_registered;
+
+}project <struct int *> {
+	int int;
+
+}project <struct char *> {
+	char char;
+
+}project <struct device *> {
+	device device;
+	devop_init_registered devop_init_registered;
+
+}project <struct device *> {
+	device device;
+	devop_init_registered devop_init_registered;
+
+}}

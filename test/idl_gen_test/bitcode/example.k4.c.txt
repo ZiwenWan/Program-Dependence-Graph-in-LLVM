@@ -1,0 +1,26 @@
+<stdin> {
+project <struct opaque*> node{
+project <struct opaque*> device{
+	opaque device;
+}
+project <struct opaque*> device{
+	opaque device;
+	func ptr* open;
+	char* name;
+	int devop_init_registered;
+}
+project <struct int*> int{
+	int int;
+}
+project <struct char*> char{
+	char char;
+}
+project <struct opaque*> device{
+	opaque device;
+	int devop_init_registered;
+}
+project <struct opaque*> device{
+	opaque device;
+	int devop_init_registered;
+}
+}
