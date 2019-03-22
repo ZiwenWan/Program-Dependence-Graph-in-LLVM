@@ -24,10 +24,13 @@ void pdg::DataDependencyGraph::constructFuncMapAndCreateFunctionEntry()
 
 void pdg::DataDependencyGraph::collectDataDependencyInFunc()
 {
+  auto &pdgUtils = PDGUtils::getInstance();
   for (inst_iterator instIt = inst_begin(Func); instIt != inst_end(Func); ++instIt)
   {
     getNodeByData(&*instIt); // add node to graph.
     Instruction *inst = dyn_cast<Instruction>(&*instIt);
+    if (auto st = dyn_cast<StoreInst>(inst))
+      DDG->addDependency(pdgUtils.getInstMap()[cast<Instruction>(st->getValueOperand())], pdgUtils.getInstMap()[cast<Instruction>(st->getPointerOperand())], DependencyType::DATA_GENERAL);
     collectDefUseDependency(inst);
     collectCallInstDependency(inst);
 
@@ -37,7 +40,8 @@ void pdg::DataDependencyGraph::collectDataDependencyInFunc()
       collectRAWDependency(inst);
       collectNonLocalDependency(inst);
     }
-    
+
+
     if (isa<GetElementPtrInst>(inst))
       collectReadFromDependency(inst);
   }
