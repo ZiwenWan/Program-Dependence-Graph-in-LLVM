@@ -26,15 +26,17 @@ public:
   std::vector<llvm::LoadInst *> &getLoadInstList() { return loadInstList; }
   std::vector<llvm::Instruction *> &getReturnInstList() { return returnInstList; }
   std::vector<llvm::CallInst *> &getCallInstList() { return callInstList; }
-  std::vector<llvm::BitCastInst *> &getBitCastInstList() { return bitCastInstList; }
+  std::vector<llvm::CastInst *> &getCastInstList() { return castInstList; }
   std::vector<llvm::IntrinsicInst *> &getIntrinsicInstList() { return intrinsicInstList; }
+  std::vector<llvm::DbgDeclareInst *> &getDbgDeclareInstList() { return dbgDeclareInst; }
   std::vector<ArgumentWrapper *> &getArgWList() { return argWList; }
   void addStoreInst(llvm::Instruction *inst);
   void addLoadInst(llvm::Instruction *inst); 
   void addReturnInst(llvm::Instruction *inst) { returnInstList.push_back(inst); }
   void addCallInst(llvm::Instruction *inst);
-  void addBitCastInst(llvm::Instruction *inst);
+  void addCastInst(llvm::Instruction *inst);
   void addIntrinsicInst(llvm::Instruction *inst);
+  void addDbgInst(llvm::Instruction *inst);
   ArgumentWrapper *getArgWByArg(llvm::Argument &arg);
   ArgumentWrapper *getArgWByIdx(int idx);
   ArgumentWrapper *getRetW() { return retW; }
@@ -46,8 +48,9 @@ private:
   std::vector<llvm::LoadInst *> loadInstList;
   std::vector<llvm::Instruction *> returnInstList;
   std::vector<llvm::CallInst *> callInstList;
-  std::vector<llvm::BitCastInst *> bitCastInstList;
+  std::vector<llvm::CastInst *> castInstList;
   std::vector<llvm::IntrinsicInst *> intrinsicInstList;
+  std::vector<llvm::DbgDeclareInst *> dbgDeclareInst;
   std::vector<ArgumentWrapper *> argWList;
   std::set<llvm::Function *> dependent_funcs;
   std::set<llvm::Value *> ptrSet;

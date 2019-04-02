@@ -3,8 +3,10 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "PDGExceptions.hpp"
 
 namespace pdg
@@ -19,9 +21,9 @@ class DIUtils
     static std::string getDIFieldName(llvm::DIType *dt);
     static std::string getDITypeName(llvm::DIType *dt);
     static std::string getFuncDITypeName(llvm::DIType *dt, std::string funcName);
-    static std::string getArgName(llvm::Argument &arg);
+    static std::string getArgName(llvm::Argument &arg, std::vector<llvm::DbgDeclareInst*> dbgInstList);
     static std::string getArgTypeName(llvm::Argument &arg);
-    static std::string getFuncSigName(llvm::DIType *ty);
+    static std::string getFuncSigName(llvm::DIType *ty, std::string funcName = "");
 };
 }
 #endif

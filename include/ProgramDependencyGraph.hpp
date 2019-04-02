@@ -10,6 +10,8 @@
 #include "llvm/Support/Debug.h"
 #include "DebugInfoUtils.hpp"
 #include "PDGCommandLineOptions.hpp"
+#include <fstream>
+#include <sstream>
 
 
 namespace pdg
@@ -28,7 +30,7 @@ public:
   bool processIndirectCallInst(llvm::CallInst *CI, InstructionWrapper *instW);
   void addNodeDependencies(InstructionWrapper *instW);
   // parameter tree building
-  std::vector<llvm::Function *> collectIndirectCallCandidates(llvm::FunctionType *funcType);
+  std::vector<llvm::Function *> collectIndirectCallCandidates(llvm::FunctionType *funcType, const std::set<std::string> &filterFuncs = std::set<std::string>());
   void copyFormalTreeToActualTree(llvm::CallInst *CI, llvm::Function* func);
   void buildActualParameterTrees(llvm::CallInst *CI);
   void drawActualParameterTree(llvm::CallInst *CI, TreeType treeTy);
@@ -54,12 +56,14 @@ public:
   std::vector<InstructionWrapper *> getAllAlias(llvm::Instruction *inst);
   bool isFuncTypeMatch(llvm::FunctionType *funcTy1, llvm::FunctionType *funcTy2);
   bool isTreeNodeGEPMatch(InstructionWrapper *treeNode, llvm::Instruction *GEP);
+  bool isIndirectCall(llvm::CallInst *CI);
   tree<InstructionWrapper *>::iterator getInstInsertLoc(ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy);
   //  dep printer related functions
   std::vector<DependencyNode<InstructionWrapper> *> getNodeSet() { return PDG->getNodeSet(); }
   DependencyGraph<InstructionWrapper> *_getPDG() { return PDG; }
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodesWithDepType(const InstructionWrapper* instW, DependencyType depType);
+  llvm::Function* getCalledFunction(llvm::CallInst* CI);
 
 private:
   llvm::Module *module;

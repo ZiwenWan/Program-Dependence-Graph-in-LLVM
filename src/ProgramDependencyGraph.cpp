@@ -17,7 +17,7 @@ llvm::cl::opt<int> expandLevel("l", llvm::cl::desc("Parameter tree expand level"
 llvm::cl::opt<int> useDebugInfo("d", llvm::cl::desc("use debug information"), llvm::cl::value_desc("debugInfo"));
 
 bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
-{ 
+{
   if (!expandLevel)
     expandLevel = 4;
   if (!useDebugInfo)
@@ -25,79 +25,101 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   EXPAND_LEVEL = expandLevel;
   USEDEBUGINFO = useDebugInfo;
 
+  std::set<std::string> importedFuncList;
+  std::set<std::string> blackFuncList;
+  std::ifstream importedFuncs("imported_func.txt");
+  std::ifstream blackFuncs("blacklist.txt");
+
+  for (std::string line; std::getline(blackFuncs, line);)
+    blackFuncList.insert(line);
+
+  for (std::string line; std::getline(importedFuncs, line);)
+  {
+    if (blackFuncList.find(line) == blackFuncList.end())
+      importedFuncList.insert(line);
+  }
+
   errs() << "Expand level " << EXPAND_LEVEL << "\n";
   errs() << "Using Debug Info " << USEDEBUGINFO << "\n";
+
   module = &M;
   auto &pdgUtils = PDGUtils::getInstance();
   pdgUtils.constructFuncMap(M);
   pdgUtils.collectGlobalInsts(M);
   int user_def_func_num = 0;
-  // copy dependencies from DDG/CDG to PDG
-  for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
-  {
-    Function *Func = dyn_cast<Function>(FI);
-    if (Func->isDeclaration())
-      continue;
 
-    user_def_func_num++; // count function has definition as user defined
-    pdgUtils.categorizeInstInFunc(*Func);
-    cdg = &getAnalysis<ControlDependencyGraph>(*Func);
-    ddg = &getAnalysis<DataDependencyGraph>(*Func);
-
-    for (InstructionWrapper *instW : pdgUtils.getFuncInstWMap()[Func])
+  bool fixPoint = false;
+  int callLevel = 3;
+  while (!fixPoint && callLevel > 0) {
+    callLevel -= 1;
+    // copy dependencies from DDG/CDG to PDG
+    for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
     {
-      addNodeDependencies(instW);
+      Function *Func = dyn_cast<Function>(FI);
+      pdgUtils.categorizeInstInFunc(*Func);
+#ifdef FUNC_LIST
+      if (Func->isDeclaration() || importedFuncList.find(Func->getName().str()) == importedFuncList.end())
+#else
+      if (Func->isDeclaration())
+#endif
+        continue;
+      user_def_func_num++; // count function has definition as user defined
+      cdg = &getAnalysis<ControlDependencyGraph>(*Func);
+      ddg = &getAnalysis<DataDependencyGraph>(*Func);
+
+      for (InstructionWrapper *instW : pdgUtils.getFuncInstWMap()[Func])
+        addNodeDependencies(instW);
+
+      if (!pdgUtils.getFuncMap()[Func]->hasTrees())
+        buildFormalTreeForFunc(Func);
     }
 
-    if (!pdgUtils.getFuncMap()[Func]->hasTrees())
+    // start process CallInst
+    bool callInstFixPoint = true;
+    for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
     {
-      buildFormalTreeForFunc(Func);
-    }
-  }
+      Function *Func = dyn_cast<Function>(FI);
+#ifdef FUNC_LIST
+      if (Func->isDeclaration() || importedFuncList.find(Func->getName().str()) == importedFuncList.end())
+#else
+      if (Func->isDeclaration())
+#endif
+        continue;
 
-  // start process CallInst
-  for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
-  {
-    Function *Func = dyn_cast<Function>(FI);
-    if (Func->isDeclaration())
-      continue;
+      auto callInstsList = pdgUtils.getFuncMap()[Func]->getCallInstList();
+      for (CallInst *ci : callInstsList)
+      {
+        if (!processCallInst(pdgUtils.getInstMap()[ci])) {
+          errs() << "bad indirect call.." << "\n";
+          continue;
+        }
+          // throw NullCalledFunction("Called Function is null. Possbile no matching function found for indirect call");
 
-    auto callInstsList = pdgUtils.getFuncMap()[Func]->getCallInstList();
-    for (CallInst *inst : callInstsList)
-    {
-      if (!processCallInst(pdgUtils.getInstMap()[inst]))
-        throw NullCalledFunction("Called Function is null. Possbile no matching function found for indirect call");
-    }
-  }
-
-  for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
-  {
-    if (FI->isDeclaration())
-      continue;
-
-    auto argWList = pdgUtils.getFuncMap()[&*FI]->getArgWList();
-    for (auto argW : argWList) {
-      errs() << FI->getName() << ": " << argW->getTree(TreeType::FORMAL_IN_TREE).size() << "\n";
-    }
-  }
-
-  for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
-  {
-    if (FI->isDeclaration())
-      continue;
-
-    for (auto I = inst_begin(*FI); I != inst_end(*FI); ++I)
-    {
-      auto DepList = getNodeDepList(&*I);
-      errs() << "-----------------" << "\n";
-      errs() << *I << "\n";
-      for (auto pair : DepList) {
-        errs() << *(pair.first->getData()->getInstruction()) << "\n";
+        bool findNewCallee = false;
+        if (isIndirectCall(ci))
+        {
+          for (auto f : collectIndirectCallCandidates(ci->getFunctionType(), importedFuncList)) // need modification
+          {
+              importedFuncList.insert(f->getName().str());
+              callInstFixPoint = false;
+          }
+        }
+        else
+        {
+          auto calledFunc = getCalledFunction(ci);
+          if (importedFuncList.find(calledFunc->getName().str()) != importedFuncList.end())
+          {
+            importedFuncList.insert(calledFunc->getName().str());
+            callInstFixPoint = false;
+          }
+        }
       }
-      errs() << "-----------------" << "\n";
     }
+    fixPoint = fixPoint && callInstFixPoint;
   }
 
+  importedFuncs.close();
+  blackFuncs.close();
   return false;
 }
 
@@ -110,7 +132,7 @@ bool pdg::ProgramDependencyGraph::processIndirectCallInst(CallInst *CI, Instruct
   std::vector<Function *> indirect_call_candidates = collectIndirectCallCandidates(funcTy);
   if (indirect_call_candidates.size() == 0)
   {
-    errs() << "cannot find possible indirect call candidates.." << "\n";
+    errs() << "cannot find possible indirect call candidates.. " << *CI << "\n";
     return false;
   }
   CallWrapper *callW = new CallWrapper(CI, indirect_call_candidates);
@@ -125,7 +147,6 @@ bool pdg::ProgramDependencyGraph::processIndirectCallInst(CallInst *CI, Instruct
       continue;
     if (pdgUtils.getFuncMap()[indirect_called_func]->hasTrees())
       continue;
-    errs() << "Building tree for indirect func: " << indirect_called_func->getName() << "\n";
     buildFormalTreeForFunc(indirect_called_func);
   }
   buildActualParameterTrees(CI);
@@ -145,17 +166,15 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
   {
     CallInst *CI = dyn_cast<CallInst>(inst);
     Function *callee = CI->getCalledFunction();
+    if (CI->isInlineAsm())
+      return true;
 
-    if (callee == nullptr)
-    {
-      if (Function *f = dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts())) // handle case for bitcast
-        callee = f;
-      else
-        return processIndirectCallInst(CI, instW); // indirect function call get func type for indirect call inst
-    } 
-    
+    if (isIndirectCall(CI))
+      return processIndirectCallInst(CI, instW); // indirect function call get func type for indirect call inst
+
+    if (Function *f = dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts())) // handle case for bitcast
+      callee = f;
     // handle intrinsic functions
-
     if (callee->isIntrinsic()) {
       return true;
     }
@@ -175,20 +194,6 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
       } // end if !callee
 
       connectCallerAndCallee(instW, callee);
-      // link typenode inst with argument inst
-      std::vector<ArgumentWrapper *> argList = pdgUtils.getFuncMap()[callee]->getArgWList();
-      for (ArgumentWrapper *argW : argList)
-      {
-        tree<InstructionWrapper *>::iterator TI = argW->getTree(TreeType::FORMAL_IN_TREE).begin();
-        tree<InstructionWrapper *>::iterator TE = argW->getTree(TreeType::FORMAL_IN_TREE).end();
-        for (; TI != TE; ++TI)
-        {
-          if (PDG->isDepends(instW, *TI))
-          {
-            PDG->addDependency(instW, *TI, DependencyType::STRUCT_FIELDS);
-          }
-        }
-      }
     }
   }
   return true;
@@ -290,6 +295,7 @@ bool pdg::ProgramDependencyGraph::isFilePtrOrFuncTy(Type *ty)
 
 std::vector<Instruction *> pdg::ProgramDependencyGraph::getArgStoreInsts(Argument &arg)
 {
+  auto &pdgUtils = PDGUtils::getInstance();
   std::vector<Instruction *> initialStoreInsts;
   if (arg.getArgNo() == RETVALARGNO)
   {
@@ -311,6 +317,19 @@ std::vector<Instruction *> pdg::ProgramDependencyGraph::getArgStoreInsts(Argumen
       if (st->getValueOperand() == &arg)
         initialStoreInsts.push_back(st);
     }
+
+    if (isa<CastInst>(*UI))
+    {
+      for (auto CIU = (*UI)->user_begin(); CIU != (*UI)->user_end(); ++CIU)
+      {
+        if (auto cist = dyn_cast<StoreInst>(*CIU))
+        {
+          if (cist->getValueOperand() == *UI) {
+            initialStoreInsts.push_back(cist);
+          }
+        }
+      }
+    }
   }
 
   return initialStoreInsts;
@@ -318,38 +337,46 @@ std::vector<Instruction *> pdg::ProgramDependencyGraph::getArgStoreInsts(Argumen
 
 Instruction *pdg::ProgramDependencyGraph::getArgAllocaInst(Argument &arg)
 {
-  auto argStoreInsts = getArgStoreInsts(arg);
-  for (auto I : argStoreInsts)
+  auto &pdgUtils = PDGUtils::getInstance();
+  for (auto dbgInst : pdgUtils.getFuncMap()[arg.getParent()]->getDbgDeclareInstList())
   {
-    if (auto si = dyn_cast<StoreInst>(I))
+    if (auto DLV = dyn_cast<DILocalVariable>(dbgInst->getVariable()))
     {
-      if (si->getValueOperand() == &arg && isa<AllocaInst>(si->getPointerOperand()))
-        return cast<AllocaInst>(si->getPointerOperand());
+      if (DLV->isParameter())
+      {
+        Instruction *allocaInst = dyn_cast<Instruction>(dbgInst->getVariableLocation());
+        return allocaInst;
+      }
     }
   }
+  errs() << arg.getParent()->getName() << " " << arg.getArgNo() << "\n";
   assert(false && "no viable alloca inst for argument.");
 }
 
 bool pdg::ProgramDependencyGraph::isFuncTypeMatch(FunctionType *funcTy1, FunctionType *funcTy2)
 {
   if (funcTy1->getNumParams() != funcTy2->getNumParams())
-  {
     return false;
-  }
 
   if (funcTy1->getReturnType() != funcTy2->getReturnType())
-  {
     return false;
-  }
 
   unsigned param_len = funcTy1->getNumParams();
   for (unsigned i = 0; i < param_len; ++i)
   {
     if (funcTy1->getParamType(i) != funcTy2->getParamType(i))
-    {
       return false;
-    }
   }
+  return true;
+}
+
+bool pdg::ProgramDependencyGraph::isIndirectCall(CallInst *CI)
+{
+  const Value *V = CI->getCalledValue();
+  if (isa<Function>(V) || isa<Constant>(V))
+     return false;
+  if (CI->isInlineAsm())
+    return true;
   return true;
 }
 
@@ -391,7 +418,6 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForFunc(Function *Func)
   }
   buildFormalTreeForArg(*FuncW->getRetW()->getArg(), TreeType::FORMAL_IN_TREE);
   pdgUtils.getFuncMap()[Func]->setTreeFlag(true);
-
   drawFormalParameterTree(Func, TreeType::FORMAL_IN_TREE);
   drawFormalParameterTree(Func, TreeType::FORMAL_OUT_TREE);
   connectFunctionAndFormalTrees(Func);
@@ -410,13 +436,8 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
     //find the right arg, and set tree root
     ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
     auto treeRoot = argW->getTree(treeTy).set_head(treeTyW);
-    if (argW->getTree(treeTy).size() == 0) {
-      std::string err_msg = "Function " + Func->getName().str() + " arg " +
-                            DIUtils::getArgName(arg) +
-                            " has param tree of size 0. Abort...";
-      errs() << err_msg << "\n" ;
-      exit(0);
-    }
+    assert(argW->getTree(treeTy).size() != 0 && "parameter tree has size 0 after root build!");
+
     std::string Str;
     raw_string_ostream OS(Str);
     //FILE*, bypass, no need to buildTypeTree
@@ -560,7 +581,11 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
     throw new ArgWrapperIsNullPtr("Argument Wrapper is nullptr");
 
   if (argDIType == nullptr)
-    throw new ArgHasNoDITypeException("Argument Debug Type is nullptr");
+  {
+    errs() << arg.getArgNo() << "\n";
+    return;
+    // throw new ArgHasNoDITypeException("Argument Debug Type is nullptr");
+  }
 
   tree<InstructionWrapper *>::iterator insert_loc; // insert location in the parameter tree for the type wrapper
   int depth = 0;
@@ -614,6 +639,9 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
       Type *parentType = nullptr;
       // for struct type, insert all children to the tree
       auto DINodeArr = dyn_cast<DICompositeType>(instDIType)->getElements();
+      if (DINodeArr.size() < curNodeTy->getStructNumElements())
+        continue;
+
       for (unsigned int child_offset = 0; child_offset < curNodeTy->getStructNumElements(); child_offset++)
       {
         parentType = curTyNode->getTreeNodeType();
@@ -627,6 +655,7 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
           unsigned bitFieldPackingSizeInBits = curNodeTy->getIntegerBitWidth();
           while (bitFieldPackingSizeInBits > 0 && instDIType->isBitField())
           {
+            typeFieldW->addBitFieldName(DIUtils::getDIFieldName(instDIType));
             uint64_t bitFieldSize = instDIType->getSizeInBits();
             bitFieldPackingSizeInBits -= bitFieldSize;
             instDIType = DITypeQ.front();
@@ -636,6 +665,7 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
           }
           continue;
         }
+
         pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
         // start inserting formal tree instructions
         argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
@@ -754,7 +784,6 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
         auto depInstW = pair.first->getData();
         auto depInstAliasList = getAllAlias(depInstW->getInstruction());
         depInstAliasList.push_back(const_cast<InstructionWrapper*>(depInstW));
-
         for (auto depInstAlias : depInstAliasList)
         {
           if (depInstAlias->getInstruction() == nullptr)
@@ -991,24 +1020,34 @@ void pdg::ProgramDependencyGraph::drawActualParameterTree(CallInst *CI, pdg::Tre
   }
 }
 
-std::vector<Function *> pdg::ProgramDependencyGraph::collectIndirectCallCandidates(FunctionType *funcType)
+std::vector<Function *> pdg::ProgramDependencyGraph::collectIndirectCallCandidates(FunctionType *funcType, const std::set<std::string> &filterFuncs)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   std::vector<Function *> indirectCallList;
-  std::map<const Function *, FunctionWrapper *>::iterator FI = pdgUtils.getFuncMap().begin();
-  std::map<const Function *, FunctionWrapper *>::iterator FE = pdgUtils.getFuncMap().end();
-  for (; FI != FE; ++FI)
+  for (auto &F : *module)
   {
-    Function *curFunc = const_cast<Function *>((*FI).first);
+    std::string funcName = F.getName().str();
     // get Function type
-    if (curFunc->getName() == "main")
+    if (funcName == "main")
       continue;
-    // compare the indirect call function type with each function
-    if (isFuncTypeMatch(funcType, curFunc->getFunctionType()))
-      indirectCallList.push_back(curFunc);
+    // compare the indirect call function type with each function, filter out certian functions that should not be considered as call targets
+    if (isFuncTypeMatch(funcType, F.getFunctionType()) && filterFuncs.find(funcName) == filterFuncs.end())
+      indirectCallList.push_back(&F);
   }
 
   return indirectCallList;
+}
+
+Function *pdg::ProgramDependencyGraph::getCalledFunction(CallInst* CI)
+{
+  if (isIndirectCall(CI))
+    return nullptr;
+  Function* calledFunc = CI->getCalledFunction();
+  if (calledFunc == nullptr)
+    return dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts()); // handle case for bitcast
+  return calledFunc;
+  assert(calledFunc != nullptr && "Cannot find called function");
+  return calledFunc;
 }
 
 // -------------------------------

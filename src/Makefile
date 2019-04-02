@@ -123,6 +123,303 @@ pdg/fast:
 	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/build
 .PHONY : pdg/fast
 
+AccessInfoTracker.o: AccessInfoTracker.cpp.o
+
+.PHONY : AccessInfoTracker.o
+
+# target to build an object file
+AccessInfoTracker.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/AccessInfoTracker.cpp.o
+.PHONY : AccessInfoTracker.cpp.o
+
+AccessInfoTracker.i: AccessInfoTracker.cpp.i
+
+.PHONY : AccessInfoTracker.i
+
+# target to preprocess a source file
+AccessInfoTracker.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/AccessInfoTracker.cpp.i
+.PHONY : AccessInfoTracker.cpp.i
+
+AccessInfoTracker.s: AccessInfoTracker.cpp.s
+
+.PHONY : AccessInfoTracker.s
+
+# target to generate assembly for a file
+AccessInfoTracker.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/AccessInfoTracker.cpp.s
+.PHONY : AccessInfoTracker.cpp.s
+
+ArgumentWrapper.o: ArgumentWrapper.cpp.o
+
+.PHONY : ArgumentWrapper.o
+
+# target to build an object file
+ArgumentWrapper.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/ArgumentWrapper.cpp.o
+.PHONY : ArgumentWrapper.cpp.o
+
+ArgumentWrapper.i: ArgumentWrapper.cpp.i
+
+.PHONY : ArgumentWrapper.i
+
+# target to preprocess a source file
+ArgumentWrapper.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/ArgumentWrapper.cpp.i
+.PHONY : ArgumentWrapper.cpp.i
+
+ArgumentWrapper.s: ArgumentWrapper.cpp.s
+
+.PHONY : ArgumentWrapper.s
+
+# target to generate assembly for a file
+ArgumentWrapper.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/ArgumentWrapper.cpp.s
+.PHONY : ArgumentWrapper.cpp.s
+
+CallWrapper.o: CallWrapper.cpp.o
+
+.PHONY : CallWrapper.o
+
+# target to build an object file
+CallWrapper.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/CallWrapper.cpp.o
+.PHONY : CallWrapper.cpp.o
+
+CallWrapper.i: CallWrapper.cpp.i
+
+.PHONY : CallWrapper.i
+
+# target to preprocess a source file
+CallWrapper.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/CallWrapper.cpp.i
+.PHONY : CallWrapper.cpp.i
+
+CallWrapper.s: CallWrapper.cpp.s
+
+.PHONY : CallWrapper.s
+
+# target to generate assembly for a file
+CallWrapper.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/CallWrapper.cpp.s
+.PHONY : CallWrapper.cpp.s
+
+ControlDependencyGraph.o: ControlDependencyGraph.cpp.o
+
+.PHONY : ControlDependencyGraph.o
+
+# target to build an object file
+ControlDependencyGraph.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/ControlDependencyGraph.cpp.o
+.PHONY : ControlDependencyGraph.cpp.o
+
+ControlDependencyGraph.i: ControlDependencyGraph.cpp.i
+
+.PHONY : ControlDependencyGraph.i
+
+# target to preprocess a source file
+ControlDependencyGraph.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/ControlDependencyGraph.cpp.i
+.PHONY : ControlDependencyGraph.cpp.i
+
+ControlDependencyGraph.s: ControlDependencyGraph.cpp.s
+
+.PHONY : ControlDependencyGraph.s
+
+# target to generate assembly for a file
+ControlDependencyGraph.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/ControlDependencyGraph.cpp.s
+.PHONY : ControlDependencyGraph.cpp.s
+
+DataDependencyGraph.o: DataDependencyGraph.cpp.o
+
+.PHONY : DataDependencyGraph.o
+
+# target to build an object file
+DataDependencyGraph.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/DataDependencyGraph.cpp.o
+.PHONY : DataDependencyGraph.cpp.o
+
+DataDependencyGraph.i: DataDependencyGraph.cpp.i
+
+.PHONY : DataDependencyGraph.i
+
+# target to preprocess a source file
+DataDependencyGraph.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/DataDependencyGraph.cpp.i
+.PHONY : DataDependencyGraph.cpp.i
+
+DataDependencyGraph.s: DataDependencyGraph.cpp.s
+
+.PHONY : DataDependencyGraph.s
+
+# target to generate assembly for a file
+DataDependencyGraph.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/DataDependencyGraph.cpp.s
+.PHONY : DataDependencyGraph.cpp.s
+
+DebugInfoUtils.o: DebugInfoUtils.cpp.o
+
+.PHONY : DebugInfoUtils.o
+
+# target to build an object file
+DebugInfoUtils.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/DebugInfoUtils.cpp.o
+.PHONY : DebugInfoUtils.cpp.o
+
+DebugInfoUtils.i: DebugInfoUtils.cpp.i
+
+.PHONY : DebugInfoUtils.i
+
+# target to preprocess a source file
+DebugInfoUtils.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/DebugInfoUtils.cpp.i
+.PHONY : DebugInfoUtils.cpp.i
+
+DebugInfoUtils.s: DebugInfoUtils.cpp.s
+
+.PHONY : DebugInfoUtils.s
+
+# target to generate assembly for a file
+DebugInfoUtils.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/DebugInfoUtils.cpp.s
+.PHONY : DebugInfoUtils.cpp.s
+
+DepPrinter.o: DepPrinter.cpp.o
+
+.PHONY : DepPrinter.o
+
+# target to build an object file
+DepPrinter.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/DepPrinter.cpp.o
+.PHONY : DepPrinter.cpp.o
+
+DepPrinter.i: DepPrinter.cpp.i
+
+.PHONY : DepPrinter.i
+
+# target to preprocess a source file
+DepPrinter.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/DepPrinter.cpp.i
+.PHONY : DepPrinter.cpp.i
+
+DepPrinter.s: DepPrinter.cpp.s
+
+.PHONY : DepPrinter.s
+
+# target to generate assembly for a file
+DepPrinter.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/DepPrinter.cpp.s
+.PHONY : DepPrinter.cpp.s
+
+FunctionWrapper.o: FunctionWrapper.cpp.o
+
+.PHONY : FunctionWrapper.o
+
+# target to build an object file
+FunctionWrapper.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/FunctionWrapper.cpp.o
+.PHONY : FunctionWrapper.cpp.o
+
+FunctionWrapper.i: FunctionWrapper.cpp.i
+
+.PHONY : FunctionWrapper.i
+
+# target to preprocess a source file
+FunctionWrapper.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/FunctionWrapper.cpp.i
+.PHONY : FunctionWrapper.cpp.i
+
+FunctionWrapper.s: FunctionWrapper.cpp.s
+
+.PHONY : FunctionWrapper.s
+
+# target to generate assembly for a file
+FunctionWrapper.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/FunctionWrapper.cpp.s
+.PHONY : FunctionWrapper.cpp.s
+
+PDGUtils.o: PDGUtils.cpp.o
+
+.PHONY : PDGUtils.o
+
+# target to build an object file
+PDGUtils.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/PDGUtils.cpp.o
+.PHONY : PDGUtils.cpp.o
+
+PDGUtils.i: PDGUtils.cpp.i
+
+.PHONY : PDGUtils.i
+
+# target to preprocess a source file
+PDGUtils.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/PDGUtils.cpp.i
+.PHONY : PDGUtils.cpp.i
+
+PDGUtils.s: PDGUtils.cpp.s
+
+.PHONY : PDGUtils.s
+
+# target to generate assembly for a file
+PDGUtils.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/PDGUtils.cpp.s
+.PHONY : PDGUtils.cpp.s
+
+ProgramDependencyGraph.o: ProgramDependencyGraph.cpp.o
+
+.PHONY : ProgramDependencyGraph.o
+
+# target to build an object file
+ProgramDependencyGraph.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/ProgramDependencyGraph.cpp.o
+.PHONY : ProgramDependencyGraph.cpp.o
+
+ProgramDependencyGraph.i: ProgramDependencyGraph.cpp.i
+
+.PHONY : ProgramDependencyGraph.i
+
+# target to preprocess a source file
+ProgramDependencyGraph.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/ProgramDependencyGraph.cpp.i
+.PHONY : ProgramDependencyGraph.cpp.i
+
+ProgramDependencyGraph.s: ProgramDependencyGraph.cpp.s
+
+.PHONY : ProgramDependencyGraph.s
+
+# target to generate assembly for a file
+ProgramDependencyGraph.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/ProgramDependencyGraph.cpp.s
+.PHONY : ProgramDependencyGraph.cpp.s
+
+PtrSplitIDLGen.o: PtrSplitIDLGen.cpp.o
+
+.PHONY : PtrSplitIDLGen.o
+
+# target to build an object file
+PtrSplitIDLGen.cpp.o:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/PtrSplitIDLGen.cpp.o
+.PHONY : PtrSplitIDLGen.cpp.o
+
+PtrSplitIDLGen.i: PtrSplitIDLGen.cpp.i
+
+.PHONY : PtrSplitIDLGen.i
+
+# target to preprocess a source file
+PtrSplitIDLGen.cpp.i:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/PtrSplitIDLGen.cpp.i
+.PHONY : PtrSplitIDLGen.cpp.i
+
+PtrSplitIDLGen.s: PtrSplitIDLGen.cpp.s
+
+.PHONY : PtrSplitIDLGen.s
+
+# target to generate assembly for a file
+PtrSplitIDLGen.cpp.s:
+	$(MAKE) -f CMakeFiles/pdg.dir/build.make CMakeFiles/pdg.dir/PtrSplitIDLGen.cpp.s
+.PHONY : PtrSplitIDLGen.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -132,6 +429,39 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... pdg"
+	@echo "... AccessInfoTracker.o"
+	@echo "... AccessInfoTracker.i"
+	@echo "... AccessInfoTracker.s"
+	@echo "... ArgumentWrapper.o"
+	@echo "... ArgumentWrapper.i"
+	@echo "... ArgumentWrapper.s"
+	@echo "... CallWrapper.o"
+	@echo "... CallWrapper.i"
+	@echo "... CallWrapper.s"
+	@echo "... ControlDependencyGraph.o"
+	@echo "... ControlDependencyGraph.i"
+	@echo "... ControlDependencyGraph.s"
+	@echo "... DataDependencyGraph.o"
+	@echo "... DataDependencyGraph.i"
+	@echo "... DataDependencyGraph.s"
+	@echo "... DebugInfoUtils.o"
+	@echo "... DebugInfoUtils.i"
+	@echo "... DebugInfoUtils.s"
+	@echo "... DepPrinter.o"
+	@echo "... DepPrinter.i"
+	@echo "... DepPrinter.s"
+	@echo "... FunctionWrapper.o"
+	@echo "... FunctionWrapper.i"
+	@echo "... FunctionWrapper.s"
+	@echo "... PDGUtils.o"
+	@echo "... PDGUtils.i"
+	@echo "... PDGUtils.s"
+	@echo "... ProgramDependencyGraph.o"
+	@echo "... ProgramDependencyGraph.i"
+	@echo "... ProgramDependencyGraph.s"
+	@echo "... PtrSplitIDLGen.o"
+	@echo "... PtrSplitIDLGen.i"
+	@echo "... PtrSplitIDLGen.s"
 .PHONY : help
 
 

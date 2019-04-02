@@ -6,71 +6,96 @@ char pdg::AccessInfoTracker::ID = 0;
 
 bool pdg::AccessInfoTracker::runOnModule(Module &M)
 {
-  std::set<std::string> func_list = {
-      "unregister_foobar",
-      "alloc_foobardev",
-      "register_foobar",
-      "free_foobardev"};
+  std::ifstream importedFuncs("imported_func.txt");
+  std::ifstream definedFuncs("defineblackFuncList.txt");
+  std::ifstream blackFuncs("blacklist.txt");
+
+  for (std::string line; std::getline(blackFuncs, line);)
+    blackFuncList.insert(line);
+
+  for (std::string line; std::getline(importedFuncs, line);) {
+    if (blackFuncList.find(line) == blackFuncList.end())
+      importedFuncList.insert(line);
+  }
+
+  for (std::string line; std::getline(definedFuncs, line);)
+    definedFuncList.insert(line);
+
+  errs() << blackFuncList.size() << " " << definedFuncList.size() << "\n";
 
   auto &pdgUtils = PDGUtils::getInstance();
   PDG = &getAnalysis<pdg::ProgramDependencyGraph>();
-  
-  if (!USEDEBUGINFO) {
+
+  if (!USEDEBUGINFO)
+  {
     errs() << "[WARNING] No debug information avaliable... \nUse [-debug 1] in the pass to generate debug information\n";
     exit(0);
   }
-  
-  for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
+
+  bool reachFixPoint = false;
+  int funcCallLevel = 3;
+  while (!reachFixPoint && funcCallLevel > 0)
   {
-    Function &F = *FI;
+    // intra-procedural analysis
+    funcCallLevel -= 1;
+    for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
+    {
+      Function &F = *FI;
 #ifdef FUNC_LIST
-    if (F.isDeclaration() || func_list.find(F.getName().str()) == func_list.end())
-      continue;
+      if (F.isDeclaration() || importedFuncList.find(F.getName().str()) == importedFuncList.end())
+        continue;
 #else
-    if (F.isDeclaration())
-      continue;
+      if (F.isDeclaration())
+        continue;
 #endif
-    getIntraFuncReadWriteInfoForFunc(F);
-  }
+      getIntraFuncReadWriteInfoForFunc(F);
+    }
 
-  // inter-procedure access info analysis
-  for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
-  {
-    Function &F = *FI;
+    // inter-procedure access info analysis
+    bool fixPoint = true;
+    for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
+    {
+      Function &F = *FI;
 
 #ifdef FUNC_LIST
-    if (F.isDeclaration() || func_list.find(F.getName().str()) == func_list.end())
-      continue;
+      if (F.isDeclaration() || importedFuncList.find(F.getName().str()) == importedFuncList.end())
+        continue;
 #else
-    if (F.isDeclaration())
-      continue;
+      if (F.isDeclaration())
+        continue;
 #endif
-
-    getInterFuncReadWriteInfo(F);
+      
+      fixPoint = fixPoint && getInterFuncReadWriteInfo(F);
+    }
+    reachFixPoint = fixPoint;
   }
-
   std::string file_name = "accinfo";
   file_name += ".txt";
   idl_file.open(file_name);
-  idl_file << "module " << M.getSourceFileName() << " {\n";
+  idl_file << "module kernel()" << " {\n";
 
   for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
   {
     Function &F = *FI;
 
 #ifdef FUNC_LIST
-    if (F.isDeclaration() || func_list.find(F.getName().str()) == func_list.end())
+    if (F.isDeclaration() || importedFuncList.find(F.getName().str()) == importedFuncList.end())
       continue;
 #else
     if (F.isDeclaration())
       continue;
 #endif
-    printFuncArgAccessInfo(F);
-    generateIDLforFunc(F);
+    // printFuncArgAccessInfo(F);
+    if (definedFuncList.find(F.getName().str()) == definedFuncList.end()) {
+      generateIDLforFunc(F);
+    }
   }
 
   idl_file << "}";
   idl_file.close();
+  importedFuncs.close();
+  definedFuncs.close();
+  blackFuncs.close();
   return false;
 }
 
@@ -92,9 +117,9 @@ AccessType pdg::AccessInfoTracker::getAccessTypeForInstW(const InstructionWrappe
     if (!depInstW->getInstruction())
       continue;
 
-    if (depType == DependencyType::DATA_DEF_USE) 
+    if (depType == DependencyType::DATA_DEF_USE)
     {
-      if (isa<LoadInst>(depInstW->getInstruction()))
+      if (isa<LoadInst>(depInstW->getInstruction()) || isa<GetElementPtrInst>(depInstW->getInstruction()))
         accessType = AccessType::READ;
     }
 
@@ -116,13 +141,14 @@ AccessType pdg::AccessInfoTracker::getAccessTypeForInstW(const InstructionWrappe
   return accessType;
 }
 
-void pdg::AccessInfoTracker::printRetValueAccessInfo(Function &Func, std::set<std::string> func_list)
+void pdg::AccessInfoTracker::printRetValueAccessInfo(Function &Func)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   for (CallInst *CI : pdgUtils.getFuncMap()[&Func]->getCallInstList())
   {
     CallWrapper *CW = pdgUtils.getCallMap()[CI];
-    errs() << "Ret Value Acc Info.." << "\n";
+    errs() << "Ret Value Acc Info.."
+           << "\n";
     printArgAccessInfo(CW->getRetW(), TreeType::ACTUAL_IN_TREE);
     errs() << "......... [ END " << Func.getName() << " ] .........\n\n";
   }
@@ -133,10 +159,13 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForArg(ArgumentWrapper *ar
 {
   auto argTree = argW->getTree(TreeType::FORMAL_IN_TREE);
   if (argTree.size() == 0)
-    throw new ArgParameterTreeSizeIsZero("Argment tree is empty... Every param should have at least one node...\n");
-
+  {
+    return;
+  }
+  // throw new ArgParameterTreeSizeIsZero("Argment tree is empty... Every param should have at least one node...\n");
   auto treeI = argW->getTree(TreeType::FORMAL_IN_TREE).begin();
-  if (!(*treeI)->getTreeNodeType()->isPointerTy()) {
+  if (!(*treeI)->getTreeNodeType()->isPointerTy())
+  {
     errs() << "Find non-pointer type parameter, do not track...\n";
     return;
   }
@@ -145,11 +174,12 @@ void pdg::AccessInfoTracker::getIntraFuncReadWriteInfoForArg(ArgumentWrapper *ar
   for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE); treeI != argW->tree_end(TreeType::FORMAL_IN_TREE); ++treeI)
   {
     auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
-    for (auto valDepPair : valDepPairList) {
+    for (auto valDepPair : valDepPairList)
+    {
       auto dataW = valDepPair.first->getData();
       AccessType accType = getAccessTypeForInstW(dataW);
-      errs() << *dataW->getInstruction() << "\n";
-      (*treeI)->setAccessType(accType);
+      if (static_cast<int>(accType) > static_cast<int>((*treeI)->getAccessType()))
+        (*treeI)->setAccessType(accType);
     }
   }
 }
@@ -207,28 +237,25 @@ pdg::ArgumentMatchType pdg::AccessInfoTracker::getArgMatchType(Argument *arg1, A
   return pdg::ArgumentMatchType::NOTCONTAINED;
 }
 
-void pdg::AccessInfoTracker::mergeArgAccessInfo(ArgumentWrapper* callerArgW, ArgumentWrapper* calleeArgW, tree<InstructionWrapper *>::iterator callerParamI)
+void pdg::AccessInfoTracker::mergeArgAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW, tree<InstructionWrapper *>::iterator callerParamI)
 {
   unsigned callerParamTreeSize = callerArgW->getTree(TreeType::FORMAL_IN_TREE).size(callerParamI);
   unsigned calleeParamTreeSize = calleeArgW->getTree(TreeType::FORMAL_IN_TREE).size();
-  errs() << callerParamTreeSize << " - " << calleeParamTreeSize << "\n";
-  if ( callerParamTreeSize != calleeParamTreeSize ) {
+  if (callerParamTreeSize != calleeParamTreeSize)
     return;
-  }
 
   auto calleeParamI = calleeArgW->tree_begin(TreeType::FORMAL_IN_TREE);
-  for (; callerParamI != callerArgW->tree_end(TreeType::FORMAL_IN_TREE); ++callerParamI, ++calleeParamI)
+  for (; callerParamI != callerArgW->tree_end(TreeType::FORMAL_IN_TREE) && calleeParamI != calleeArgW->tree_end(TreeType::FORMAL_IN_TREE); ++callerParamI, ++calleeParamI)
   {
     if (static_cast<int>((*callerParamI)->getAccessType()) < static_cast<int>((*calleeParamI)->getAccessType()))
-    {
       (*callerParamI)->setAccessType((*calleeParamI)->getAccessType());
-    }
   }
 }
 
-void pdg::AccessInfoTracker::getInterFuncReadWriteInfo(Function &F)
+bool pdg::AccessInfoTracker::getInterFuncReadWriteInfo(Function &F)
 {
   auto &pdgUtils = PDGUtils::getInstance();
+  bool reachFixPoint = true;
   for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
   {
     for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE); treeI != argW->tree_end(TreeType::FORMAL_IN_TREE); ++treeI)
@@ -245,51 +272,62 @@ void pdg::AccessInfoTracker::getInterFuncReadWriteInfo(Function &F)
           int paraIdx = getCallParamIdx(depInstW, depCallInstW);
           auto callInst = dyn_cast<CallInst>(depCallInstW->getInstruction());
           //direct call
-          if (Function* f = dyn_cast<Function>(callInst->getCalledValue()->stripPointerCasts()))
+          if (PDG->isIndirectCall(callInst))
           {
-            // direct call
-            FunctionWrapper *calleeFuncW = pdgUtils.getFuncMap()[f];
-            ArgumentWrapper *calleeArgW = calleeFuncW->getArgWByIdx(paraIdx);
-            mergeArgAccessInfo(argW, calleeArgW, tree<InstructionWrapper*>::parent(treeI));
-          } else {
-            Type *t = callInst->getCalledValue()->getType();
-            FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
-            auto indirect_call_candidates = PDG->collectIndirectCallCandidates(funcTy);
+            // Type *t = callInst->getCalledValue()->getType();
+            // FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
+            auto indirect_call_candidates = PDG->collectIndirectCallCandidates(callInst->getFunctionType(), importedFuncList);
             for (auto indirect_call : indirect_call_candidates)
             {
-              auto calleeFuncW   = pdgUtils.getFuncMap()[indirect_call];
+              auto calleeFuncW = pdgUtils.getFuncMap()[indirect_call];
               auto calleeArgW = calleeFuncW->getArgWByIdx(paraIdx);
-              mergeArgAccessInfo(argW, calleeArgW, tree<InstructionWrapper*>::parent(treeI));
+              mergeArgAccessInfo(argW, calleeArgW, tree<InstructionWrapper *>::parent(treeI));
+              importedFuncList.insert(indirect_call->getName().str());
+              reachFixPoint = false;
+            }
+          }
+          else
+          {
+            auto f = callInst->getCalledFunction();
+            if (f == nullptr)
+              f = dyn_cast<Function>(callInst->getCalledValue()->stripPointerCasts());
+            FunctionWrapper *calleeFuncW = pdgUtils.getFuncMap()[f];
+            ArgumentWrapper *calleeArgW = calleeFuncW->getArgWByIdx(paraIdx);
+            mergeArgAccessInfo(argW, calleeArgW, tree<InstructionWrapper *>::parent(treeI));
+            if (importedFuncList.find(f->getName().str()) == importedFuncList.end())
+            {
+              importedFuncList.insert(f->getName().str());
+              reachFixPoint = false;
             }
           }
         }
       }
     }
-
   }
+  return reachFixPoint;
 }
 
-int pdg::AccessInfoTracker::getCallParamIdx(const InstructionWrapper* instW, const InstructionWrapper* callInstW)
+int pdg::AccessInfoTracker::getCallParamIdx(const InstructionWrapper *instW, const InstructionWrapper *callInstW)
 {
-    Instruction *inst = instW->getInstruction();
-    Instruction *callInst = callInstW->getInstruction();
-    if (inst == nullptr || callInst == nullptr)
-        return -1;
-
-    if (CallInst *CI = dyn_cast<CallInst>(callInst))
-    {
-        int paraIdx = 0;
-        for (auto arg_iter = CI->arg_begin(); arg_iter != CI->arg_end(); ++arg_iter)
-        {
-            if (Instruction *tmpInst = dyn_cast<Instruction>(&*arg_iter))
-            {
-                if (tmpInst == inst)
-                    return paraIdx;
-            }
-            paraIdx++;
-        }
-    }
+  Instruction *inst = instW->getInstruction();
+  Instruction *callInst = callInstW->getInstruction();
+  if (inst == nullptr || callInst == nullptr)
     return -1;
+
+  if (CallInst *CI = dyn_cast<CallInst>(callInst))
+  {
+    int paraIdx = 0;
+    for (auto arg_iter = CI->arg_begin(); arg_iter != CI->arg_end(); ++arg_iter)
+    {
+      if (Instruction *tmpInst = dyn_cast<Instruction>(&*arg_iter))
+      {
+        if (tmpInst == inst)
+          return paraIdx;
+      }
+      paraIdx++;
+    }
+  }
+  return -1;
 }
 
 void pdg::AccessInfoTracker::printFuncArgAccessInfo(Function &F)
@@ -351,51 +389,77 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW, TreeType 
 void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  DIType* funcRetType = DIUtils::getFuncRetDIType(F);
-  std::string retTypeName = F.getName().str() + "_" + DIUtils::getDITypeName(DIUtils::getFuncRetDIType(F));
+  DIType *funcRetType = DIUtils::getFuncRetDIType(F);
+  std::string retTypeName;
+  if (funcRetType == nullptr)
+    retTypeName = "void";
+  else
+    retTypeName = DIUtils::getDITypeName(funcRetType);
   // handle return type
-  if (F.getReturnType()->isStructTy() || isStructPointer(F.getReturnType())) {
-    retTypeName = "projection " + retTypeName;
-    if (seen_projections.find(retTypeName) == seen_projections.end())
-      retTypeName += " [alloc(caller)]";
-    seen_projections.insert(retTypeName);
+  if (isStructPointer(F.getReturnType())) // generate alloc(caller) as return struct pointer is from the other side
+  {
+    retTypeName = "projection " + retTypeName + "_" + F.getName().str();
+    if (caller_projections.find(retTypeName) == caller_projections.end())
+    {
+      retTypeName += "[alloc(caller)]";
+      caller_projections.insert(retTypeName);
+    }
   }
   idl_file << "\trpc " << retTypeName << " " << F.getName().str() << "( ";
   // handle parameters
-  for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList()) {
-    Type* argType = argW->getArg()->getType();
-    if (isStructPointer(argType) || argType->isStructTy())
-      idl_file << "projection " << F.getName().str() << "_" << DIUtils::getArgTypeName(*argW->getArg()) << " " << DIUtils::getArgName(*argW->getArg());
+  for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
+  {
+    Argument &arg = *argW->getArg();
+    Type *argType = arg.getType();
+    auto &dbgInstList = pdgUtils.getFuncMap()[&F]->getDbgDeclareInstList();
+    std::string argName = DIUtils::getArgName(arg, dbgInstList);
+    if (isStructPointer(argType))
+    {
+      std::string argTypeName = DIUtils::getArgTypeName(arg) + "_" + F.getName().str();
+      if (callee_projections.find(argTypeName) == callee_projections.end())
+      {
+        argTypeName = " [alloc](callee) " + argTypeName;
+        callee_projections.insert(argTypeName);
+      }
+      idl_file << "projection " << argTypeName << " " << argName;
+    }
+    else if (isFuncPointer(argType)) {
+      idl_file << DIUtils::getFuncSigName(DIUtils::getLowestDIType(DIUtils::getArgDIType(arg)), argName);
+      generateIDLforFuncPtr(argType, argName);
+    }
     else
-      idl_file << DIUtils::getArgTypeName(*argW->getArg()) << " " << DIUtils::getArgName(*argW->getArg());
+      idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
+
     if (argW->getArg()->getArgNo() < F.arg_size() - 1)
       idl_file << ", ";
   }
   idl_file << " );\n\n";
 }
 
-void pdg::AccessInfoTracker::generateIDLForCallInsts(Function &F) {
-  auto &pdgUtils = PDGUtils::getInstance();
-  for (CallInst *CI : pdgUtils.getFuncMap()[&F]->getCallInstList())
-  {
-    Function* calledFunc = CI->getCalledFunction();
-    if (calledFunc == nullptr)
-    {
-      if (Function *f = dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts()))
-        calledFunc = f;
-      else
-        return;
-    }
+// void pdg::AccessInfoTracker::generateIDLForCallInsts(Function &F)
+// {
+//   auto &pdgUtils = PDGUtils::getInstance();
+//   for (CallInst *CI : pdgUtils.getFuncMap()[&F]->getCallInstList())
+//   {
+//     Function *calledFunc = CI->getCalledFunction();
+//     if (calledFunc == nullptr)
+//     {
+//       if (Function *f = dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts()))
+//         calledFunc = f;
+//       else
+//         return;
+//     }
 
-    if (calledFunc->isDeclaration())
-      continue;
+//     if (calledFunc->isDeclaration())
+//       continue;
 
-    generateIDLforArg(pdgUtils.getCallMap()[CI]->getRetW(), TreeType::ACTUAL_IN_TREE);
-  }
-}
+//     generateIDLforArg(pdgUtils.getCallMap()[CI]->getRetW(), TreeType::ACTUAL_IN_TREE);
+//   }
+// }
 
 void pdg::AccessInfoTracker::generateIDLforFunc(Function &F)
 {
+  // if a function is defined on the same side, no need to generate IDL rpc for this function.
   auto &pdgUtils = PDGUtils::getInstance();
   FunctionWrapper *funcW = pdgUtils.getFuncMap()[&F];
   for (auto argW : funcW->getArgWList())
@@ -406,96 +470,111 @@ void pdg::AccessInfoTracker::generateIDLforFunc(Function &F)
   generateRpcForFunc(F);
 }
 
-// void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType ty)
-// {
-//   std::vector<std::string> attributes = { "[in]", "[out]"};
-//   Function &F = *argW->getArg()->getParent();
-//   // an lambda funciont determining whether a pointer is a struct pointer
-//   std::stringstream projection_str;
-//   std::queue<tree<InstructionWrapper*>::iterator> treeNodeQ;
-//   treeNodeQ.push(argW->tree_begin(ty));
-//   while (!treeNodeQ.empty())
-//   {
-//     auto treeI = treeNodeQ.pop();
-//     auto tyNodeW = *treeI;
-//     auto curType = tyNodeW->getTreeNodeType();
-//     int c
-//   }
-// }
+void pdg::AccessInfoTracker::generateIDLforFuncPtr(Type *ty, std::string funcName)
+{
+  if (PointerType *pty = dyn_cast<PointerType>(ty))
+  {
+    if (FunctionType *fty = dyn_cast<FunctionType>(pty->getElementType()))
+    {
+      auto &pdgUtils = PDGUtils::getInstance();
+      auto indirectCallTargets = PDG->collectIndirectCallCandidates(fty, importedFuncList);
+      if (indirectCallTargets.size() == 0)
+      {
+        errs() << "Genearting for func ptr. Call targets size is 0." << "\n";
+        return;
+      }
+      auto mergeToFunc = indirectCallTargets[0];
+      auto mergeToFuncW = pdgUtils.getFuncMap()[mergeToFunc];
 
-void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType ty)
+      for (int i = 0; i < mergeToFunc->arg_size(); ++i)
+      {
+        auto mergeToArgW = mergeToFuncW->getArgWByIdx(i);
+        auto mergeToArg = mergeToArgW->getArg();
+        auto oldMergeToArgTree = tree<InstructionWrapper*>(mergeToArgW->getTree(TreeType::FORMAL_IN_TREE));
+        if (!isStructPointer(mergeToArg->getType()))
+          continue;
+        for (int j = 1; j < indirectCallTargets.size(); ++j)
+        {
+          auto mergeFromArgW = pdgUtils.getFuncMap()[indirectCallTargets[j]]->getArgWByIdx(i);
+          mergeArgAccessInfo(mergeToArgW, mergeFromArgW, mergeToArgW->tree_begin(TreeType::FORMAL_IN_TREE));
+        }
+        // after merging, start generating projection
+        generateIDLforArg(mergeToArgW, TreeType::FORMAL_IN_TREE, funcName, false);
+        printArgAccessInfo(mergeToArgW, TreeType::FORMAL_IN_TREE);
+        mergeToArgW->setTree(oldMergeToArgTree, TreeType::FORMAL_IN_TREE);
+      }
+    }
+  }
+  return;
+}
+
+void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType treeTy, std::string funcName, bool handleFuncPtr)
 {
   std::vector<std::string> attributes = { "[in]", "[out]"};
   Function &F = *argW->getArg()->getParent();
+  if (funcName.empty())
+    funcName = F.getName().str();
   // an lambda funciont determining whether a pointer is a struct pointer
-  std::stringstream projection_str;
-  for (auto treeI = argW->tree_begin(ty);
-       treeI != argW->tree_end(ty) && treeI != nullptr;
-       ++treeI)
+  std::queue<tree<InstructionWrapper*>::iterator> treeNodeQ;
+  treeNodeQ.push(argW->tree_begin(treeTy));
+  while (!treeNodeQ.empty())
   {
-    InstructionWrapper *curTyNode = *treeI;
-    if (argW->getTree(ty).depth(treeI) >= EXPAND_LEVEL)
-      break;
+    auto treeI = treeNodeQ.front();
+    treeNodeQ.pop();
+    auto tyNodeW = *treeI;
 
-    Type *parentTy = curTyNode->getParentTreeNodeType();
-    Type *curType = curTyNode->getTreeNodeType();
-
-    if (curType->isStructTy())
+    std::stringstream projection_str;
+    bool accessed = false;
+    for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
     {
-      int subtreeSize = argW->getTree(ty).size(treeI);
-      treeI = generateIDLforStructField(argW, subtreeSize - 1, treeI, projection_str, ty);
+      auto childT = tree<InstructionWrapper *>::child(treeI, i);
+      auto childType = (*childT)->getTreeNodeType();
+      auto childDIType = (*childT)->getDIType();
+
+      if ((*childT)->getAccessType() == AccessType::NOACCESS)
+        continue;
+
+      if (isFuncPointer(childType))  {
+        // generate rpc for the indirect function call
+        projection_str << "\t\trpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(childDIType), DIUtils::getDIFieldName(childDIType)) << ";\n";
+        // generate projection for struct pointer parameters in indirect call. Each struct projection summarize all call targets' information
+        if (handleFuncPtr)
+          generateIDLforFuncPtr(childType, DIUtils::getDIFieldName(childDIType));
+      }
+      else if (isStructPointer(childType))
+      {
+        // for struct pointer, generate a projection
+        std::string fieldTypeName = DIUtils::getDITypeName(childDIType) + "_" + funcName;
+        if (callee_projections.find(fieldTypeName) == callee_projections.end())
+        {
+          callee_projections.insert(fieldTypeName);
+          fieldTypeName = "alloc[callee] " + fieldTypeName;
+        }
+        projection_str << "\t\t" << "projection " << fieldTypeName << " " << DIUtils::getDIFieldName(childDIType) << ";\n";
+        treeNodeQ.push(childT);
+      }
+      else if (childType->isStructTy())
+        treeNodeQ.push(childT);
+      else
+        projection_str << "\t\t" + DIUtils::getDITypeName(childDIType) << " " << getAccessAttributeName(childT) << " " << DIUtils::getDIFieldName(childDIType) << ";\n";
+
+      accessed = true;
     }
-  }
-  idl_file << projection_str.str();
-}
 
-tree<InstructionWrapper*>::iterator pdg::AccessInfoTracker::generateIDLforStructField(ArgumentWrapper *argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss, TreeType ty)
-{
-  InstructionWrapper *curTyNode = *treeI;
-  std::string func_name = argW->getArg()->getParent()->getName().str();
-  ss << "\tprojection <struct " << DIUtils::getDITypeName(curTyNode->getDIType()) << "> " << DIUtils::getDITypeName(curTyNode->getDIType()) << "_" << func_name << " {\n";
-  std::stringstream projection_str;
-  while (subtreeSize > 0)
-  {
-    treeI++;
-    subtreeSize -= 1;
-
-    if (treeI == argW->tree_end(ty))
-      break;
-
-    curTyNode = (*treeI);
-    Type *curType = (*treeI)->getTreeNodeType();
-
-    if (curType->isStructTy())
+    if ((*treeI)->getTreeNodeType()->isStructTy() && accessed)
     {
-      int stSize = argW->getTree(ty).size(treeI);
-      subtreeSize -= stSize;
-      treeI = generateIDLforStructField(argW, stSize - 1, treeI, projection_str, ty);
-      if (treeI == argW->tree_end(ty))
-        break;
+      std::stringstream temp;
+      std::string structName = DIUtils::getDIFieldName((*treeI)->getDIType());
+      temp << "\tprojection " << "< struct " << structName << " > " << structName << "_" << funcName << " {\n"
+           << projection_str.rdbuf() << "\t}\n\n";
+      projection_str = std::move(temp);
     }
     else
-    {
-      if ((*treeI)->getAccessType() == AccessType::NOACCESS)
-        continue;
-      if (isFuncPointer(curType))
-      {
-        ss << "\t\trpc " << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << DIUtils::getDIFieldName(curTyNode->getDIType()) << ";\n";
-      }
-      else if (isStructPointer(curType)) {
-        std::string typeName = DIUtils::getFuncDITypeName(curTyNode->getDIType(), func_name); 
-        if (seen_projections.find(typeName) == seen_projections.end()) 
-          typeName += " [alloc(callee)]";
-        ss << "\t\tprojection " << typeName << " " << DIUtils::getDIFieldName(curTyNode->getDIType()) << ";\n";
-      }
-      else {
-        ss << "\t\t" << DIUtils::getDITypeName(curTyNode->getDIType()) << " " << DIUtils::getDIFieldName(curTyNode->getDIType()) << ";\n";
-      }
-    }
+      projection_str.str("");
+
+    idl_file << projection_str.str();
+    accessed = false;
   }
-  ss << "\t}\n\n";
-  ss << projection_str.str();
-  return treeI;
 }
 
 bool pdg::isFuncPointer(Type *ty)
@@ -512,7 +591,7 @@ bool pdg::isStructPointer(Type *ty)
   return false;
 }
 
-std::string pdg::getAccessAttribute(tree<InstructionWrapper *>::iterator treeI)
+std::string pdg::getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI)
 {
   std::vector<std::string> access_attribute = {
       "No Access",

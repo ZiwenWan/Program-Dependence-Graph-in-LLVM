@@ -49,40 +49,39 @@ pdg::ArgumentWrapper *pdg::FunctionWrapper::getArgWByArg(Argument &arg)
 
 void pdg::FunctionWrapper::addStoreInst(Instruction *inst)
 {
-  if (StoreInst *st = dyn_cast<StoreInst>(inst))
-    storeInstList.push_back(st);
+  storeInstList.push_back(dyn_cast<StoreInst>(inst));
 }
 
 void pdg::FunctionWrapper::addLoadInst(Instruction *inst)
 {
-  if (LoadInst *li = dyn_cast<LoadInst>(inst))
-    loadInstList.push_back(li);
+    loadInstList.push_back(dyn_cast<LoadInst>(inst));
 }
 
 void pdg::FunctionWrapper::addCallInst(Instruction *inst)
 {
-  if (CallInst *ci = dyn_cast<CallInst>(inst))
-    callInstList.push_back(ci);
+  callInstList.push_back(dyn_cast<CallInst>(inst));
 }
 
-void pdg::FunctionWrapper::addBitCastInst(Instruction *inst)
+void pdg::FunctionWrapper::addCastInst(Instruction *inst)
 {
-  if (BitCastInst *bci = dyn_cast<BitCastInst>(inst))
-    bitCastInstList.push_back(bci);
+  castInstList.push_back(dyn_cast<CastInst>(inst));
 }
 
 void pdg::FunctionWrapper::addIntrinsicInst(Instruction *inst)
 {
-  if (IntrinsicInst *ii = dyn_cast<IntrinsicInst>(inst))
-    intrinsicInstList.push_back(ii);
+  intrinsicInstList.push_back(dyn_cast<IntrinsicInst>(inst));
+}
+
+void pdg::FunctionWrapper::addDbgInst(Instruction *inst)
+{
+  dbgDeclareInst.push_back(dyn_cast<DbgDeclareInst>(inst));
 }
 
 pdg::ArgumentWrapper *pdg::FunctionWrapper::getArgWByIdx(int idx)
 {
   if (idx > argWList.size())
   {
-    errs() << "request index excess argW list length... Return nullptr"
-           << "\n";
+    errs() << "request index excess argW list length... Return nullptr" << "\n";
     return nullptr;
   }
   return argWList[idx];

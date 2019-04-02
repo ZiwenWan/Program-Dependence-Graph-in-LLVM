@@ -24,13 +24,13 @@ void pdg::DataDependencyGraph::constructFuncMapAndCreateFunctionEntry()
 
 void pdg::DataDependencyGraph::collectDataDependencyInFunc()
 {
-  auto &pdgUtils = PDGUtils::getInstance();
+  // auto &pdgUtils = PDGUtils::getInstance();
   for (inst_iterator instIt = inst_begin(Func); instIt != inst_end(Func); ++instIt)
   {
     getNodeByData(&*instIt); // add node to graph.
     Instruction *inst = dyn_cast<Instruction>(&*instIt);
-    if (auto st = dyn_cast<StoreInst>(inst))
-      DDG->addDependency(pdgUtils.getInstMap()[cast<Instruction>(st->getValueOperand())], pdgUtils.getInstMap()[cast<Instruction>(st->getPointerOperand())], DependencyType::DATA_GENERAL);
+    // if (auto st = dyn_cast<StoreInst>(inst))
+    //   DDG->addDependency(pdgUtils.getInstMap()[cast<Instruction>(st->getValueOperand())], pdgUtils.getInstMap()[cast<Instruction>(st->getPointerOperand())], DependencyType::DATA_GENERAL);
     collectDefUseDependency(inst);
     collectCallInstDependency(inst);
 
@@ -53,14 +53,14 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
   auto storeVec = pdgUtils.getFuncMap()[Func]->getStoreInstList();
   auto loadVec = pdgUtils.getFuncMap()[Func]->getLoadInstList();
   auto intrinsicInstVec = pdgUtils.getFuncMap()[Func]->getIntrinsicInstList();
-  auto bitCastVec = pdgUtils.getFuncMap()[Func]->getBitCastInstList();
+  auto castVec = pdgUtils.getFuncMap()[Func]->getCastInstList();
 
-  for (auto bc : bitCastVec)
+  for (auto cti : castVec)
   {
-    if (auto inst = dyn_cast<Instruction>(bc->getOperand(0)))
+    if (auto inst = dyn_cast<Instruction>(cti->getOperand(0)))
     {
-      DDG->addDependency(pdgUtils.getInstMap()[bc], pdgUtils.getInstMap()[inst], DependencyType::DATA_ALIAS);
-      DDG->addDependency(pdgUtils.getInstMap()[inst], pdgUtils.getInstMap()[bc], DependencyType::DATA_ALIAS);
+      DDG->addDependency(pdgUtils.getInstMap()[cti], pdgUtils.getInstMap()[inst], DependencyType::DATA_ALIAS);
+      DDG->addDependency(pdgUtils.getInstMap()[inst], pdgUtils.getInstMap()[cti], DependencyType::DATA_ALIAS);
     }
   }
 

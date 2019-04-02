@@ -29,7 +29,7 @@ bool pdg::PtrSplitIDLGen::runOnModule(Module &M)
       // idl_file << getTypeNameByTypeID
       DIType *dt = DIUtils::getArgDIType(arg);
       idl_file << DIUtils::getDITypeName(dt) << " ";
-      idl_file << DIUtils::getArgName(arg);
+      // idl_file << DIUtils::getArgName(arg);
       if (arg.getArgNo() != F.arg_size() - 1)
         idl_file << ", ";
     }

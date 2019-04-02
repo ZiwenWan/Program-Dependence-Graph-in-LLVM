@@ -2,17 +2,19 @@
 
 using namespace llvm;
 
-std::string pdg::DIUtils::getArgName(Argument &arg)
+std::string pdg::DIUtils::getArgName(Argument& arg, std::vector<DbgDeclareInst*> dbgInstList)
 {
-  std::string argName = arg.getName().str();
-  if (!argName.empty())
-    return argName;
   Function *F = arg.getParent();
-  DISubprogram *dsp = F->getSubprogram();
-  auto vars = dsp->getVariables();
-  if (vars.size() <= arg.getArgNo())
-    return "no_name";
-  return vars[arg.getArgNo()]->getName().str();
+  SmallVector<std::pair<unsigned, MDNode *>, 20> func_MDs;
+  for (auto I : dbgInstList)
+  {
+    if (auto dbi = dyn_cast<DbgDeclareInst>(I))
+      if (auto DLV = dyn_cast<DILocalVariable>(dbi->getVariable()))
+        if (DLV->getArg() == arg.getArgNo() + 1 && !DLV->getName().empty())
+          return DLV->getName().str();
+  }
+
+  return "no_name";
 }
 
 DIType *pdg::DIUtils::getLowestDIType(DIType *Ty) 
@@ -34,7 +36,6 @@ DIType *pdg::DIUtils::getLowestDIType(DIType *Ty)
             baseTy->getTag() == dwarf::DW_TAG_const_type ||
             baseTy->getTag() == dwarf::DW_TAG_pointer_type))
     {
-
       if (DITypeRef temp = dyn_cast<DIDerivedType>(baseTy)->getBaseType())
         baseTy = temp.resolve();
       else
@@ -67,7 +68,8 @@ DIType *pdg::DIUtils::getArgDIType(Argument &arg)
       return Ty;
     }
   }
-  throw ArgHasNoDITypeException("Argument doesn't has DIType needed to extract field name...");
+  return nullptr;
+  // throw ArgHasNoDITypeException("Argument doesn't has DIType needed to extract field name...");
 }
 
 DIType *pdg::DIUtils::getFuncRetDIType(Function &F)
@@ -88,7 +90,8 @@ DIType *pdg::DIUtils::getFuncRetDIType(Function &F)
       return Ty;
     }
   }
-  throw ArgHasNoDITypeException("Argument doesn't has DIType needed to extract field name...");
+  return nullptr;
+  // throw ArgHasNoDITypeException("Argument doesn't has DIType needed to extract field name...");
 }
 
 DIType *pdg::DIUtils::getBaseDIType(DIType *Ty) {
@@ -146,7 +149,7 @@ std::string pdg::DIUtils::getDIFieldName(DIType *ty)
   }
 }
 
-std::string pdg::DIUtils::getFuncSigName(DIType *ty)
+std::string pdg::DIUtils::getFuncSigName(DIType *ty, std::string funcName)
 {
   std::string func_type_str = "";
   if (DISubroutineType *subRoutine = dyn_cast<DISubroutineType>(ty))
@@ -159,7 +162,9 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty)
       func_type_str += getDITypeName(retType);
 
     func_type_str += "(";
-    // func_type_str += funcName;
+    if (!funcName.empty())
+      func_type_str += "*";
+    func_type_str += funcName;
     func_type_str += ")";
 
     func_type_str += "(";
@@ -174,7 +179,10 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty)
       {
         if (DIDerivedType *dit = dyn_cast<DIDerivedType>(d))
         {
-          if (dit->getBaseType().resolve()->getTag() == dwarf::DW_TAG_structure_type)
+          auto baseType = dit->getBaseType().resolve();
+          if (baseType == nullptr) 
+            func_type_str += "void ";
+          else if (baseType->getTag() == dwarf::DW_TAG_structure_type)
             func_type_str = func_type_str + "projection " + getDITypeName(d) + " " + getDIFieldName(d);
         }
         else
@@ -286,8 +294,10 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
       return "struct";
     }
     case dwarf::DW_TAG_const_type:
-      return getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
+      return "const " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
       // return "const " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
+    case dwarf::DW_TAG_enumeration_type:
+      return "enum";
     default:
     {
       if (!ty->getName().str().empty())

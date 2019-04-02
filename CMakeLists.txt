@@ -13,7 +13,7 @@ link_directories(${LLVM_LIBRARY_DIRS})
 #
 # Files associated with libtmplugin.so
 #
-option(ENABLE_FUNC_LIST "generate result based on func list" OFF)
+option(ENABLE_FUNC_LIST "generate result based on func list" ON)
 
 include_directories("include")
 include_directories("src")

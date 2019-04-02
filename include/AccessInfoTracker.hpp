@@ -17,23 +17,24 @@ public:
   static char ID;
   bool runOnModule(llvm::Module &M);
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
-  void getIntraFuncReadWriteInfoForCallInsts(llvm::Function &Func, std::set<std::string> func_list);
-  void printRetValueAccessInfo(llvm::Function &Func, std::set<std::string> func_list);
+  void getIntraFuncReadWriteInfoForCallInsts(llvm::Function &Func);
+  void printRetValueAccessInfo(llvm::Function &Func);
   void getIntraFuncReadWriteInfoForRetVal(CallWrapper *callW);
   void getIntraFuncReadWriteInfoForArg(ArgumentWrapper *argW);
   void getIntraFuncReadWriteInfoForFunc(llvm::Function &F);
   int getCallParamIdx(const InstructionWrapper *instW, const InstructionWrapper *callInstW);
   ArgumentMatchType getArgMatchType(llvm::Argument *arg1, llvm::Argument *arg2);
   void mergeArgAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW, tree<InstructionWrapper*>::iterator treeI);
-  void getInterFuncReadWriteInfo(llvm::Function &F);
+  bool getInterFuncReadWriteInfo(llvm::Function &F);
   AccessType getAccessTypeForInstW(const InstructionWrapper *instW);
   void printFuncArgAccessInfo(llvm::Function &F);
   void printArgAccessInfo(ArgumentWrapper *argW, TreeType ty);
   void generateIDLForCallInsts(llvm::Function &F);
   void generateIDLforFunc(llvm::Function &F);
+  void generateIDLforFuncPtr(llvm::Type* ty, std::string funcName);
   void generateRpcForFunc(llvm::Function &F);
   void generateIDLForCallInstW(CallWrapper *CW);
-  void generateIDLforArg(ArgumentWrapper *argW, TreeType ty);
+  void generateIDLforArg(ArgumentWrapper *argW, TreeType ty, std::string funcName = "", bool handleFuncPtr = true);
   tree<InstructionWrapper *>::iterator generateIDLforStructField(ArgumentWrapper *argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss, TreeType ty);
   std::string getArgAccessInfo(llvm::Argument &arg);
   ProgramDependencyGraph *_getPDG() { return PDG; }
@@ -41,12 +42,16 @@ public:
 private:
   ProgramDependencyGraph *PDG;
   std::ofstream idl_file;
-  std::set<std::string> seen_projections;
+  std::set<std::string> caller_projections;
+  std::set<std::string> callee_projections; 
+  std::set<std::string> importedFuncList;
+  std::set<std::string> definedFuncList;
+  std::set<std::string> blackFuncList;
 };
 
 bool isFuncPointer(llvm::Type *ty);
 bool isStructPointer(llvm::Type *ty);
-std::string getAccessAttribute(tree<InstructionWrapper *>::iterator treeI);
+std::string getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI);
 
 } // namespace pdg
 #endif

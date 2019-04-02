@@ -31,6 +31,27 @@ tree<pdg::InstructionWrapper *> &pdg::ArgumentWrapper::getTree(TreeType treeTy)
   }
 }
 
+void pdg::ArgumentWrapper::setTree(tree<InstructionWrapper *> tree, TreeType treeTy)
+{
+  switch (treeTy)
+  {
+    case TreeType::FORMAL_IN_TREE:
+      formalInTree = tree; 
+      break;
+    case TreeType::FORMAL_OUT_TREE: 
+      formalOutTree = tree;
+      break;
+    case TreeType::ACTUAL_IN_TREE:
+      actualInTree = tree;
+      break;
+    case TreeType::ACTUAL_OUT_TREE:
+      actualOutTree = tree;
+      break;
+    default:
+      break;
+  }
+}
+
 void pdg::ArgumentWrapper::copyTree(const tree<pdg::InstructionWrapper *> &srcTree, TreeType treeTy)
 {
   if (srcTree.empty())

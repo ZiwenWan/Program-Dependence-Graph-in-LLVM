@@ -59,12 +59,14 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
 
     if (CallInst *ci = dyn_cast<CallInst>(inst))
     {
-      if (!isa<DbgDeclareInst>(ci))
+      if (isa<DbgDeclareInst>(ci))
+        G_funcMap[&F]->addDbgInst(inst);
+      else
         G_funcMap[&F]->addCallInst(inst);
     }
 
-    if (BitCastInst *bci = dyn_cast<BitCastInst>(inst))
-      G_funcMap[&F]->addBitCastInst(inst);
+    if (CastInst *bci = dyn_cast<CastInst>(inst))
+      G_funcMap[&F]->addCastInst(inst);
     
     if (IntrinsicInst *ii = dyn_cast<IntrinsicInst>(inst))
       G_funcMap[&F]->addIntrinsicInst(inst);
