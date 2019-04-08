@@ -30,7 +30,7 @@ public:
   bool processIndirectCallInst(llvm::CallInst *CI, InstructionWrapper *instW);
   void addNodeDependencies(InstructionWrapper *instW);
   // parameter tree building
-  std::vector<llvm::Function *> collectIndirectCallCandidates(llvm::FunctionType *funcType, const std::set<std::string> &filterFuncs = std::set<std::string>());
+  std::vector<llvm::Function *> collectIndirectCallCandidates(llvm::FunctionType* functionType, const std::set<std::string> &filterFuncs = std::set<std::string>());
   void copyFormalTreeToActualTree(llvm::CallInst *CI, llvm::Function* func);
   void buildActualParameterTrees(llvm::CallInst *CI);
   void drawActualParameterTree(llvm::CallInst *CI, TreeType treeTy);
@@ -54,9 +54,10 @@ public:
   // tree building helper functions
   std::vector<InstructionWrapper*> getReadInstsOnInst(llvm::Instruction* inst);
   std::vector<InstructionWrapper *> getAllAlias(llvm::Instruction *inst);
-  bool isFuncTypeMatch(llvm::FunctionType *funcTy1, llvm::FunctionType *funcTy2);
+  bool isFuncTypeMatch(llvm::FunctionType *funcType1, llvm::FunctionType *funcType2);
   bool isTreeNodeGEPMatch(InstructionWrapper *treeNode, llvm::Instruction *GEP);
-  bool isIndirectCall(llvm::CallInst *CI);
+  bool isIndirectCallOrInlineAsm(llvm::CallInst *CI);
+  bool nameMatch(std::string str1, std::string str2);
   tree<InstructionWrapper *>::iterator getInstInsertLoc(ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy);
   //  dep printer related functions
   std::vector<DependencyNode<InstructionWrapper> *> getNodeSet() { return PDG->getNodeSet(); }
@@ -64,6 +65,8 @@ public:
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodesWithDepType(const InstructionWrapper* instW, DependencyType depType);
   llvm::Function* getCalledFunction(llvm::CallInst* CI);
+  bool isFuncPointer(llvm::Type *ty);
+  bool isStructPointer(llvm::Type *ty);
 
 private:
   llvm::Module *module;

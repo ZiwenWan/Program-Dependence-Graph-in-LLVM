@@ -45,12 +45,11 @@ private:
   std::set<std::string> caller_projections;
   std::set<std::string> callee_projections; 
   std::set<std::string> importedFuncList;
+  std::set<std::string> kernelFuncList;
   std::set<std::string> definedFuncList;
   std::set<std::string> blackFuncList;
 };
 
-bool isFuncPointer(llvm::Type *ty);
-bool isStructPointer(llvm::Type *ty);
 std::string getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI);
 
 } // namespace pdg

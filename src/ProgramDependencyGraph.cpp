@@ -27,8 +27,11 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 
   std::set<std::string> importedFuncList;
   std::set<std::string> blackFuncList;
+  std::set<std::string> definedFuncList;
+
   std::ifstream importedFuncs("imported_func.txt");
   std::ifstream blackFuncs("blacklist.txt");
+  std::ifstream definedFuncs("defined_func.txt");
 
   for (std::string line; std::getline(blackFuncs, line);)
     blackFuncList.insert(line);
@@ -38,6 +41,9 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     if (blackFuncList.find(line) == blackFuncList.end())
       importedFuncList.insert(line);
   }
+
+  for (std::string line; std::getline(definedFuncs, line);)
+    definedFuncList.insert(line);
 
   errs() << "Expand level " << EXPAND_LEVEL << "\n";
   errs() << "Using Debug Info " << USEDEBUGINFO << "\n";
@@ -49,7 +55,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   int user_def_func_num = 0;
 
   bool fixPoint = false;
-  int callLevel = 3;
+  int callLevel = 4;
   while (!fixPoint && callLevel > 0) {
     callLevel -= 1;
     // copy dependencies from DDG/CDG to PDG
@@ -58,7 +64,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
       Function *Func = dyn_cast<Function>(FI);
       pdgUtils.categorizeInstInFunc(*Func);
 #ifdef FUNC_LIST
-      if (Func->isDeclaration() || importedFuncList.find(Func->getName().str()) == importedFuncList.end())
+      if (Func->isDeclaration() || (importedFuncList.find(Func->getName().str()) == importedFuncList.end() && definedFuncList.find(Func->getName().str()) == definedFuncList.end()))
 #else
       if (Func->isDeclaration())
 #endif
@@ -71,7 +77,10 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
         addNodeDependencies(instW);
 
       if (!pdgUtils.getFuncMap()[Func]->hasTrees())
+      {
+        errs() << "Building formal tree for " << Func->getName() << "\n";
         buildFormalTreeForFunc(Func);
+      }
     }
 
     // start process CallInst
@@ -80,7 +89,8 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     {
       Function *Func = dyn_cast<Function>(FI);
 #ifdef FUNC_LIST
-      if (Func->isDeclaration() || importedFuncList.find(Func->getName().str()) == importedFuncList.end())
+      // if (Func->isDeclaration() || importedFuncList.find(Func->getName().str()) == importedFuncList.end())
+      if (Func->isDeclaration() || (importedFuncList.find(Func->getName().str()) == importedFuncList.end() && definedFuncList.find(Func->getName().str()) == definedFuncList.end()))
 #else
       if (Func->isDeclaration())
 #endif
@@ -95,8 +105,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
         }
           // throw NullCalledFunction("Called Function is null. Possbile no matching function found for indirect call");
 
-        bool findNewCallee = false;
-        if (isIndirectCall(ci))
+        if (isIndirectCallOrInlineAsm(ci))
         {
           for (auto f : collectIndirectCallCandidates(ci->getFunctionType(), importedFuncList)) // need modification
           {
@@ -169,7 +178,7 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
     if (CI->isInlineAsm())
       return true;
 
-    if (isIndirectCall(CI))
+    if (isIndirectCallOrInlineAsm(CI))
       return processIndirectCallInst(CI, instW); // indirect function call get func type for indirect call inst
 
     if (Function *f = dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts())) // handle case for bitcast
@@ -353,24 +362,60 @@ Instruction *pdg::ProgramDependencyGraph::getArgAllocaInst(Argument &arg)
   assert(false && "no viable alloca inst for argument.");
 }
 
+bool pdg::ProgramDependencyGraph::nameMatch(std::string str1, std::string str2)
+{
+  std::string deli = ".";
+  unsigned str1FirstDeliPos = str1.find(deli);
+  unsigned str1SecondDeliPos = str1.find(deli);
+  unsigned str2FirstDeliPos = str2.find(deli);
+  unsigned str2SecondDeliPos = str2.find(deli);
+  str1 = str1.substr(str1FirstDeliPos, str1SecondDeliPos);
+  str2 = str2.substr(str2FirstDeliPos, str2SecondDeliPos);
+  return str1 == str2;
+}
+
 bool pdg::ProgramDependencyGraph::isFuncTypeMatch(FunctionType *funcTy1, FunctionType *funcTy2)
 {
   if (funcTy1->getNumParams() != funcTy2->getNumParams())
     return false;
 
-  if (funcTy1->getReturnType() != funcTy2->getReturnType())
+  auto func1RetType = funcTy1->getReturnType();
+  auto func2RetType = funcTy2->getReturnType();
+  
+  if (func1RetType != func2RetType)
+  {
+    // if (!isStructPointer(func1RetType) || !isStructPointer(func2RetType))
     return false;
+    // check for struct
+    // else
+    // {
+    //   std::string func1RetName = func1RetType->getPointerElementType()->getStructName();
+    //   std::string func2RetName = func2RetType->getPointerElementType()->getStructName();
+    //   if (!nameMatch(func1RetName, func2RetName))
+    //     return false;
+    // }
+  }
 
-  unsigned param_len = funcTy1->getNumParams();
-  for (unsigned i = 0; i < param_len; ++i)
+  for (unsigned i = 0; i < funcTy1->getNumParams(); ++i)
   {
     if (funcTy1->getParamType(i) != funcTy2->getParamType(i))
+    {
+      if (isStructPointer(funcTy1->getParamType(i)) && isStructPointer(funcTy2->getParamType(i)))
+      {
+        std::string func1ParamName = funcTy1->getParamType(i)->getPointerElementType()->getStructName();
+        std::string func2ParamName = funcTy2->getParamType(i)->getPointerElementType()->getStructName();
+        if (nameMatch(func1ParamName, func2ParamName))
+          continue;
+      }
       return false;
+    }
   }
+
   return true;
+  // return true;
 }
 
-bool pdg::ProgramDependencyGraph::isIndirectCall(CallInst *CI)
+bool pdg::ProgramDependencyGraph::isIndirectCallOrInlineAsm(CallInst *CI)
 {
   const Value *V = CI->getCalledValue();
   if (isa<Function>(V) || isa<Constant>(V))
@@ -788,7 +833,7 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
         {
           if (depInstAlias->getInstruction() == nullptr)
             continue;
-          PDG->addDependency(*ParentI, depInstAlias, DependencyType::VAL_DEP);
+          PDG->addDependency(*ParentI, depInstAlias, DependencyType::VAL_DEP); // add parent node with alias with Val_Dep 
           auto readInsts = getReadInstsOnInst(depInstAlias->getInstruction());
           for (auto readInstW : readInsts)
           {
@@ -1020,7 +1065,7 @@ void pdg::ProgramDependencyGraph::drawActualParameterTree(CallInst *CI, pdg::Tre
   }
 }
 
-std::vector<Function *> pdg::ProgramDependencyGraph::collectIndirectCallCandidates(FunctionType *funcType, const std::set<std::string> &filterFuncs)
+std::vector<Function *> pdg::ProgramDependencyGraph::collectIndirectCallCandidates(FunctionType* funcType, const std::set<std::string> &filterFuncs)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   std::vector<Function *> indirectCallList;
@@ -1040,14 +1085,14 @@ std::vector<Function *> pdg::ProgramDependencyGraph::collectIndirectCallCandidat
 
 Function *pdg::ProgramDependencyGraph::getCalledFunction(CallInst* CI)
 {
-  if (isIndirectCall(CI))
+  if (isIndirectCallOrInlineAsm(CI))
     return nullptr;
   Function* calledFunc = CI->getCalledFunction();
   if (calledFunc == nullptr)
     return dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts()); // handle case for bitcast
   return calledFunc;
-  assert(calledFunc != nullptr && "Cannot find called function");
-  return calledFunc;
+  // assert(calledFunc != nullptr && "Cannot find called function");
+  // return calledFunc;
 }
 
 // -------------------------------
@@ -1093,6 +1138,21 @@ bool pdg::ProgramDependencyGraph::isTreeNodeGEPMatch(InstructionWrapper* treeNod
   }
   return false;
 }
+
+bool pdg::ProgramDependencyGraph::isFuncPointer(Type *ty)
+{
+  if (ty->isPointerTy())
+    return dyn_cast<PointerType>(ty)->getElementType()->isFunctionTy();
+  return false;
+}
+
+bool pdg::ProgramDependencyGraph::isStructPointer(Type *ty)
+{
+  if (ty->isPointerTy())
+    return ty->getPointerElementType()->isStructTy();
+  return false;
+}
+
 
 static RegisterPass<pdg::ProgramDependencyGraph>
     PDG("pdg", "Program Dependency Graph Construction", false, true);

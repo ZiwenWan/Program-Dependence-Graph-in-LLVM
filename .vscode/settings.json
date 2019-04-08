@@ -68,7 +68,8 @@
     "system_error": "cpp",
     "tuple": "cpp",
     "variant": "cpp",
-    "clocale": "cpp"
+    "clocale": "cpp",
+    "typeindex": "cpp"
   },
   "clang.executable": "/usr/bin/clang"
 }
