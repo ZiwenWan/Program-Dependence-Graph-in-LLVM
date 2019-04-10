@@ -23,6 +23,7 @@ public:
   ProgramDependencyGraph() : llvm::ModulePass(ID) { PDG = new DependencyGraph<InstructionWrapper>(); }
   ~ProgramDependencyGraph() { delete PDG; }
   bool runOnModule(llvm::Module &M);
+  void buildPDGForFunc(llvm::Function* Func);
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
   llvm::StringRef getPassName() { return "Program Dependency Graph"; }
   // PDG processing

@@ -1,20 +1,13 @@
-
-struct Person {
-    int age;
-    char *name;
-    union 
-    {
-        int a;
-        int b;
-    };
+#include <stdio.h>
+struct S {
+    int a;
+    int b;
 };
 
-int f(struct Person* p) {
-    struct Person p1 = *p;
-    return 0;
+void f(struct S *s) {
+    printf("%d\n", s->a);
 }
 
 int main() {
-    struct Person p = {1, "J"};
-    f(&p);
+    return 0;
 }

@@ -188,6 +188,8 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, std::string funcName)
         else
           func_type_str = func_type_str + getDITypeName(d) + " " + getDIFieldName(d);
       }
+      if (i != typeRefArr.size())
+        func_type_str += ", ";
     }
     func_type_str += ")";
     return func_type_str;

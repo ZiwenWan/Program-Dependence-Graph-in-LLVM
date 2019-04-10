@@ -62,25 +62,14 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     for (Module::iterator FI = M.begin(); FI != M.end(); ++FI)
     {
       Function *Func = dyn_cast<Function>(FI);
-      pdgUtils.categorizeInstInFunc(*Func);
+      user_def_func_num++; // count function has definition as user defined
 #ifdef FUNC_LIST
       if (Func->isDeclaration() || (importedFuncList.find(Func->getName().str()) == importedFuncList.end() && definedFuncList.find(Func->getName().str()) == definedFuncList.end()))
 #else
       if (Func->isDeclaration())
 #endif
         continue;
-      user_def_func_num++; // count function has definition as user defined
-      cdg = &getAnalysis<ControlDependencyGraph>(*Func);
-      ddg = &getAnalysis<DataDependencyGraph>(*Func);
-
-      for (InstructionWrapper *instW : pdgUtils.getFuncInstWMap()[Func])
-        addNodeDependencies(instW);
-
-      if (!pdgUtils.getFuncMap()[Func]->hasTrees())
-      {
-        errs() << "Building formal tree for " << Func->getName() << "\n";
-        buildFormalTreeForFunc(Func);
-      }
+      buildPDGForFunc(Func);
     }
 
     // start process CallInst
@@ -107,7 +96,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 
         if (isIndirectCallOrInlineAsm(ci))
         {
-          for (auto f : collectIndirectCallCandidates(ci->getFunctionType(), importedFuncList)) // need modification
+          for (auto f : collectIndirectCallCandidates(ci->getFunctionType(), definedFuncList)) // need modification
           {
               importedFuncList.insert(f->getName().str());
               callInstFixPoint = false;
@@ -130,6 +119,21 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   importedFuncs.close();
   blackFuncs.close();
   return false;
+}
+
+void pdg::ProgramDependencyGraph::buildPDGForFunc(Function *Func)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+
+  pdgUtils.categorizeInstInFunc(*Func);
+  cdg = &getAnalysis<ControlDependencyGraph>(*Func);
+  ddg = &getAnalysis<DataDependencyGraph>(*Func);
+
+  for (InstructionWrapper *instW : pdgUtils.getFuncInstWMap()[Func])
+    addNodeDependencies(instW);
+
+  if (!pdgUtils.getFuncMap()[Func]->hasTrees())
+    buildFormalTreeForFunc(Func);
 }
 
 bool pdg::ProgramDependencyGraph::processIndirectCallInst(CallInst *CI, InstructionWrapper *instW)
@@ -156,7 +160,8 @@ bool pdg::ProgramDependencyGraph::processIndirectCallInst(CallInst *CI, Instruct
       continue;
     if (pdgUtils.getFuncMap()[indirect_called_func]->hasTrees())
       continue;
-    buildFormalTreeForFunc(indirect_called_func);
+    buildPDGForFunc(indirect_called_func);
+    // buildFormalTreeForFunc(indirect_called_func);
   }
   buildActualParameterTrees(CI);
   // connect actual tree with all possible candidaites.
@@ -195,10 +200,8 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
     {
       if (!callee->arg_empty())
       {
-        if (pdgUtils.getFuncMap()[callee]->hasTrees() != true)
-        {
-          buildFormalTreeForFunc(callee);
-        }
+        if (!pdgUtils.getFuncMap()[callee]->hasTrees())
+          buildPDGForFunc(callee);
         buildActualParameterTrees(CI);
       } // end if !callee
 
@@ -383,18 +386,7 @@ bool pdg::ProgramDependencyGraph::isFuncTypeMatch(FunctionType *funcTy1, Functio
   auto func2RetType = funcTy2->getReturnType();
   
   if (func1RetType != func2RetType)
-  {
-    // if (!isStructPointer(func1RetType) || !isStructPointer(func2RetType))
     return false;
-    // check for struct
-    // else
-    // {
-    //   std::string func1RetName = func1RetType->getPointerElementType()->getStructName();
-    //   std::string func2RetName = func2RetType->getPointerElementType()->getStructName();
-    //   if (!nameMatch(func1RetName, func2RetName))
-    //     return false;
-    // }
-  }
 
   for (unsigned i = 0; i < funcTy1->getNumParams(); ++i)
   {
@@ -412,7 +404,6 @@ bool pdg::ProgramDependencyGraph::isFuncTypeMatch(FunctionType *funcTy1, Functio
   }
 
   return true;
-  // return true;
 }
 
 bool pdg::ProgramDependencyGraph::isIndirectCallOrInlineAsm(CallInst *CI)
@@ -1076,7 +1067,7 @@ std::vector<Function *> pdg::ProgramDependencyGraph::collectIndirectCallCandidat
     if (funcName == "main")
       continue;
     // compare the indirect call function type with each function, filter out certian functions that should not be considered as call targets
-    if (isFuncTypeMatch(funcType, F.getFunctionType()) && filterFuncs.find(funcName) == filterFuncs.end())
+    if (isFuncTypeMatch(funcType, F.getFunctionType()) && filterFuncs.find(funcName) != filterFuncs.end())
       indirectCallList.push_back(&F);
   }
 
