@@ -8,6 +8,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "PDGExceptions.hpp"
+#include <set>
 
 namespace pdg
 {
@@ -23,7 +24,7 @@ class DIUtils
     static std::string getFuncDITypeName(llvm::DIType *dt, std::string funcName);
     static std::string getArgName(llvm::Argument &arg, std::vector<llvm::DbgDeclareInst*> dbgInstList);
     static std::string getArgTypeName(llvm::Argument &arg);
-    static std::string getFuncSigName(llvm::DIType *ty, std::string funcName = "");
+    static std::string getFuncSigName(llvm::DIType *ty, std::string funcName = "", bool callFromDev = true);
 };
 }
 #endif

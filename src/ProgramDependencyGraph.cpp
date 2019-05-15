@@ -32,6 +32,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   std::ifstream importedFuncs("imported_func.txt");
   std::ifstream blackFuncs("blacklist.txt");
   std::ifstream definedFuncs("defined_func.txt");
+  std::ifstream staticFuncs("static_func.txt");
 
   for (std::string line; std::getline(blackFuncs, line);)
     blackFuncList.insert(line);
@@ -45,6 +46,10 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   for (std::string line; std::getline(definedFuncs, line);)
     definedFuncList.insert(line);
 
+  std::set<std::string> staticFuncList;
+  for (std::string line; std::getline(staticFuncs, line);)
+    staticFuncList.insert(line);
+
   errs() << "Expand level " << EXPAND_LEVEL << "\n";
   errs() << "Using Debug Info " << USEDEBUGINFO << "\n";
 
@@ -55,7 +60,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   int user_def_func_num = 0;
 
   bool fixPoint = false;
-  int callLevel = 4;
+  int callLevel = 2;
   while (!fixPoint && callLevel > 0) {
     callLevel -= 1;
     // copy dependencies from DDG/CDG to PDG
@@ -64,7 +69,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
       Function *Func = dyn_cast<Function>(FI);
       user_def_func_num++; // count function has definition as user defined
 #ifdef FUNC_LIST
-      if (Func->isDeclaration() || (importedFuncList.find(Func->getName().str()) == importedFuncList.end() && definedFuncList.find(Func->getName().str()) == definedFuncList.end()))
+      if (Func->isDeclaration() || (importedFuncList.find(Func->getName().str()) == importedFuncList.end() && staticFuncList.find(Func->getName().str()) == staticFuncList.end()))
 #else
       if (Func->isDeclaration())
 #endif
@@ -96,7 +101,10 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 
         if (isIndirectCallOrInlineAsm(ci))
         {
-          for (auto f : collectIndirectCallCandidates(ci->getFunctionType(), definedFuncList)) // need modification
+          if (ci->isInlineAsm())
+            continue;
+
+          for (auto f : collectIndirectCallCandidates(ci->getFunctionType(), *Func, definedFuncList)) // need modification
           {
               importedFuncList.insert(f->getName().str());
               callInstFixPoint = false;
@@ -113,6 +121,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
         }
       }
     }
+    // fixPoint = true;
     fixPoint = fixPoint && callInstFixPoint;
   }
 
@@ -142,7 +151,7 @@ bool pdg::ProgramDependencyGraph::processIndirectCallInst(CallInst *CI, Instruct
   Type *t = CI->getCalledValue()->getType();
   FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
   // collect all possible function with same function signature
-  std::vector<Function *> indirect_call_candidates = collectIndirectCallCandidates(funcTy);
+  std::vector<Function *> indirect_call_candidates = collectIndirectCallCandidates(funcTy, *(CI->getFunction()));
   if (indirect_call_candidates.size() == 0)
   {
     errs() << "cannot find possible indirect call candidates.. " << *CI << "\n";
@@ -180,18 +189,20 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
   {
     CallInst *CI = dyn_cast<CallInst>(inst);
     Function *callee = CI->getCalledFunction();
+
+    // inline asm 
     if (CI->isInlineAsm())
-      return true;
+      return false;
 
     if (isIndirectCallOrInlineAsm(CI))
       return processIndirectCallInst(CI, instW); // indirect function call get func type for indirect call inst
 
     if (Function *f = dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts())) // handle case for bitcast
       callee = f;
+
     // handle intrinsic functions
-    if (callee->isIntrinsic()) {
-      return true;
-    }
+    if (callee->isIntrinsic()) 
+      return false;
 
     // special cases done, common function
     CallWrapper *callW = new CallWrapper(CI);
@@ -204,7 +215,6 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
           buildPDGForFunc(callee);
         buildActualParameterTrees(CI);
       } // end if !callee
-
       connectCallerAndCallee(instW, callee);
     }
   }
@@ -354,7 +364,7 @@ Instruction *pdg::ProgramDependencyGraph::getArgAllocaInst(Argument &arg)
   {
     if (auto DLV = dyn_cast<DILocalVariable>(dbgInst->getVariable()))
     {
-      if (DLV->isParameter())
+      if (DLV->isParameter() && DLV->getScope()->getSubprogram() == arg.getParent()->getSubprogram())
       {
         Instruction *allocaInst = dyn_cast<Instruction>(dbgInst->getVariableLocation());
         return allocaInst;
@@ -362,6 +372,7 @@ Instruction *pdg::ProgramDependencyGraph::getArgAllocaInst(Argument &arg)
     }
   }
   errs() << arg.getParent()->getName() << " " << arg.getArgNo() << "\n";
+  return nullptr;
   assert(false && "no viable alloca inst for argument.");
 }
 
@@ -675,7 +686,7 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
       Type *parentType = nullptr;
       // for struct type, insert all children to the tree
       auto DINodeArr = dyn_cast<DICompositeType>(instDIType)->getElements();
-      if (DINodeArr.size() < curNodeTy->getStructNumElements())
+      if (DINodeArr.size() != curNodeTy->getStructNumElements())
         continue;
 
       for (unsigned int child_offset = 0; child_offset < curNodeTy->getStructNumElements(); child_offset++)
@@ -692,6 +703,7 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
           while (bitFieldPackingSizeInBits > 0 && instDIType->isBitField())
           {
             typeFieldW->addBitFieldName(DIUtils::getDIFieldName(instDIType));
+            errs() << "Bit field.." << DIUtils::getDIFieldName(instDIType) << "\n";
             uint64_t bitFieldSize = instDIType->getSizeInBits();
             bitFieldPackingSizeInBits -= bitFieldSize;
             instDIType = DITypeQ.front();
@@ -796,6 +808,8 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
     // find store instructions represent values for root. The value operand of
     // sotre instruction is the argument we interested.
     auto argAlloc = getArgAllocaInst(*(*argI)->getArg());
+    if (argAlloc == nullptr)
+      return;
     pdgUtils.getInstMap()[argAlloc]->setGraphNodeType(GraphNodeType::ARG_ALLOC);
     PDG->addDependency(*formalInTreeBegin, pdgUtils.getInstMap()[argAlloc], DependencyType::VAL_DEP);
 
@@ -1006,7 +1020,7 @@ void pdg::ProgramDependencyGraph::buildActualParameterTrees(CallInst *CI)
     }
     else
     {
-      std::vector<Function *> indirect_call_candidate = collectIndirectCallCandidates(CI->getFunctionType());
+      std::vector<Function *> indirect_call_candidate = collectIndirectCallCandidates(CI->getFunctionType(), *(CI->getFunction()));
       if (indirect_call_candidate.size() == 0)
       {
         errs() << "No possible matching candidate, no need to build actual parameter tree" << "\n";
@@ -1056,7 +1070,7 @@ void pdg::ProgramDependencyGraph::drawActualParameterTree(CallInst *CI, pdg::Tre
   }
 }
 
-std::vector<Function *> pdg::ProgramDependencyGraph::collectIndirectCallCandidates(FunctionType* funcType, const std::set<std::string> &filterFuncs)
+std::vector<Function *> pdg::ProgramDependencyGraph::collectIndirectCallCandidates(FunctionType *funcType, Function &oriFunc, const std::set<std::string> &filterFuncs)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   std::vector<Function *> indirectCallList;
@@ -1064,7 +1078,7 @@ std::vector<Function *> pdg::ProgramDependencyGraph::collectIndirectCallCandidat
   {
     std::string funcName = F.getName().str();
     // get Function type
-    if (funcName == "main")
+    if (funcName == "main" || &F == &oriFunc)
       continue;
     // compare the indirect call function type with each function, filter out certian functions that should not be considered as call targets
     if (isFuncTypeMatch(funcType, F.getFunctionType()) && filterFuncs.find(funcName) != filterFuncs.end())
