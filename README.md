@@ -7,7 +7,8 @@ This project aims at building a program dependency graph(PDG) for C program. The
 1. Control Dependency Graph 
 2. Data Dependency Graph
 
-The built program dependency graph is field senstive, context-insensitive, flow-insensitive.
+The built program dependency graph is field senstive, context-insensitive, flow-insensitive. For more details, please see our paper:
+[http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf]
 
 ## How to use
 
