@@ -54,3 +54,7 @@ We build all tests into an executable. User can verify the basic utitlies in PDG
 > ./build/test/pdg-test
 
 The test case is built in the pdgtest.cpp file, which is placed under test directory. 
+
+A PDG example looks like this:
+![Image of PDG]
+(https://bitbucket.org/psu_soslab/pdg-llvm5.0/src/pdg_plugin/demo/pdg.svg)
