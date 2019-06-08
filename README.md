@@ -7,7 +7,8 @@ This project aims at building a program dependency graph(PDG) for C program. The
 1. Control Dependency Graph 
 2. Data Dependency Graph
 
-The built program dependency graph is field senstive, context-insensitive, flow-insensitive.
+The built program dependency graph is field senstive, context-insensitive, flow-insensitive. For more details, please see our paper:
+[http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf]
 
 ## How to use
 
@@ -56,5 +57,5 @@ We build all tests into an executable. User can verify the basic utitlies in PDG
 The test case is built in the pdgtest.cpp file, which is placed under test directory. 
 
 A PDG example looks like this:
-![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/src/pdg_plugin/demo/pdg.svg)
+![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
 
