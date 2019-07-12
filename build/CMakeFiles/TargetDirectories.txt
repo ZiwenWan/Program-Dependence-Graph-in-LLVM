@@ -1,7 +1,0 @@
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles/rebuild_cache.dir
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles/edit_cache.dir
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles/pdg.dir
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/CMakeFiles/pdgStatic.dir
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/test/CMakeFiles/rebuild_cache.dir
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/test/CMakeFiles/edit_cache.dir
-/Users/yongzhehuang/Documents/pdg-projects/pdg-llvm5.0/build/test/CMakeFiles/pdg-test.dir
