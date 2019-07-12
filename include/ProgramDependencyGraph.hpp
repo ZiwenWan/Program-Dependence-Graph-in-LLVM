@@ -23,7 +23,7 @@ public:
   ProgramDependencyGraph() : llvm::ModulePass(ID) { PDG = new DependencyGraph<InstructionWrapper>(); }
   ~ProgramDependencyGraph() { delete PDG; }
   bool runOnModule(llvm::Module &M);
-  void buildPDGForFunc(llvm::Function* Func);
+  void buildPDGForFunc(llvm::Function *Func);
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
   llvm::StringRef getPassName() { return "Program Dependency Graph"; }
   // PDG processing
@@ -42,14 +42,14 @@ public:
   InstructionWrapper* buildPointerTypeNode(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator);
   InstructionWrapper *buildPointerTypeNodeWithDI(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator, llvm::DIType *dt);
   void buildTypeTree(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType);
-  void buildTypeTreeWithDI(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType* argDIType);
+  void buildTypeTreeWithDI(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType *argDIType);
   void drawFormalParameterTree(llvm::Function *Func, TreeType treeTy);
   void connectFunctionAndFormalTrees(llvm::Function *callee);
   bool connectAllPossibleFunctions(llvm::CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates);
-  void connectActualTreeToFormalTree(llvm::CallInst *CI, llvm::Function* called_func);
+  void connectActualTreeToFormalTree(llvm::CallInst *CI, llvm::Function *called_func);
   bool connectCallerAndCallee(InstructionWrapper *instW, llvm::Function *callee);
   // field sensitive related functions
-  InstructionWrapper *getActualTreeNodeGEP(InstructionWrapper* callInstW, unsigned field_offset, llvm::Type *treeNodeTy, llvm::Type *parentNodeTy);
+  InstructionWrapper *getActualTreeNodeGEP(InstructionWrapper *callInstW, unsigned field_offset, llvm::Type *treeNodeTy, llvm::Type *parentNodeTy);
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);
   llvm::Instruction *getArgAllocaInst(llvm::Argument &arg);
   // tree building helper functions

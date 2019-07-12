@@ -32,6 +32,7 @@ public:
   void generateIDLForCallInsts(llvm::Function &F);
   void generateIDLforFunc(llvm::Function &F);
   void generateIDLforFuncPtr(llvm::Type* ty, std::string funcName, llvm::Function& F);
+  void generateIDLforFuncPtrWithDI(llvm::DIType* funcDIType, llvm::Module* module);
   void generateRpcForFunc(llvm::Function &F);
   void generateIDLForCallInstW(CallWrapper *CW);
   void generateIDLforArg(ArgumentWrapper *argW, TreeType ty, std::string funcName = "", bool handleFuncPtr = true, bool passToCallee = true);
@@ -51,6 +52,7 @@ private:
   std::set<std::string> blackFuncList;
   std::set<std::string> staticFuncptrList;
   std::set<std::string> staticFuncList;
+  std::map<std::string, std::string> driverFuncPtrCallTargetMap;
 };
 
 std::string getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI);

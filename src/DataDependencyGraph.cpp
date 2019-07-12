@@ -86,7 +86,7 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
     {
       MemoryLocation l_loc = MemoryLocation::get(li);
       AliasResult andersAAResult = andersAA->alias(s_loc, l_loc);
-      if (andersAAResult != NoAlias)
+      if (andersAAResult == MustAlias)
       {
         InstructionWrapper *loadInstW = pdgUtils.getInstMap()[li];
         InstructionWrapper *storeInstW = pdgUtils.getInstMap()[si];

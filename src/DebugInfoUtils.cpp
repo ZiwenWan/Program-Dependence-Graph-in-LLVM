@@ -26,9 +26,7 @@ DIType *pdg::DIUtils::getLowestDIType(DIType *Ty)
   {
     DIType *baseTy = dyn_cast<DIDerivedType>(Ty)->getBaseType().resolve();
     if (!baseTy)
-    {
       return nullptr;
-    }
 
     //Skip all the DINodes with DW_TAG_typedef tag
     while ((baseTy->getTag() == dwarf::DW_TAG_typedef ||
@@ -153,13 +151,14 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, std::string funcName, bool 
   if (DISubroutineType *subRoutine = dyn_cast<DISubroutineType>(ty))
   {
     const auto &typeRefArr = subRoutine->getTypeArray();
+    // generate name string for return value
     DIType *retType = typeRefArr[0].resolve();
     if (retType == nullptr)
       func_type_str += "void ";
     else
       func_type_str += getDITypeName(retType);
 
-    func_type_str += "(";
+    func_type_str += " (";
     if (!funcName.empty())
       func_type_str += "*";
     func_type_str += funcName;
@@ -191,6 +190,7 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, std::string funcName, bool 
         else
           func_type_str = func_type_str + getDITypeName(d) + " " + getDIFieldName(d);
       }
+
       if (i < typeRefArr.size() - 1 && !getDITypeName(d).empty())
         func_type_str += ", ";
     }
@@ -323,4 +323,93 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
 std::string pdg::DIUtils::getArgTypeName(Argument &arg)
 {
   return getDITypeName(getArgDIType(arg));
+}
+
+void pdg::DIUtils::printStructFieldNames(DINodeArray DINodeArr)
+{
+  for (auto DINode : DINodeArr)
+    errs() << dyn_cast<DIType>(DINode)->getName() << "\n";
+}
+
+bool pdg::DIUtils::isPointerType(DIType *dt)
+{
+  if (dt == nullptr)
+    return false;
+  dt = stripMemberTag(dt);
+  if (dt != nullptr)
+    return (dt->getTag() == dwarf::DW_TAG_pointer_type);
+  return false;
+}
+
+bool pdg::DIUtils::isStructPointerTy(DIType *dt)
+{
+  if (dt == nullptr)
+    return false;
+
+  dt = stripMemberTag(dt);
+  if (dt->getTag() == dwarf::DW_TAG_pointer_type) {
+    auto baseTy = getLowestDIType(dt);
+    if (baseTy != nullptr) 
+      return (baseTy->getTag() == dwarf::DW_TAG_structure_type);
+  }
+  return false;
+}
+
+bool pdg::DIUtils::isStructTy(DIType *dt)
+{
+  if (dt == nullptr)
+    return false;
+  if (dt->getTag() == dwarf::DW_TAG_pointer_type)
+    return false;
+  auto baseTy = getLowestDIType(dt);
+  if (baseTy != nullptr)
+    return (baseTy->getTag() == dwarf::DW_TAG_structure_type);
+  return false;
+}
+
+bool pdg::DIUtils::isFuncPointerTy(DIType *dt)
+{
+  if (dt == nullptr)
+    return false;
+  dt = stripMemberTag(dt);
+  if (dt->getTag() == dwarf::DW_TAG_pointer_type) {
+    auto baseTy = getBaseDIType(dt);
+    if (baseTy != nullptr)
+      return (getBaseDIType(dt)->getTag() == dwarf::DW_TAG_subroutine_type);
+  }
+  return false;
+}
+
+DIType *pdg::DIUtils::stripMemberTag(DIType *dt)
+{
+  if (dt == nullptr)
+    return dt;
+  if (dt->getTag() == dwarf::DW_TAG_member)
+    return getBaseDIType(dt);
+  return dt;
+}
+
+DIType *pdg::DIUtils::getFuncDIType(Function* func)
+{
+  auto subProgram = func->getSubprogram();
+  return subProgram->getType();
+}
+
+std::vector<Function *> pdg::DIUtils::collectIndirectCallCandidatesWithDI(DIType *funcDIType, Module *module, std::map<std::string, std::string> funcptrTargetMap)
+{
+  std::vector<Function *> indirectCallList;
+  for (auto &F : *module)
+  {
+    std::string funcName = F.getName().str();
+    // get Function type
+    if (funcName == "main" || !F.getSubprogram() || F.isDeclaration())
+      continue;
+    // compare the indirect call function type with each function, filter out certian functions that should not be considered as call targets
+    if (funcptrTargetMap[DIUtils::getDIFieldName(funcDIType)] == F.getName())
+    {
+      indirectCallList.push_back(&F);
+    }
+  }
+
+  return indirectCallList;
 }
