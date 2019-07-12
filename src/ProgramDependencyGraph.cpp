@@ -265,6 +265,7 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
     else
     {
         buildTypeTree(arg, treeTyW, treeTy);
+        errs() << "ARGW size: " << argW->getTree(treeTy).size() << "\n";
     }
   } catch (std::exception &e) {
     errs() << e.what() << "\n";

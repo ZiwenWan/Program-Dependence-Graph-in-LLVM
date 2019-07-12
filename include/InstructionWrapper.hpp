@@ -44,7 +44,7 @@ class InstructionWrapper {
       this->Func = nullptr;
       this->BB = nullptr;
       this->value = value;
-      this->nodetype = nodetype;
+      this->nodetype = nodeType;
       this->isVisited = false;
       this->access_type = AccessType::NOACCESS;
     }
