@@ -42,17 +42,20 @@ For those large practical software written in C(e.g., wget), please refer to the
 
 http://gbalats.github.io/2015/12/10/compiling-autotooled-projects-to-LLVM-bitcode.html
 
-(We successfully compiled thttpd/wget/telnet/openssh/curl/nginx/sqlite by following this great article, thanks to the author!)
+(We successfully compiled SPECCPU 2006 INT/thttpd/wget/telnet/openssh/curl/nginx/sqlite by following this great article, thanks to the author!)
 
 ## Avaliable Passes
 
-**-pdg:** build program dependency graph in memory (inter-procedural)
+**-pdg:** generate the program dependency graph (inter-procedural)
 
-**-cdg:** build control dependency graph in memory (intra-procedural)
+**-cdg:** generate the control dependency graph (intra-procedural)
 
-**-ddg:** build data dependency graph in memory (intra-procedural)
+**-ddg:** generate the data dependency graph (intra-procedural)
 
-**-dot-*:** virtualize above dependency dependency. (dot)
+**-dot-*:** visualize above dependency dependency. (dot)
+
+For those large software, generating a visualizable PDG is not easy. The Graphviz toolchain often fails to generate a .dot file for a program with
+more than 1000 lines of C code. Usually we don't need such a large .dot file but only do kinds of analyses on the PDG in memory.
 
 ## Running tests
 We use catch2 to build the project.
