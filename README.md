@@ -26,23 +26,23 @@ Once you finish these operations a dot file will be created. You can open it wit
 
 ## LLVM bitcode compilation
 
-For simple C programs(e.g. test.c)
+For simple C programs(e.g. test.c), do
 
-> **clang -emit-llvm -S test.c**
+> **clang -emit-llvm -S test.c -o test.bc**
 
-This should give you **test.ll**.
+and you have a binary LLVM bitcode file, this file can be directly used as the input for PDG generation.
 
-Then, use the llvm-as tool to generate bc file.
+You can also use llvm-as to generate a human-readable bitcode file(.ll) if you would like to:
 
-> **llvm-as test.ll**
+> **llvm-dis test.bc**
 
-This should give you the bc file needed for testing.
+You will have a human-readable bitcode file(.ll) for debugging and testing.
 
-For large practical software written in C, please refer to this great article for help:
+For those large practical software written in C(e.g., wget), please refer to the following article for help:
 
 http://gbalats.github.io/2015/12/10/compiling-autotooled-projects-to-LLVM-bitcode.html
 
-(We successfully compiled thttpd/wget/telnet/openssh/nginx by following this article, thanks to the author!)
+(We successfully compiled thttpd/wget/telnet/openssh/curl/nginx/sqlite by following this great article, thanks to the author!)
 
 ## Avaliable Passes
 
