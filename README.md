@@ -1,16 +1,15 @@
-# PDG (llvm 5.0) 
+# Parameter-tree based Program Dependence Graph (PDG) (developed on LLVM 5.0.0) 
 
-## Project Intro
+## Project Introduction
 
-This project aims at building a program dependency graph(PDG) for C program. The program dependency graph buliding  consists of two part 
-
-1. Control Dependency Graph 
-2. Data Dependency Graph
-
-The built program dependency graph is field senstive, context-insensitive, flow-insensitive. For more details, please see our paper:
+This project is a major part of our PtrSplit work. The first version was developed on LLVM 3.5. It aims at building a modular inter-procedural program dependency graph(PDG) for practical use. 
+Our program dependency graph is field senstive, context-insensitive, flow-insensitive. For more details, please refer to our paper:
 [http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf]
 
-## How to use
+A PDG example looks like this(the blue part corresponds to the parameter tree):
+![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
+
+## How to get started
 
 ```shell
 mkdir build
@@ -20,11 +19,11 @@ make
 opt -load libpdg.so -dot-pdg < test.bc
 ```
 
-After above commands, a dot file will be created. Open it with [Graphviz](http://www.graphviz.org/).
+Once you finish these operations a dot file will be created. You can open it with [Graphviz](http://www.graphviz.org/).
 
-## How to generate bc file
+## LLVM bitcode compilation
 
-Just write a valid C program and then use. (test.c in this example)
+For simple C programs(e.g. test.c)
 
 > **clang -emit-llvm -S test.c**
 
@@ -35,6 +34,12 @@ Then, use the llvm-as tool to generate bc file.
 > **llvm-as test.ll**
 
 This should give you the bc file needed for testing.
+
+For a large software written in C, please refer to this great article for help:
+
+http://gbalats.github.io/2015/12/10/compiling-autotooled-projects-to-LLVM-bitcode.html
+
+(We successfully compiled thttpd/wget/telnet/openssh/nginx by following this article, thanks to the author!)
 
 ## Avaliable Passes
 
@@ -47,7 +52,7 @@ This should give you the bc file needed for testing.
 **-dot-*:** virtualize above dependency dependency. (dot)
 
 ## Running tests
-In this project, we use catch2 to build the project.
+We use catch2 to build the project.
 Catch2 is a light wegith C++ testing framework. As catch2 can be used with a couple stand alone header files, they are included in the project.
 It is put under directory lib.
 When building the project, the test is also built. 
@@ -55,7 +60,3 @@ We build all tests into an executable. User can verify the basic utitlies in PDG
 > ./build/test/pdg-test
 
 The test case is built in the pdgtest.cpp file, which is placed under test directory. 
-
-A PDG example looks like this:
-![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
-
