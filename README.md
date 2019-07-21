@@ -9,7 +9,7 @@ Our program dependency graph is field senstive, context-insensitive and flow-ins
 A PDG example looks like this(the blue part corresponds to the parameter tree):
 ![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
 
-We have upgraded the implementation to LLVM 5.0.0 now.
+We have upgraded the implementation to LLVM 5.0.0. Currently, we only support building PDGs for C programs.
 
 
 ## How to get started
