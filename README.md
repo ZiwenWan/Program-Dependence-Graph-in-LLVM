@@ -26,19 +26,19 @@ Once you finish these operations a dot file will be created. You can open it wit
 
 ## LLVM bitcode compilation
 
-For simple C programs(e.g. test.c), do
+For simple C programs(e.g., test.c), do
 
 > **clang -emit-llvm -S test.c -o test.bc**
 
-and you have a binary LLVM bitcode file, this file can be directly used as the input for PDG generation.
+Now you have a binary format LLVM bitcode file, this file can be directly used as the input for PDG generation.
 
-You can also use llvm-as to generate a human-readable bitcode file(.ll) if you would like to:
+You can also generate a human-readable bitcode file(.ll) if you would like to:
 
 > **llvm-dis test.bc**
 
-You will have a human-readable bitcode file(.ll) for debugging and testing.
+This will generate a human-readable format bitcode file(test.ll) for your debugging and testing.
 
-For those large practical software written in C(e.g., wget), please refer to the following article for help:
+For those large software written in C(e.g., wget), please refer to the following article for help:
 
 http://gbalats.github.io/2015/12/10/compiling-autotooled-projects-to-LLVM-bitcode.html
 
