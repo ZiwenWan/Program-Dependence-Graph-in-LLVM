@@ -12,7 +12,7 @@ A PDG example looks like this (the blue part corresponds to the parameter tree):
 
 ![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
 
-## How to get started
+## Getting started quickly
 
 ```shell
 mkdir build
@@ -24,7 +24,7 @@ opt -load libpdg.so -dot-pdg < test.bc
 
 Once you finish these operations a dot file will be created. You can open it with [Graphviz](http://www.graphviz.org/).
 
-## LLVM bitcode compilation
+## LLVM IR compilation
 
 For simple C programs(e.g., test.c), do
 
