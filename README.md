@@ -1,6 +1,6 @@
 # Parameter-tree based Program Dependence Graph (PDG)
 
-## Project Introduction
+## Introduction
 
 This project is a key component of our PtrSplit work. It aims at building a modular inter-procedural program dependency graph(PDG) for practical use. 
 Our program dependency graph is field senstive, context-insensitive and flow-insensitive. For more details, welcome to read our CCS'17 paper:
