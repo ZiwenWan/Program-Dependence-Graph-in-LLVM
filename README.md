@@ -2,11 +2,11 @@
 
 ## Project Introduction
 
-This project is a major part of our PtrSplit work. It aims at building a modular inter-procedural program dependency graph(PDG) for practical use. 
-Our program dependency graph is field senstive, context-insensitive and flow-insensitive. For more details, please refer to our CCS'17 paper:
+This project is a key component of our PtrSplit work. It aims at building a modular inter-procedural program dependency graph(PDG) for practical use. 
+Our program dependency graph is field senstive, context-insensitive and flow-insensitive. For more details, welcome to read our CCS'17 paper:
 [http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf]
 
-A PDG example looks like this(the blue part corresponds to the parameter tree):
+A PDG example looks like this (the blue part corresponds to the parameter tree):
 ![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
 
 We have upgraded the implementation to LLVM 5.0.0. Currently, we only support building PDGs for C programs.
@@ -30,19 +30,19 @@ For simple C programs(e.g., test.c), do
 
 > **clang -emit-llvm -S test.c -o test.bc**
 
-Now you have a binary format LLVM bitcode file, this file can be directly used as the input for PDG generation.
+Now you have a binary format LLVM bitcode file which can be directly used as the input for PDG generation.
 
 You can also generate a human-readable bitcode file(.ll) if you would like to:
 
 > **llvm-dis test.bc**
 
-This will generate a human-readable format bitcode file(test.ll) for your debugging and testing.
+This will generate a human-readable format bitcode file (test.ll) for your debugging and testing.
 
-For those large software written in C(e.g., wget), please refer to the following article for help:
+For those large C software (e.g., wget), you can refer to this great article for help:
 
 http://gbalats.github.io/2015/12/10/compiling-autotooled-projects-to-LLVM-bitcode.html
 
-(We successfully compiled SPECCPU 2006 INT/thttpd/wget/telnet/openssh/curl/nginx/sqlite by following this great article, thanks to the author!)
+(We successfully compiled SPECCPU 2006 INT/thttpd/wget/telnet/openssh/curl/nginx/sqlite, thanks to the author!)
 
 ## Avaliable Passes
 
@@ -54,8 +54,8 @@ http://gbalats.github.io/2015/12/10/compiling-autotooled-projects-to-LLVM-bitcod
 
 **-dot-*:** visualize above dependency dependency. (dot)
 
-For those large software, generating a visualizable PDG is not easy. The Graphviz toolchain often fails to generate a .dot file for a program with
-more than 1000 lines of C code. Usually we don't need such a large .dot file but only do kinds of analyses on the PDG in memory.
+For those large software, generating a visualizable PDG is not easy. Graphviz often fails to generate the .dot file for a program with
+more than 1000 lines of C code. Fortunately, we rarely need such a large .dot file but only do kinds of analyses on the PDG, which is always in memory.
 
 ## Running tests
 We use catch2 to build the project.
