@@ -6,11 +6,11 @@ This project is a key component of our PtrSplit work. It aims at building a modu
 Our program dependency graph is field senstive, context-insensitive and flow-insensitive. For more details, welcome to read our CCS'17 paper:
 [http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf]
 
-A PDG example looks like this (the blue part corresponds to the parameter tree):
-![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
-
 We have upgraded the implementation to LLVM 5.0.0. Currently, we only support building PDGs for C programs.
 
+A PDG example looks like this (the blue part corresponds to the parameter tree):
+
+![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
 
 ## How to get started
 
