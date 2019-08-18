@@ -2,8 +2,8 @@
 
 ## Introduction
 
-This project is a key component of our PtrSplit work. It aims at building a modular inter-procedural program dependency graph(PDG) for practical use. 
-Our program dependency graph is field senstive, context-insensitive and flow-insensitive. For more details, welcome to read our CCS'17 paper:
+This project is a key component of our PtrSplit work. It aims at building a modular inter-procedural program dependence graph (PDG) for practical use. 
+Our program dependence graph is field senstive, context-insensitive and flow-insensitive. For more details, welcome to read our CCS'17 paper:
 [http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf]
 
 We have upgraded the implementation to LLVM 5.0.0. Currently, we only support building PDGs for C programs.
@@ -46,13 +46,13 @@ http://gbalats.github.io/2015/12/10/compiling-autotooled-projects-to-LLVM-bitcod
 
 ## Avaliable Passes
 
-**-pdg:** generate the program dependency graph (inter-procedural)
+**-pdg:** generate the program dependence graph (inter-procedural)
 
-**-cdg:** generate the control dependency graph (intra-procedural)
+**-cdg:** generate the control dependence graph (intra-procedural)
 
-**-ddg:** generate the data dependency graph (intra-procedural)
+**-ddg:** generate the data dependence graph (intra-procedural)
 
-**-dot-*:** visualize above dependency dependency. (dot)
+**-dot-*:** for visualization. (dot)
 
 For those large software, generating a visualizable PDG is not easy. Graphviz often fails to generate the .dot file for a program with
 more than 1000 lines of C code. Fortunately, we rarely need such a large .dot file but only do kinds of analyses on the PDG, which is always in memory.
