@@ -49,6 +49,6 @@ pdg::CallWrapper::CallWrapper(CallInst *CI, std::vector<Function *> indirect_cal
     argWList.push_back(argW);
   }
   const Twine t = ""; 
-  Argument *ret = new Argument(candidate_func->getReturnType(), t, candidate_func, RETVALARGNO);
+  Argument *ret = new Argument(candidate_func->getReturnType(), t, candidate_func, RETVALARGNO); // create an argument wrapper for return value
   retW = new ArgumentWrapper(ret);
 }

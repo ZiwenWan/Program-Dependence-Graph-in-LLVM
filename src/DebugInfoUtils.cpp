@@ -145,7 +145,7 @@ std::string pdg::DIUtils::getDIFieldName(DIType *ty)
   }
 }
 
-std::string pdg::DIUtils::getFuncSigName(DIType *ty, std::string funcName, bool callFromDev)
+std::string pdg::DIUtils::getFuncSigName(DIType *ty, std::string funcPtrName, std::string funcName, bool callFromDev)
 {
   std::string func_type_str = "";
   if (DISubroutineType *subRoutine = dyn_cast<DISubroutineType>(ty))
@@ -158,19 +158,22 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, std::string funcName, bool 
     else
       func_type_str += getDITypeName(retType);
 
+    // generate name string for function pointer 
     func_type_str += " (";
-    if (!funcName.empty())
+    if (!funcPtrName.empty())
       func_type_str += "*";
-    func_type_str += funcName;
+    func_type_str += funcPtrName;
+    if (!funcName.empty())
+      func_type_str = func_type_str + "_" + funcName;
     func_type_str += ")";
-
+    // generate name string for arguments in fucntion pointer signature
     func_type_str += "(";
     for (int i = 1; i < typeRefArr.size(); ++i)
     {
       DIType *d = typeRefArr[i].resolve();
       if (d == nullptr) // void type
         func_type_str += "void ";
-      else
+      else // normal types
       {
         if (DIDerivedType *dit = dyn_cast<DIDerivedType>(d))
         {
@@ -179,8 +182,18 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, std::string funcName, bool 
             continue;
           else if (baseType->getTag() == dwarf::DW_TAG_structure_type)
           {
-            std::string allocAttr = " [alloc(callee)] ";
-            std::string structName = getDITypeName(d) + allocAttr + getDIFieldName(d);
+            std::string argTyName = getDITypeName(d);
+            if (argTyName.back() == '*')
+            {
+              argTyName.pop_back();
+              argTyName = argTyName + "_" + funcPtrName + "*";
+            }
+            else
+            {
+              argTyName = argTyName + "_" + funcPtrName;
+            }
+
+            std::string structName = argTyName +  getDIFieldName(d);
             if (structName != " ")
               func_type_str = func_type_str + "projection " + structName;
           }

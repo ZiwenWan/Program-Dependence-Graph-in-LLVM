@@ -71,7 +71,12 @@
     "clocale": "cpp",
     "typeindex": "cpp",
     "*.tcc": "cpp",
-    "memory_resource": "cpp"
+    "memory_resource": "cpp",
+    "complex": "cpp",
+    "condition_variable": "cpp",
+    "unordered_map": "cpp",
+    "thread": "cpp",
+    "cinttypes": "cpp"
   },
   "clang.executable": "/usr/bin/clang"
 }

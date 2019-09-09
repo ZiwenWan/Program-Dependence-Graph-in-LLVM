@@ -24,7 +24,7 @@ class DIUtils
     static std::string getFuncDITypeName(llvm::DIType *dt, std::string funcName);
     static std::string getArgName(llvm::Argument &arg, std::vector<llvm::DbgDeclareInst *> dbgInstList);
     static std::string getArgTypeName(llvm::Argument &arg);
-    static std::string getFuncSigName(llvm::DIType *ty, std::string funcName = "", bool callFromDev = true);
+    static std::string getFuncSigName(llvm::DIType *ty, std::string funcPtrName = "", std::string funcName = "", bool callFromDev = true);
     static void printStructFieldNames(llvm::DINodeArray DINodeArr);
     static bool isPointerType(llvm::DIType *dt);
     static bool isStructPointerTy(llvm::DIType *dt);

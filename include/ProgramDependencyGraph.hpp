@@ -45,13 +45,14 @@ public:
   void buildTypeTreeWithDI(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType *argDIType);
   void drawFormalParameterTree(llvm::Function *Func, TreeType treeTy);
   void connectFunctionAndFormalTrees(llvm::Function *callee);
+  void connectCallerAndActualTrees(llvm::Function* caller);
   bool connectAllPossibleFunctions(llvm::CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates);
   void connectActualTreeToFormalTree(llvm::CallInst *CI, llvm::Function *called_func);
   bool connectCallerAndCallee(InstructionWrapper *instW, llvm::Function *callee);
   // field sensitive related functions
-  InstructionWrapper *getActualTreeNodeGEP(InstructionWrapper *callInstW, unsigned field_offset, llvm::Type *treeNodeTy, llvm::Type *parentNodeTy);
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);
   llvm::Instruction *getArgAllocaInst(llvm::Argument &arg);
+  llvm::Value *getCallSiteParamVal(llvm::CallInst* CI, unsigned idx);
   // tree building helper functions
   std::vector<InstructionWrapper*> getReadInstsOnInst(llvm::Instruction* inst);
   std::vector<InstructionWrapper *> getAllAlias(llvm::Instruction *inst);
