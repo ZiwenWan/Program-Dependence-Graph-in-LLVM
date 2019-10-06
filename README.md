@@ -1,4 +1,6 @@
-# PDG (llvm 5.0) 
+# PDG (llvm 9.0.0) 
+
+> Note:Currently, the tool uses llvm 9.0.0 by defaults
 
 ## Project Intro
 
@@ -58,4 +60,3 @@ The test case is built in the pdgtest.cpp file, which is placed under test direc
 
 A PDG example looks like this:
 ![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
-
