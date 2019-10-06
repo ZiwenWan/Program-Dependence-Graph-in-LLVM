@@ -193,7 +193,7 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, std::string funcPtrName, st
               argTyName = argTyName + "_" + funcPtrName;
             }
 
-            std::string structName = argTyName +  getDIFieldName(d);
+            std::string structName = argTyName + " " + getDIFieldName(d);
             if (structName != " ")
               func_type_str = func_type_str + "projection " + structName;
           }
@@ -384,6 +384,8 @@ bool pdg::DIUtils::isFuncPointerTy(DIType *dt)
 {
   if (dt == nullptr)
     return false;
+  if (dt->getTag() == dwarf::DW_TAG_subroutine_type)
+    return true;
   dt = stripMemberTag(dt);
   if (dt->getTag() == dwarf::DW_TAG_pointer_type) {
     auto baseTy = getBaseDIType(dt);

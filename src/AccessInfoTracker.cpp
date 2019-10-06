@@ -66,16 +66,23 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
     if (func->isDeclaration())
       continue;
     auto transClosure = getTransitiveClosure(*func);
+    for (std::string staticFuncName : staticFuncList)
+    {
+      Function* staticFunc = M.getFunction(StringRef(staticFuncName));
+      if (staticFunc && !staticFunc->isDeclaration())
+        transClosure.push_back(staticFunc);
+    }
     for (auto iter = transClosure.rbegin(); iter != transClosure.rend(); iter++)
     {
       auto transFunc = *iter;
       if (transFunc->isDeclaration())
         continue; 
-      if (definedFuncList.find(transFunc->getName()) != definedFuncList.end())
+      if (definedFuncList.find(transFunc->getName()) != definedFuncList.end() || staticFuncList.find(transFunc->getName()) != staticFuncList.end())
         crossBoundary = true;
       getIntraFuncReadWriteInfoForFunc(*transFunc);
       getInterFuncReadWriteInfo(*transFunc);
     }
+    errs() << "Cross boundary? " << crossBoundary << "\n";
     generateIDLforFunc(*func);
   }
 
@@ -179,7 +186,7 @@ std::vector<Function *> pdg::AccessInfoTracker::getTransitiveClosure(Function &F
   funcNodeQ.push(CG->getOrInsertFunction(&F));
   while (!funcNodeQ.empty())
   {
-    if (transClosure.size() > 50) 
+    if (transClosure.size() > 100) 
       return transClosure; 
 
     auto callNode = funcNodeQ.front();
@@ -189,12 +196,16 @@ std::vector<Function *> pdg::AccessInfoTracker::getTransitiveClosure(Function &F
 
     for (auto calleeNodeI = callNode->begin(); calleeNodeI != callNode->end(); calleeNodeI++)
     {
-      if (!calleeNodeI->second->getFunction()) continue;
+      if (!calleeNodeI->second->getFunction())
+        continue;
       auto funcName = calleeNodeI->second->getFunction()->getName();
-      if (blackFuncList.find(funcName) != blackFuncList.end()) continue;
+      if (blackFuncList.find(funcName) != blackFuncList.end())
+        continue;
       Function *calleeFunc = calleeNodeI->second->getFunction();
-      if (calleeFunc->isDeclaration()) continue;
-      if (seen.find(calleeFunc) != seen.end()) continue;
+      if (calleeFunc->isDeclaration())
+        continue;
+      if (seen.find(calleeFunc) != seen.end())
+        continue;
       funcNodeQ.push(calleeNodeI->second);
       transClosure.push_back(calleeFunc);
       seen.insert(calleeFunc);
@@ -620,7 +631,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       idl_file << "projection " << argTypeName << " " << argName;
     }
     else if (PDG->isFuncPointer(argType)) {
-      idl_file << DIUtils::getFuncSigName(DIUtils::getLowestDIType(DIUtils::getArgDIType(arg)), argName, F.getName().str());
+      idl_file << DIUtils::getFuncSigName(DIUtils::getLowestDIType(DIUtils::getArgDIType(arg)), argName, "");
     }
     else
       idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
@@ -768,15 +779,20 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     if (!DIUtils::isStructPointerTy(curDIType) && !DIUtils::isFuncPointerTy(curDIType))
       continue;
 
-    std::string ptrStarNum = "";
-    std::string structPtrName = DIUtils::getDITypeName(curDIType);
-    while (structPtrName.back() == '*')
-    {
-      structPtrName.pop_back();
-      ptrStarNum.push_back('*');
-    }
+    // std::string ptrStarNum = "";
+    // std::string structPtrName = DIUtils::getDITypeName(curDIType);
+    // while (structPtrName.back() == '*')
+    // {
+    //   structPtrName.pop_back();
+    //   ptrStarNum.push_back('*');
+    // }
 
     curDIType = DIUtils::getLowestDIType(curDIType);
+
+    if (DIUtils::isFuncPointerTy(curDIType))
+    {
+      generateIDLforFuncPtrWithDI(curDIType, F.getParent(), argName);
+    }
 
     if (!DIUtils::isStructTy(curDIType))
       continue;
@@ -798,7 +814,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       auto accessStat = sharedFieldMap[sharedFieldName];
       // only check access status under cross boundary case. If not cross, we do not check and simply perform
       // normal field finding analysis.
-      if ((accessStat[0] == 0 || accessStat[1] == 0) && !handleFuncPtr)
+      if (crossBoundary && (accessStat[0] == 0 || accessStat[1] == 0) && !handleFuncPtr)
         continue;
 
       accessed = true;
@@ -848,7 +864,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       std::string ptrStrs = "";
       // while (structName)
       temp << "\tprojection "
-           << "< struct " << ptrStarNum << structName << " > " << ptrStarNum << structName << "_" << funcName << " " << " {\n"
+           << "< struct " << structName << " > " << structName << "_" << funcName << " " << " {\n"
            << projection_str.str() << " \t}\n\n";
       projection_str = std::move(temp);
     }
