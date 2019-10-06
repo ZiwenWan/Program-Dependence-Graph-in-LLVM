@@ -1,0 +1,4 @@
+digraph "Program Dependency Graph for 'main' function" {
+	label="Program Dependency Graph for 'main' function";
+graph [ splines=true ]
+}
