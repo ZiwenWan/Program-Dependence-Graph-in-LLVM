@@ -1,18 +1,18 @@
-# PDG (llvm 9.0.0) 
+# Parameter-tree based Program Dependence Graph (PDG)
 
-> Note:Currently, the tool uses llvm 9.0.0 by defaults
+## Introduction
 
-## Project Intro
-
-This project aims at building a program dependency graph(PDG) for C program. The program dependency graph buliding  consists of two part 
-
-1. Control Dependency Graph 
-2. Data Dependency Graph
-
-The built program dependency graph is field senstive, context-insensitive, flow-insensitive. For more details, please see our paper:
+This project is a key component of our PtrSplit and Program-mandering works. It aims at building a modular inter-procedural program dependence graph (PDG) for practical use. 
+Our program dependence graph is field senstive, context-insensitive and flow-insensitive. For more details, welcome to read our CCS'17 paper:
 [http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf]
 
-## How to use
+We have upgraded the implementation to LLVM 9.0.0. Currently, we only support building PDGs for C programs.
+
+A PDG example looks like this (the blue part corresponds to the parameter tree):
+
+![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
+
+## Getting started quickly
 
 ```shell
 mkdir build
@@ -22,34 +22,43 @@ make
 opt -load libpdg.so -dot-pdg < test.bc
 ```
 
-After above commands, a dot file will be created. Open it with [Graphviz](http://www.graphviz.org/).
+Once you finish these operations a dot file will be created. You can open it with [Graphviz](http://www.graphviz.org/).
 
-## How to generate bc file
+## LLVM IR compilation
 
-Just write a valid C program and then use. (test.c in this example)
+For simple C programs(e.g., test.c), do
 
-> **clang -emit-llvm -S test.c**
+> **clang -emit-llvm -S test.c -o test.bc**
 
-This should give you **test.ll**.
+Now you have a binary format LLVM bitcode file which can be directly used as the input for PDG generation.
 
-Then, use the llvm-as tool to generate bc file.
+You can also generate a human-readable bitcode file(.ll) if you would like to:
 
-> **llvm-as test.ll**
+> **llvm-dis test.bc**
 
-This should give you the bc file needed for testing.
+This will generate a human-readable format bitcode file (test.ll) for your debugging and testing.
+
+For those large C software (e.g., wget), you can refer to this great article for help:
+
+http://gbalats.github.io/2015/12/10/compiling-autotooled-projects-to-LLVM-bitcode.html
+
+(We successfully compiled SPECCPU 2006 INT/thttpd/wget/telnet/openssh/curl/nginx/sqlite, thanks to the author!)
 
 ## Avaliable Passes
 
-**-pdg:** build program dependency graph in memory (inter-procedural)
+**-pdg:** generate the program dependence graph (inter-procedural)
 
-**-cdg:** build control dependency graph in memory (intra-procedural)
+**-cdg:** generate the control dependence graph (intra-procedural)
 
-**-ddg:** build data dependency graph in memory (intra-procedural)
+**-ddg:** generate the data dependence graph (intra-procedural)
 
-**-dot-*:** virtualize above dependency dependency. (dot)
+**-dot-*:** for visualization. (dot)
+
+For those large software, generating a visualizable PDG is not easy. Graphviz often fails to generate the .dot file for a program with
+more than 1000 lines of C code. Fortunately, we rarely need such a large .dot file but only do kinds of analyses on the PDG, which is always in memory.
 
 ## Running tests
-In this project, we use catch2 to build the project.
+We use catch2 to build the project.
 Catch2 is a light wegith C++ testing framework. As catch2 can be used with a couple stand alone header files, they are included in the project.
 It is put under directory lib.
 When building the project, the test is also built. 
@@ -57,6 +66,3 @@ We build all tests into an executable. User can verify the basic utitlies in PDG
 > ./build/test/pdg-test
 
 The test case is built in the pdgtest.cpp file, which is placed under test directory. 
-
-A PDG example looks like this:
-![](https://bitbucket.org/psu_soslab/pdg-llvm5.0/raw/34cf0959fae4c3507889785c15779db4355af36b/demo/pdg.svg)
