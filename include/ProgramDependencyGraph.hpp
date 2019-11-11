@@ -1,13 +1,14 @@
 #ifndef PROGRAMDEPENDENCYGRAPH_H_
 #define PROGRAMDEPENDENCYGRAPH_H_
 #include "llvm/IR/Module.h"
-#include "DependencyGraph.hpp"
 #include "llvm/PassAnalysisSupport.h"
 #include "ControlDependencyGraph.hpp"
 #include "DataDependencyGraph.hpp"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Support/Debug.h"
+#include "DependencyGraph.hpp"
+#include "PDGCommandLineOptions.hpp"
 
 namespace pdg
 {
