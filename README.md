@@ -10,7 +10,7 @@ We have upgraded the implementation to LLVM 9.0.0. Currently, we only support bu
 
 A PDG example looks like this (the blue part corresponds to the parameter tree):
 
-![](https://bitbucket.org/psu_soslab/program-dependence-graph-in-llvm/src/master/demo/pdg.svg)
+![](https://bitbucket.org/psu_soslab/program-dependence-graph-in-llvm/raw/4000cf407e9aeb44491eb41b2e808b16e61dc192/demo/pdg.png)
 
 ## Getting started quickly
 
