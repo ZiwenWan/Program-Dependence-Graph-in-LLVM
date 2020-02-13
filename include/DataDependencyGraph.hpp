@@ -40,7 +40,7 @@ public:
   void collectReadFromDependency(llvm::Instruction *inst);
   void collectNonLocalDependency(llvm::Instruction *inst);
   void collectDataDependencyInFunc();
-  void collectAliasInst();
+  void collectAliasDependencies();
   DependencyNode<InstructionWrapper> *getNodeByData(llvm::Instruction *inst);
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
   virtual bool runOnFunction(llvm::Function &Func);

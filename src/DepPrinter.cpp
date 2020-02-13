@@ -302,7 +302,7 @@ struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg
     case DependencyType::CONTROL:
       return "";
     case DependencyType::DATA_GENERAL:
-      return "style=dotted, label = \"{data_g}\"";
+      return "style=dotted, label = \"{D_general}\"";
     case DependencyType::GLOBAL_DEP:
       return "style=dotted";
     case DependencyType::PARAMETER:
@@ -332,9 +332,9 @@ struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg
                << "\n";
       return ret_str;
     }
-    case DependencyType::STRUCT_FIELDS:
+    case DependencyType::DATA_ALIAS:
     {
-      return "style=dotted, label=\"{S_FIELD}\", color=\"red\", penwidth=\"2.0\"";
+      return "style=dotted, label=\"{D_ALIAS}\", color=\"red\", penwidth=\"2.0\"";
     }
     default:
       return "";

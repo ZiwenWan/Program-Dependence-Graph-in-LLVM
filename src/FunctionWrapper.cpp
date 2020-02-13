@@ -55,6 +55,12 @@ void pdg::FunctionWrapper::addCallInst(Instruction *inst) {
     callInstList.push_back(ci);
 }
 
+void pdg::FunctionWrapper::addCastInst(Instruction *inst)
+{
+  if (CastInst* csi = dyn_cast<CastInst>(inst))
+    castInstList.push_back(csi);
+}
+
 pdg::ArgumentWrapper *pdg::FunctionWrapper::getArgWByIdx(int idx) {
   if (idx > argWList.size())
   {

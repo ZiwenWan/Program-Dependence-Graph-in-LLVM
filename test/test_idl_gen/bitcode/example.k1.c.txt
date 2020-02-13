@@ -1,3 +1,0 @@
-module example.k1.c.txt{
-}
-}

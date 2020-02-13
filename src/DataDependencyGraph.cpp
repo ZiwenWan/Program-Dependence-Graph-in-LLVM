@@ -40,10 +40,14 @@ void pdg::DataDependencyGraph::collectDataDependencyInFunc()
   }
 }
 
-void pdg::DataDependencyGraph::collectAliasInst()
+void pdg::DataDependencyGraph::collectAliasDependencies()
 {
-  std::vector<StoreInst *> storeVec = PDGUtils::getInstance().getFuncMap()[Func]->getStoreInstList();
-  std::vector<LoadInst *> loadVec = PDGUtils::getInstance().getFuncMap()[Func]->getLoadInstList();
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto funcMap = pdgUtils.getFuncMap()[Func];
+  auto instMap = pdgUtils.getInstMap();
+  auto storeVec = funcMap->getStoreInstList();
+  auto loadVec = funcMap->getLoadInstList();
+  auto castVec = funcMap->getCastInstList();
 
   for (StoreInst *si : storeVec)
   {
@@ -55,8 +59,8 @@ void pdg::DataDependencyGraph::collectAliasInst()
       // AliasResult steensAAResult = steenAA->alias(s_loc, l_loc);
       if (andersAAResult != NoAlias)
       {
-        InstructionWrapper *loadInstW = PDGUtils::getInstance().getInstMap()[li];
-        InstructionWrapper *storeInstW = PDGUtils::getInstance().getInstMap()[si];
+        InstructionWrapper *loadInstW = instMap[li];
+        InstructionWrapper *storeInstW = instMap[si];
         DDG->addDependency(storeInstW, loadInstW, DependencyType::DATA_ALIAS);
         DDG->addDependency(loadInstW, storeInstW, DependencyType::DATA_ALIAS);
       }
@@ -98,11 +102,23 @@ void pdg::DataDependencyGraph::collectAliasInst()
       AliasResult AA_result = andersAA->query(li1_loc, li2_loc);
       if (AA_result != NoAlias)
       {
-        InstructionWrapper *loadInstW1 = PDGUtils::getInstance().getInstMap()[li1];
-        InstructionWrapper *loadInstW2 = PDGUtils::getInstance().getInstMap()[li2];
+        InstructionWrapper *loadInstW1 = instMap[li1];
+        InstructionWrapper *loadInstW2 = instMap[li2];
         DDG->addDependency(loadInstW1, loadInstW2, DependencyType::DATA_ALIAS);
       }
     }
+  }
+
+  for (CastInst *csi : castVec)
+  {
+    errs() << *csi << "\n";
+    auto srcInst = dyn_cast<Instruction>(csi->getOperand(0));
+    auto destInst = csi;
+
+    InstructionWrapper *srcInstW = instMap[srcInst];
+    InstructionWrapper *destInstW = instMap[destInst];
+    DDG->addDependency(srcInstW, destInstW, DependencyType::DATA_ALIAS);
+    DDG->addDependency(destInstW, srcInstW, DependencyType::DATA_ALIAS);
   }
 }
 
@@ -230,7 +246,7 @@ bool pdg::DataDependencyGraph::runOnFunction(Function &F)
   initializeMemoryDependencyPasses();
   constructFuncMapAndCreateFunctionEntry();
   collectDataDependencyInFunc();
-  collectAliasInst();
+  collectAliasDependencies();
   return false;
 }
 
