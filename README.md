@@ -3,8 +3,17 @@
 ## Introduction
 
 This project is a key component of our PtrSplit and Program-mandering works. It aims at building a modular inter-procedural program dependence graph (PDG) for practical use. 
-Our program dependence graph is field senstive, context-insensitive and flow-insensitive. For more details, welcome to read our CCS'17 paper:
-[http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf]
+Our program dependence graph is field senstive, context-insensitive and flow-insensitive. For more details, welcome to read our CCS'17 paper about PtrSplit:
+[http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf] If you find this tool useful, please cite the PtrSplit paper in your publication. Here's the bibtex entry:
+
+@inproceedings{LiuTJ17Ptrsplit,
+  author    = {Shen Liu* and Gang Tan and Trent Jaeger},
+  title     = {{PtrSplit}: Supporting General Pointers in Automatic Program Partitioning},
+  booktitle = {24th ACM Conference on Computer and Communications Security ({CCS})},
+  pages     = {2359--2371},
+  year      = {2017}
+}
+
 
 We have upgraded the implementation to LLVM 9.0.0. Currently, we only support building PDGs for C programs.
 
