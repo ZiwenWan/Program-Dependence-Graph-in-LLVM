@@ -7,11 +7,17 @@ Our program dependence graph is field senstive, context-insensitive and flow-ins
 [http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf] If you find this tool useful, please cite the PtrSplit paper in your publication. Here's the bibtex entry:
 
 @inproceedings{LiuTJ17Ptrsplit,
-  author    = {Shen Liu* and Gang Tan and Trent Jaeger},
+
+  author    = {Shen Liu and Gang Tan and Trent Jaeger},
+  
   title     = {{PtrSplit}: Supporting General Pointers in Automatic Program Partitioning},
+  
   booktitle = {24th ACM Conference on Computer and Communications Security ({CCS})},
+  
   pages     = {2359--2371},
+  
   year      = {2017}
+  
 }
 
 
