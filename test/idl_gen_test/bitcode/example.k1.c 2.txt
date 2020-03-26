@@ -1,0 +1,16 @@
+<stdin> {
+project <struct struct*> NODE{
+}
+project <struct struct*> NODE{
+	struct node;
+}
+project <struct struct*> devops_ds{
+	struct device_operations;
+}
+project <struct func*> func ptr{
+}
+project <struct struct*> device_operations{
+	struct device_operations;
+	int devop_init_registered;
+}
+}

@@ -28,46 +28,6 @@ struct GraphTraits<pdg::DependencyGraph<pdg::InstructionWrapper> *> : public Gra
   static nodes_iterator nodes_end(pdg::DependencyGraph<InstructionWrapper> *N) { return nodes_iterator(N->getNodeSet().end()); }
 };
 
-// DDG 
-template <>
-struct GraphTraits<pdg::DataDependencyGraph *> : public GraphTraits<pdg::DependencyGraph<InstructionWrapper> *>
-{
-  static NodeRef getEntryNode(pdg::DataDependencyGraph *DG)
-  {
-    return *(DG->_getDDG()->begin_child());
-  }
-
-  static nodes_iterator nodes_begin(pdg::DataDependencyGraph *DG)
-  {
-    return DG->_getDDG()->begin_child();
-  }
-
-  static nodes_iterator nodes_end(pdg::DataDependencyGraph *DG)
-  {
-    return DG->_getDDG()->end_child();
-  }
-};
-
-// CDG 
-template <>
-struct GraphTraits<pdg::ControlDependencyGraph *> : public GraphTraits<pdg::DependencyGraph<InstructionWrapper> *>
-{
-  static NodeRef getEntryNode(pdg::ControlDependencyGraph *CG)
-  {
-    return *(CG->_getCDG()->begin_child());
-  }
-
-  static nodes_iterator nodes_begin(pdg::ControlDependencyGraph *CG)
-  {
-    return CG->_getCDG()->begin_child();
-  }
-
-  static nodes_iterator nodes_end(pdg::ControlDependencyGraph *CG)
-  {
-    return CG->_getCDG()->end_child();
-  }
-};
-
 // PDG
 template <>
 struct GraphTraits<pdg::ProgramDependencyGraph *> : public GraphTraits<pdg::DependencyGraph<InstructionWrapper> *>
@@ -102,6 +62,7 @@ struct DOTGraphTraits<pdg::DependencyNode<pdg::InstructionWrapper> *> : public D
       errs() << "instW " << instW << "\n";
       return "null instW";
     }
+    
 
     std::string Str;
     raw_string_ostream OS(Str);
@@ -234,53 +195,17 @@ struct DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *> : public DOTGr
 {
   DOTGraphTraits(bool isSimple = false) : DOTGraphTraits<pdg::DependencyNode<InstructionWrapper> *>(isSimple) {}
 
-
   std::string getNodeLabel(pdg::DependencyNode<InstructionWrapper> *Node, pdg::DependencyGraph<InstructionWrapper> *Graph)
   {
     return DOTGraphTraits<pdg::DependencyNode<InstructionWrapper> *>::getNodeLabel(Node, *(Graph->begin_child()));
   }
 };
 
-// CDG
-template <>
-struct DOTGraphTraits<pdg::ControlDependencyGraph *> : public DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>
-{
-  DOTGraphTraits(bool isSimple = false) : DOTGraphTraits<pdg::DependencyGraph<pdg::InstructionWrapper> *>(isSimple) {}
-
-  static std::string getGraphName(pdg::ControlDependencyGraph *)
-  {
-    return "Control Dependency Graph";
-  }
-
-  std::string getNodeLabel(pdg::DependencyNode<InstructionWrapper> *Node, pdg::ControlDependencyGraph *Graph)
-  {
-    return DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>::getNodeLabel(Node, Graph->_getCDG());
-  }
-};
-
-// DDG
-template <>
-struct DOTGraphTraits<pdg::DataDependencyGraph *> : public DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>
-{
-  DOTGraphTraits(bool isSimple = false) : DOTGraphTraits<pdg::DependencyGraph<pdg::InstructionWrapper> *>(isSimple) {}
-
-  static std::string getGraphName(pdg::DataDependencyGraph *)
-  {
-    return "Data Dependency Graph";
-  }
-
-  std::string getNodeLabel(pdg::DependencyNode<InstructionWrapper> *Node, pdg::DataDependencyGraph *Graph)
-  {
-    return DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>::getNodeLabel(Node, Graph->_getDDG());
-  }
-};
-
-// PDG
 template <>
 struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>
 {
   //using nodes_itr = std::vector<std::pair<pdg::DependencyNode<pdg::InstructionWrapper> *, pdg::DependencyType>>::iterator;
-  DOTGraphTraits(bool isSimple = false) : DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>(isSimple) {}
+  DOTGraphTraits(bool isSimple = false) : DOTGraphTraits<pdg::DependencyGraph<pdg::InstructionWrapper> *>(isSimple) {}
 
   static std::string getGraphName(pdg::ProgramDependencyGraph *)
   {
@@ -292,9 +217,10 @@ struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg
     return DOTGraphTraits<pdg::DependencyGraph<InstructionWrapper> *>::getNodeLabel(Node, Graph->_getPDG());
   }
 
-  std::string getEdgeAttributes(pdg::DependencyNode<InstructionWrapper> *Node,
-                                pdg::DependencyLinkIterator<pdg::InstructionWrapper> &IW,
-                                pdg::ProgramDependencyGraph *PD)
+  std::string
+  getEdgeAttributes(pdg::DependencyNode<InstructionWrapper> *Node,
+                    pdg::DependencyLinkIterator<pdg::InstructionWrapper> &IW,
+                    pdg::ProgramDependencyGraph *PD)
   {
     using namespace pdg;
     switch (IW.getDependencyType())
@@ -302,7 +228,7 @@ struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg
     case DependencyType::CONTROL:
       return "";
     case DependencyType::DATA_GENERAL:
-      return "style=dotted, label = \"{D_general}\"";
+      return "style=dotted, label = \"{data_g}\"";
     case DependencyType::GLOBAL_DEP:
       return "style=dotted";
     case DependencyType::PARAMETER:
@@ -332,10 +258,16 @@ struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg
                << "\n";
       return ret_str;
     }
-    case DependencyType::DATA_ALIAS:
+    case DependencyType::DATA_CALL_PARA:
     {
-      return "style=dotted, label=\"{D_ALIAS}\", color=\"red\", penwidth=\"2.0\"";
+      return "style=dotted, label=\"{CALL_PARA}\", color=\"yellow\", penwidth=\"2.0\"";
     }
+    case DependencyType::VAL_DEP:
+    {
+      return "style=dotted, label=\"{S_FIELD}\", color=\"red\", penwidth=\"1.0\"";
+    }
+    case DependencyType::DATA_ALIAS:
+      return "style=dotted, label=\"{alias}\", color=\"green\", penwidth=\"1.0\"";
     default:
       return "";
       //return "style=dotted,label=\"{UNDEFINED}\"";
@@ -385,29 +317,6 @@ struct DOTGraphTraits<pdg::ProgramDependencyGraph *> : public DOTGraphTraits<pdg
   }
 };
 } // namespace llvm
-
-struct ControlDependencyPrinter : public llvm::DOTGraphTraitsPrinter<pdg::ControlDependencyGraph, false> {
-    static char ID;
-    ControlDependencyPrinter() : DOTGraphTraitsPrinter<pdg::ControlDependencyGraph, false>("cdgragh", ID) {}
-};
-
-char ControlDependencyPrinter::ID = 0;
-static llvm::RegisterPass<ControlDependencyPrinter>
-        CDGPrinter("dot-cdg",
-                   "Print control dependency graph of function to 'dot' file",
-                   false, false);
-
-
-struct DataDependencyPrinter : public llvm::DOTGraphTraitsPrinter<pdg::DataDependencyGraph, false> {
-    static char ID;
-    DataDependencyPrinter() : DOTGraphTraitsPrinter<pdg::DataDependencyGraph, false>("ddgragh", ID) {}
-};
-
-char DataDependencyPrinter::ID = 0;
-static llvm::RegisterPass<DataDependencyPrinter>
-        DDGPrinter("dot-ddg",
-                   "Print data dependency graph of function to 'dot' file",
-                   false, false);
 
 struct ProgramDependencyPrinter : public llvm::DOTGraphTraitsPrinter<pdg::ProgramDependencyGraph, false>
 {

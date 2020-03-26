@@ -5,13 +5,35 @@ using namespace llvm;
 pdg::CallWrapper::CallWrapper(llvm::CallInst *CI)
 {
   this->CI = CI;
-  for (Function::arg_iterator argIt = CI->getCalledFunction()->arg_begin();
-       argIt != CI->getCalledFunction()->arg_end(); ++argIt)
+  Function *calledFunc = CI->getCalledFunction();
+  if (calledFunc == nullptr) {
+    if (Function *f = dyn_cast<Function>(CI->getCalledValue()->stripPointerCasts()))
+    {
+      calledFunc = f;
+    } else {
+      errs() << "CallWrapper fail on initializing called functions, aborting..." << "\n";
+      exit(0);
+    }
+  }
+
+  for (Function::arg_iterator argIt = calledFunc->arg_begin();
+       argIt != calledFunc->arg_end(); ++argIt)
   {
     Argument *arg = &*argIt;
     ArgumentWrapper *argW = new ArgumentWrapper(arg);
     argWList.push_back(argW);
   }
+
+  retW = nullptr;
+  if (calledFunc == nullptr)
+  {
+    errs() << "Called Function is null. Should use indirect call constructor...\n";
+    exit(0);
+  }
+
+  const Twine t = ""; 
+  Argument *ret = new Argument(calledFunc->getReturnType(), t, calledFunc, RETVALARGNO);
+  retW = new ArgumentWrapper(ret);
 }
 
 pdg::CallWrapper::CallWrapper(CallInst *CI, std::vector<Function *> indirect_call_candidates)
@@ -26,4 +48,7 @@ pdg::CallWrapper::CallWrapper(CallInst *CI, std::vector<Function *> indirect_cal
     ArgumentWrapper *argW = new ArgumentWrapper(arg);
     argWList.push_back(argW);
   }
+  const Twine t = ""; 
+  Argument *ret = new Argument(candidate_func->getReturnType(), t, candidate_func, RETVALARGNO); // create an argument wrapper for return value
+  retW = new ArgumentWrapper(ret);
 }

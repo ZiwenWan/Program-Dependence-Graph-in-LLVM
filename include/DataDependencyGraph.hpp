@@ -5,10 +5,11 @@
 #include "llvm/IR/Instructions.h"
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
-#include "llvm/Analysis/CFLSteensAliasAnalysis.h"
-#include "llvm/Analysis/CFLAndersAliasAnalysis.h"
+// #include "llvm/Analysis/CFLSteensAliasAnalysis.h"
+// #include "llvm/Analysis/CFLAndersAliasAnalysis.h"
 
 #include "DependencyGraph.hpp"
 #include "CallWrapper.hpp"
@@ -43,17 +44,18 @@ public:
   void collectAliasDependencies();
   DependencyNode<InstructionWrapper> *getNodeByData(llvm::Instruction *inst);
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
+  typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(InstructionWrapper *instW);
   virtual bool runOnFunction(llvm::Function &Func);
   virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const;
-  virtual llvm::StringRef getPassName() const { return "Data Dependency Graph"; }
-  DependencyGraph<InstructionWrapper> *_getDDG() {return DDG;}
+  virtual llvm::StringRef getPassName() const
+  {
+    return "Data Dependency Graph";
+  }
 
 private:
   DependencyGraph<InstructionWrapper> *DDG;
   llvm::Function *Func;
-  llvm::CFLSteensAAResult *steenAA;
-  llvm::CFLAndersAAResult *andersAA;
-  llvm::MemoryDependenceResults *MD;
+  llvm::AliasAnalysis* AA;
 };
 } // namespace pdg
 

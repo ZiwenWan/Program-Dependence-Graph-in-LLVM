@@ -1,18 +1,15 @@
-# Parameter-tree based Program Dependence Graph (PDG)
+# PDG (llvm 5.0) 
 
-## Introduction
+## Project Intro
 
-This project is a key component of our PtrSplit and Program-mandering works. It aims at building a modular inter-procedural program dependence graph (PDG) for practical use. 
-Our program dependence graph is field senstive, context-insensitive and flow-insensitive. For more details, welcome to read our CCS'17 paper:
-[http://www.cse.psu.edu/~gxt29/papers/ptrsplit.pdf]
+This project aims at creating a program dependency for a program. The program dependency graph buliding  consists of two part 
 
-We have upgraded the implementation to LLVM 9.0.0. Currently, we only support building PDGs for C programs.
+1. Control Dependency Graph 
+2. Data Dependency Graph
 
-A PDG example looks like this (the blue part corresponds to the parameter tree):
+The built program dependency graph is field senstive.
 
-![](https://bitbucket.org/psu_soslab/program-dependence-graph-in-llvm/raw/4000cf407e9aeb44491eb41b2e808b16e61dc192/demo/pdg.png)
-
-## Getting started quickly
+## How to use
 
 ```shell
 mkdir build
@@ -22,47 +19,18 @@ make
 opt -load libpdg.so -dot-pdg < test.bc
 ```
 
-Once you finish these operations a dot file will be created. You can open it with [Graphviz](http://www.graphviz.org/).
+After above commands, a dot file will be created. Open it with [Graphviz](http://www.graphviz.org/).
 
-## LLVM IR compilation
+## How to generate bc file
 
-For simple C programs(e.g., test.c), do
+Just write a valid C program and then use. (test.c in this example)
 
-> **clang -emit-llvm -S test.c -o test.bc**
+> **clang -emit-llvm -S test.c**
 
-Now you have a binary format LLVM bitcode file which can be directly used as the input for PDG generation.
+This should give you **test.ll**.
 
-You can also generate a human-readable bitcode file(.ll) if you would like to:
+Then, use the llvm-as tool to generate bc file.
 
-> **llvm-dis test.bc**
+> **llvm-as test.ll**
 
-This will generate a human-readable format bitcode file (test.ll) for your debugging and testing.
-
-For those large C software (e.g., wget), you can refer to this great article for help:
-
-http://gbalats.github.io/2015/12/10/compiling-autotooled-projects-to-LLVM-bitcode.html
-
-(We successfully compiled SPECCPU 2006 INT/thttpd/wget/telnet/openssh/curl/nginx/sqlite, thanks to the author!)
-
-## Avaliable Passes
-
-**-pdg:** generate the program dependence graph (inter-procedural)
-
-**-cdg:** generate the control dependence graph (intra-procedural)
-
-**-ddg:** generate the data dependence graph (intra-procedural)
-
-**-dot-*:** for visualization. (dot)
-
-For those large software, generating a visualizable PDG is not easy. Graphviz often fails to generate the .dot file for a program with
-more than 1000 lines of C code. Fortunately, we rarely need such a large .dot file but only do kinds of analyses on the PDG, which is always in memory.
-
-## Running tests
-We use catch2 to build the project.
-Catch2 is a lightweight C++ testing framework. As catch2 can be used with a couple stand alone header files, they are included in the project.
-It is put under directory lib.
-When building the project, the test is also built. 
-We build all tests into an executable. User can verify the basic utitlies in PDG by running the following command:
-> ./build/test/pdg-test
-
-The test case is built in the pdgtest.cpp file, which is placed under test directory. 
+This should give you the bc file needed for testing.

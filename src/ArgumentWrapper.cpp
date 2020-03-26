@@ -31,11 +31,32 @@ tree<pdg::InstructionWrapper *> &pdg::ArgumentWrapper::getTree(TreeType treeTy)
   }
 }
 
+void pdg::ArgumentWrapper::setTree(tree<InstructionWrapper *> tree, TreeType treeTy)
+{
+  switch (treeTy)
+  {
+    case TreeType::FORMAL_IN_TREE:
+      formalInTree = tree; 
+      break;
+    case TreeType::FORMAL_OUT_TREE: 
+      formalOutTree = tree;
+      break;
+    case TreeType::ACTUAL_IN_TREE:
+      actualInTree = tree;
+      break;
+    case TreeType::ACTUAL_OUT_TREE:
+      actualOutTree = tree;
+      break;
+    default:
+      break;
+  }
+}
+
 void pdg::ArgumentWrapper::copyTree(const tree<pdg::InstructionWrapper *> &srcTree, TreeType treeTy)
 {
   if (srcTree.empty())
   {
-    errs() << arg->getParent()->getName() << " arg : " << *arg << " srcTree is empty!\n";
+    errs() << Func->getName() << " arg : " << *arg << " srcTree is empty!\n";
     return;
   }
 
@@ -74,20 +95,25 @@ void pdg::ArgumentWrapper::copyTree(const tree<pdg::InstructionWrapper *> &srcTr
     InstructionWrapper *srcTreeW = (*SI);
     if (SI == srcTree.begin())
     {
-      treeTypeW = new TreeTypeWrapper(srcTreeW->getFunction(), instWTy,
+      treeTypeW = new TreeTypeWrapper(srcTreeW->getFunction(),
+                                      instWTy,
                                       newArg,
                                       ((TreeTypeWrapper *)srcTreeW)->getTreeNodeType(),
                                       ((TreeTypeWrapper *)srcTreeW)->getParentTreeNodeType(),
-                                      ((TreeTypeWrapper *)srcTreeW)->getNodeOffset());
+                                      ((TreeTypeWrapper *)srcTreeW)->getNodeOffset(),
+                                      ((TreeTypeWrapper *)srcTreeW)->getDIType());
     }
     else
     {
-      treeTypeW = new TreeTypeWrapper(srcTreeW->getFunction(), GraphNodeType::PARAMETER_FIELD,
+      treeTypeW = new TreeTypeWrapper(srcTreeW->getFunction(),
+                                      GraphNodeType::PARAMETER_FIELD,
                                       newArg,
                                       ((TreeTypeWrapper *)srcTreeW)->getTreeNodeType(),
                                       ((TreeTypeWrapper *)srcTreeW)->getParentTreeNodeType(),
-                                      ((TreeTypeWrapper *)srcTreeW)->getNodeOffset());
+                                      ((TreeTypeWrapper *)srcTreeW)->getNodeOffset(),
+                                      ((TreeTypeWrapper *)srcTreeW)->getDIType());
     }
+
     *TI = treeTypeW;
     PDGUtils::getInstance().getFuncInstWMap()[srcTreeW->getFunction()].insert(treeTypeW);
   }

@@ -1,0 +1,3 @@
+spin_lock
+spin_lock_irq
+mutex_lock

@@ -1,5 +1,6 @@
 #ifndef PDGUTILS_H_
 #define PDGUTILS_H_
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Module.h"
 #include "FunctionWrapper.hpp"

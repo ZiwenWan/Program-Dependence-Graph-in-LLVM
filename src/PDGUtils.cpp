@@ -9,11 +9,18 @@ void pdg::PDGUtils::constructInstMap(Function &F)
   {
     if (G_instMap.find(&*I) == G_instMap.end())
     {
-      InstructionWrapper *instW = new InstructionWrapper(&*I, GraphNodeType::INST);
+      GraphNodeType nodeTy = GraphNodeType::INST;
+      if (isa<CallInst>(&*I))
+        nodeTy = GraphNodeType::CALL;
+      if (isa<ReturnInst>(&*I))
+        nodeTy = GraphNodeType::RETURN;
+
+      InstructionWrapper *instW = new InstructionWrapper(&*I, nodeTy);
       G_instMap[&*I] = instW;
       G_funcInstWMap[&F].insert(instW); 
     }
   }
+  categorizeInstInFunc(F);
 }
 
 void pdg::PDGUtils::constructFuncMap(Module &M)
@@ -22,11 +29,12 @@ void pdg::PDGUtils::constructFuncMap(Module &M)
   {
     if (FI->isDeclaration())
       continue;
-    constructInstMap(*FI);
+
     if (G_funcMap.find(&*FI) == G_funcMap.end())
     {
       FunctionWrapper *funcW = new FunctionWrapper(&*FI);
       G_funcMap[&*FI] = funcW;
+      constructInstMap(*FI);
     }
   }
 }
@@ -55,10 +63,18 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
     if (isa<ReturnInst>(inst))
       G_funcMap[&F]->addReturnInst(inst);
 
-    if (isa<CallInst>(inst))
-      G_funcMap[&F]->addCallInst(inst);
+    if (CallInst *ci = dyn_cast<CallInst>(inst))
+    {
+      if (isa<DbgDeclareInst>(ci))
+        G_funcMap[&F]->addDbgInst(inst);
+      else
+        G_funcMap[&F]->addCallInst(inst);
+    }
 
-    if (isa<CastInst>(inst))
+    if (CastInst *bci = dyn_cast<CastInst>(inst))
       G_funcMap[&F]->addCastInst(inst);
+    
+    if (IntrinsicInst *ii = dyn_cast<IntrinsicInst>(inst))
+      G_funcMap[&F]->addIntrinsicInst(inst);
   }
 }

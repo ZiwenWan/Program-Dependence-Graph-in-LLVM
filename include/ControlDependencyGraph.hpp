@@ -31,7 +31,6 @@ class ControlDependencyGraph : public llvm::FunctionPass
     void computeDependencies(llvm::Function &F);
     void addInstToBBDependency(InstructionWrapper* from, llvm::BasicBlock *to, DependencyType depType);
     void addBBToBBDependency(llvm::BasicBlock *from, llvm::BasicBlock *to, DependencyType depType);
-    DependencyGraph<InstructionWrapper> *_getCDG() { return CDG; }
 
   private:
     DependencyGraph<InstructionWrapper> *CDG;

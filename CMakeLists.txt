@@ -1,11 +1,9 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.4.3)
 project(pdg)
 find_package(LLVM REQUIRED CONFIG)
 add_definitions(${LLVM_DEFINITIONS})
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
-set (CMAKE_CXX_STANDARD 11)
-add_subdirectory(test)
 
 #
 # We will build one library: libtmplugin.so.  It corresponds to a plugin that we
@@ -15,6 +13,7 @@ add_subdirectory(test)
 #
 # Files associated with libtmplugin.so
 #
+option(ENABLE_FUNC_LIST "generate result based on func list" ON)
 
 include_directories("include")
 include_directories("src")
@@ -23,21 +22,16 @@ file(GLOB TPPSRC "src/*.tpp")
 file(GLOB SOURCES "src/*.cpp")
 file(GLOB HEADERS "include/*.hpp")
 
-#build static libray to be used by pdgtest
-add_library(pdgStatic STATIC
-    include/tree.hh
-    ${HEADERS}
-    ${TPPSRC}
-    ${SOURCES}
-)
-
-# build plugin to be used by opt
 add_library(pdg MODULE
     include/tree.hh
     ${HEADERS}
     ${TPPSRC}
     ${SOURCES}
 )
+
+if (ENABLE_FUNC_LIST)
+    add_definitions(-DFUNC_LIST)
+endif()
 
 #
 # Turn on C++11, turn off C++ RTTI.

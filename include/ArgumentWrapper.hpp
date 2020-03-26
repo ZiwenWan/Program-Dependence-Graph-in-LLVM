@@ -22,11 +22,13 @@ public:
   explicit ArgumentWrapper(llvm::Argument *arg);
   llvm::Argument *getArg();
   tree<InstructionWrapper *> &getTree(TreeType treeTy);
+  void setTree(tree<InstructionWrapper*> tree, TreeType treeTy);
   std::vector<std::pair<InstructionWrapper *, InstructionWrapper *>> getParamCallInstPair() const { return paramCallInstPairs; }
   void addParamCallInstW(std::pair<InstructionWrapper *, InstructionWrapper *> paramCallPair) { paramCallInstPairs.push_back(paramCallPair); }
   void copyTree(const tree<InstructionWrapper *> &srcTree, TreeType treeTy);
   tree<InstructionWrapper *>::iterator tree_begin(TreeType treeTy);
   tree<InstructionWrapper *>::iterator tree_end(TreeType treeTy);
+  llvm::Function *getFunc() { return Func; }
 };
 
 } // namespace pdg

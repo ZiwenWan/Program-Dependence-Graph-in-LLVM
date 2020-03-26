@@ -1,0 +1,8 @@
+init
+register_device
+open
+device_reset
+lookup_device
+main
+dev1_open
+dev2_open

@@ -1,0 +1,21 @@
+digraph "Instruction-Level Control dependency graph for 'f1' function" {
+	label="Instruction-Level Control dependency graph for 'f1' function";
+
+	Node0x87eee00 [shape=record,label="{\<\<ENTRY\>\> f1}"];
+	Node0x87eee00 -> Node0x87eee90;
+	Node0x87eee00 -> Node0x87eef20;
+	Node0x87eee00 -> Node0x87eeff0;
+	Node0x87eee00 -> Node0x87eefc0;
+	Node0x87eee00 -> Node0x87eef90;
+	Node0x87eee00 -> Node0x87ef210;
+	Node0x87eee00 -> Node0x87ef280;
+	Node0x87eee00 -> Node0x87ef2f0;
+	Node0x87eee90 [shape=record,label="{  %a.addr = alloca i32, align 4}"];
+	Node0x87eef20 [shape=record,label="{  %b.addr = alloca i32, align 4}"];
+	Node0x87eeff0 [shape=record,label="{  store i32 %a, i32* %a.addr, align 4}"];
+	Node0x87eefc0 [shape=record,label="{  store i32 %b, i32* %b.addr, align 4}"];
+	Node0x87eef90 [shape=record,label="{  %0 = load i32, i32* %a.addr, align 4}"];
+	Node0x87ef210 [shape=record,label="{  %1 = load i32, i32* %b.addr, align 4}"];
+	Node0x87ef280 [shape=record,label="{  %add = add nsw i32 %0, %1}"];
+	Node0x87ef2f0 [shape=record,label="{  ret i32 %add}"];
+}

@@ -1,0 +1,15 @@
+<stdin> {
+project <struct unknow type > {
+	person_t person_t;
+	age age;
+}
+project <struct c> c
+	c c;
+	c c;
+}
+project <struct int> int{
+}project <struct unknow type > {
+	char char;
+}project <struct unknow type > {
+}project <struct unknow type > {
+}}

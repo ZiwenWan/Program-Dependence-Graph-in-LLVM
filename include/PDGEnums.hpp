@@ -16,7 +16,8 @@ enum class DependencyType
   PARAMETER,
   STRUCT_FIELDS,
   NO_DEPENDENCY,
-  GLOBAL_DEP
+  GLOBAL_DEP,
+  VAL_DEP
 };
 
 enum class GraphNodeType
@@ -28,10 +29,12 @@ enum class GraphNodeType
   ACTUAL_OUT,
   RETURN,
   POINTER_RW,
+  ARG_ALLOC,
   PARAMETER_FIELD,
   ENTRY,
   STRUCT_FIELD,
-  GLOBAL_VALUE
+  GLOBAL_VALUE,
+  CALL
 };
 
 enum class ControlType
