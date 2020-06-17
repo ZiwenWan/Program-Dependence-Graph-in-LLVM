@@ -59,8 +59,8 @@ class InstructionWrapper {
     void setVisited(const bool _isVisited) { isVisited = _isVisited; }
     AccessType getAccessType() { return access_type; }
     void setAccessType(AccessType _access_type) { access_type = _access_type; }
-    virtual llvm::Type *getTreeNodeType() const { return nullptr; }
-    virtual llvm::Type *getParentTreeNodeType() const { return nullptr; }
+    virtual llvm::Type *getLLVMType() const { return nullptr; }
+    virtual llvm::Type *getParentLLVMType() const { return nullptr; }
     virtual llvm::Argument *getArgument() const { return nullptr; }
     virtual int getNodeOffset() const { return -1; }
     virtual llvm::DIType *getDIType() const { return nullptr; }
@@ -109,8 +109,8 @@ class TreeTypeWrapper : public InstructionWrapper
       this->dt = dt;
     }
 
-    llvm::Type *getTreeNodeType() const override { return treeNodeType; }
-    llvm::Type *getParentTreeNodeType() const override { return parentTreeNodeType; }
+    llvm::Type *getLLVMType() const override { return treeNodeType; }
+    llvm::Type *getParentLLVMType() const override { return parentTreeNodeType; }
     llvm::Argument *getArgument() const override { return arg; }
     int getNodeOffset() const override { return node_offset; }
     llvm::DIType *getDIType() const override { return dt; }

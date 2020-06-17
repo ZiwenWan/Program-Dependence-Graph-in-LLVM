@@ -9,10 +9,8 @@
 #include "sea_dsa/DsaAnalysis.hh"
 #include "sea_dsa/Global.hh"
 #include "sea_dsa/Local.hh"
-#include "sea_dsa/GraphTraits.hh"
 #include "sea_dsa/Info.hh"
 #include "sea_dsa/support/Debug.h"
-#include "sea_dsa/DsaColor.hh"
 #include "llvm/Pass.h"
 
 #include "DebugInfoUtils.hpp"

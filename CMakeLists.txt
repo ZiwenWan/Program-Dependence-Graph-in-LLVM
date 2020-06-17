@@ -1,10 +1,9 @@
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.10.2)
 project(pdg)
 find_package(LLVM REQUIRED CONFIG)
 add_definitions(${LLVM_DEFINITIONS})
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
-
 #
 # We will build one library: libtmplugin.so.  It corresponds to a plugin that we
 # run when compiling.
@@ -17,6 +16,7 @@ option(ENABLE_FUNC_LIST "generate result based on func list" ON)
 
 include_directories("include")
 include_directories("src")
+include_directories("sea-dsa/include")
 
 file(GLOB TPPSRC "src/*.tpp")
 file(GLOB SOURCES "src/*.cpp")
@@ -33,6 +33,7 @@ if (ENABLE_FUNC_LIST)
     add_definitions(-DFUNC_LIST)
 endif()
 
+target_link_libraries(pdg "${CMAKE_CURRENT_SOURCE_DIR}/sea-dsa/build/lib/libSeaDsaAnalysis.a")
 #
 # Turn on C++11, turn off C++ RTTI.
 #

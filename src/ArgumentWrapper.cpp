@@ -98,8 +98,8 @@ void pdg::ArgumentWrapper::copyTree(const tree<pdg::InstructionWrapper *> &srcTr
       treeTypeW = new TreeTypeWrapper(srcTreeW->getFunction(),
                                       instWTy,
                                       newArg,
-                                      ((TreeTypeWrapper *)srcTreeW)->getTreeNodeType(),
-                                      ((TreeTypeWrapper *)srcTreeW)->getParentTreeNodeType(),
+                                      ((TreeTypeWrapper *)srcTreeW)->getLLVMType(),
+                                      ((TreeTypeWrapper *)srcTreeW)->getParentLLVMType(),
                                       ((TreeTypeWrapper *)srcTreeW)->getNodeOffset(),
                                       ((TreeTypeWrapper *)srcTreeW)->getDIType());
     }
@@ -108,8 +108,8 @@ void pdg::ArgumentWrapper::copyTree(const tree<pdg::InstructionWrapper *> &srcTr
       treeTypeW = new TreeTypeWrapper(srcTreeW->getFunction(),
                                       GraphNodeType::PARAMETER_FIELD,
                                       newArg,
-                                      ((TreeTypeWrapper *)srcTreeW)->getTreeNodeType(),
-                                      ((TreeTypeWrapper *)srcTreeW)->getParentTreeNodeType(),
+                                      ((TreeTypeWrapper *)srcTreeW)->getLLVMType(),
+                                      ((TreeTypeWrapper *)srcTreeW)->getParentLLVMType(),
                                       ((TreeTypeWrapper *)srcTreeW)->getNodeOffset(),
                                       ((TreeTypeWrapper *)srcTreeW)->getDIType());
     }

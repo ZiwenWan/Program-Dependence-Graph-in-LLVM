@@ -111,7 +111,7 @@ struct DOTGraphTraits<pdg::DependencyNode<pdg::InstructionWrapper> *> : public D
     {
       llvm::Argument *arg = instW->getArgument();
       int arg_pos = arg->getArgNo();
-      OS << *instW->getTreeNodeType() << " arg_pos: " << arg_pos << " - "
+      OS << *instW->getLLVMType() << " arg_pos: " << arg_pos << " - "
          << "f_id: " << instW->getNodeOffset();
       return OS.str();
     }
@@ -161,7 +161,7 @@ struct DOTGraphTraits<pdg::DependencyNode<pdg::InstructionWrapper> *> : public D
           "ArrayTy",    ///< 14: Arrays
           "PointerTy",  ///< 15: Pointers
           "VectorTy"};
-      llvm::Type *field_type = instW->getTreeNodeType();
+      llvm::Type *field_type = instW->getLLVMType();
       std::string type_name = TYPE_NAMES.at(field_type->getTypeID());
 
       std::string ret_string = "";

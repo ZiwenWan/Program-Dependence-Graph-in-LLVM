@@ -30,6 +30,7 @@ public:
   bool processCallInst(InstructionWrapper *instW);
   bool processIndirectCallInst(llvm::CallInst *CI, InstructionWrapper *instW);
   void addNodeDependencies(InstructionWrapper *instW);
+  std::set<llvm::Function *> computeFunctionsNeedPDGConstruction(llvm::Module &M);
   // parameter tree building
   std::vector<llvm::Function *> collectIndirectCallCandidates(llvm::FunctionType *functionType, llvm::Function &oriFunc, const std::set<std::string> &filterFuncs = std::set<std::string>());
   void copyFormalTreeToActualTree(llvm::CallInst *CI, llvm::Function* func);

@@ -78,3 +78,125 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
       G_funcMap[&F]->addIntrinsicInst(inst);
   }
 }
+
+std::set<Function *> pdg::PDGUtils::computeDriverDomainFuncs(Module &M)
+{
+  std::set<Function *> driverDomainFuncs;
+  std::ifstream driverFuncs("defined_func.txt");
+  // construct boundary
+  // construct driver domain functions
+  for (std::string line; std::getline(driverFuncs, line);)
+  {
+    Function *f = M.getFunction(StringRef(line));
+    if (f != nullptr)
+      driverDomainFuncs.insert(f);
+  }
+
+  return driverDomainFuncs;
+}
+
+std::set<Function *> pdg::PDGUtils::computeKernelDomainFuncs(Module &M)
+{
+  std::set<Function *> kernelDomainFuncs;
+  auto driverDomainFuncs = computeDriverDomainFuncs(M);
+  for (Function &F : M)
+  {
+    if (F.isDeclaration() || F.empty())
+      continue;
+    if (driverDomainFuncs.find(&F) == driverDomainFuncs.end())
+      kernelDomainFuncs.insert(&F);
+  }
+
+  return kernelDomainFuncs;
+}
+
+std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
+{
+  std::set<Function *> crossDomainFuncs;
+  // cross-domain function from driver to kernel
+  std::ifstream importedFuncs("imported_func.txt");
+  for (std::string line; std::getline(importedFuncs, line);)
+  {
+    Function *f = M.getFunction(StringRef(line));
+    if (!f)
+      continue;
+    if (f->isDeclaration() || f->empty())
+      continue;
+    crossDomainFuncs.insert(f);
+  }
+  importedFuncs.close();
+
+  // driver side functions
+  // cross-domain function from kernel to driver
+  std::ifstream static_func("static_func.txt");
+  for (std::string line; std::getline(static_func, line);)
+  {
+    Function *f = M.getFunction(StringRef(line));
+    if (!f)
+      continue;
+    if (f->isDeclaration() || f->empty())
+      continue;
+    crossDomainFuncs.insert(f);
+  }
+  static_func.close();
+
+  return crossDomainFuncs;
+}
+
+std::set<Function *> pdg::PDGUtils::computeTransitiveClosure(Function &F)
+{
+  std::set<Function*> transClosure;
+  std::queue<Function *> funcQ;
+  transClosure.insert(&F);
+  funcQ.push(&F);
+
+  while (!funcQ.empty())
+  {
+    Function *func = funcQ.front();
+    funcQ.pop();
+    auto callInstList = G_funcMap[func]->getCallInstList();
+    for (auto ci : callInstList)
+    {
+      if (ci->getCalledFunction() == nullptr) // indirect call
+        continue;
+      Function *calledF = ci->getCalledFunction();
+      if (calledF->isDeclaration() || calledF->empty())
+        continue;
+      if (transClosure.find(calledF) != transClosure.end()) // skip if we already added the called function to queue.
+        continue;
+      transClosure.insert(calledF);
+      funcQ.push(calledF);
+    }
+  }
+
+  return transClosure;
+}
+
+std::set<std::string> pdg::PDGUtils::computeDriverExportFuncPtrName()
+{
+  // compute a set of pointer pointer name provided by the driver side
+  std::set<std::string> driverExportFuncPtrNames;
+  std::ifstream driverExportFuncPtrs("static_funcptr.txt");
+  for (std::string line; std::getline(driverExportFuncPtrs, line);)
+  {
+    driverExportFuncPtrNames.insert(line);
+  }
+  driverExportFuncPtrs.close();
+  return driverExportFuncPtrNames;
+}
+
+std::map<std::string, std::string> pdg::PDGUtils::computeDriverExportFuncPtrNameMap()
+{
+  std::ifstream driverExportFuncPtrs("static_funcptr.txt");
+  std::ifstream driverExportFuncs("static_func.txt");
+  std::map<std::string, std::string> exportFuncPtrMap;
+  // int s1 = std::count(std::istreambuf_iterator<char>(driverExportFuncPtrs), std::istreambuf_iterator<char>(), '\n');
+  // int s2 = std::count(std::istreambuf_iterator<char>(driverExportFuncs), std::istreambuf_iterator<char>(), '\n');
+  // assert(s1 == s2 && "driver export ptrs cannot be matched to a defined function.");
+  for (std::string line1, line2; std::getline(driverExportFuncPtrs, line1), std::getline(driverExportFuncs, line2);)
+  {
+    exportFuncPtrMap[line2] = line1; // key: registered driver side function, value: the registered function pointer name
+  }
+
+  return exportFuncPtrMap;
+}

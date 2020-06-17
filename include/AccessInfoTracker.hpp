@@ -6,8 +6,6 @@
 #include "ProgramDependencyGraph.hpp"
 #include "llvm/Analysis/CallGraph.h" 
 #include "DebugInfoUtils.hpp"
-#include <fstream>
-#include <sstream>
 #include <map>
 
 namespace pdg
@@ -22,14 +20,18 @@ public:
   void getIntraFuncReadWriteInfoForCallInsts(llvm::Function &Func);
   void printRetValueAccessInfo(llvm::Function &Func);
   void getIntraFuncReadWriteInfoForRetVal(CallWrapper *callW);
-  void getIntraFuncReadWriteInfoForArg(ArgumentWrapper *argW, TreeType treeTy);
-  std::set<std::string> computeArgIntraAccessFields(llvm::Argument *arg, TreeType treeTy);
-  void getIntraFuncReadWriteInfoForFunc(llvm::Function &F);
+  void computeFuncAccessInfo(llvm::Function &F);
+  void computeArgAccessInfo(ArgumentWrapper *argW, TreeType treeTy);
+  void computeIntraprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F);
+  void computeInterprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F, std::set<llvm::Function *> receiverDomainTrans);
+  std::string getRegisteredFuncPtrName(std::string funcName);
+  std::set<llvm::Value *> findAliasInDomainWithOffset(llvm::Value &V, llvm::Function &F, unsigned offset, std::set<llvm::Function *> receiverDomainTrans);
+  std::set<llvm::Value *> findAliasInDomain(llvm::Value &V, llvm::Function &F, std::set<llvm::Function *> domainTransitiveClosure);
+  std::set<llvm::Function *> getTransitiveClosureInDomain(llvm::Function &F, std::set<llvm::Function *> searchDomain);
   void getIntraFuncReadWriteInfoForCallee(llvm::Function &F);
   int getCallParamIdx(const InstructionWrapper *instW, const InstructionWrapper *callInstW);
   ArgumentMatchType getArgMatchType(llvm::Argument *arg1, llvm::Argument *arg2);
   void mergeArgAccessInfo(ArgumentWrapper *callerArgW, ArgumentWrapper *calleeArgW, tree<InstructionWrapper*>::iterator callerTreeI);
-  bool getInterFuncReadWriteInfo(llvm::Function &F);
   AccessType getAccessTypeForInstW(const InstructionWrapper *instW);
   void printFuncArgAccessInfo(llvm::Function &F);
   void printArgAccessInfo(ArgumentWrapper *argW, TreeType ty);
@@ -43,28 +45,25 @@ public:
   tree<InstructionWrapper *>::iterator generateIDLforStructField(ArgumentWrapper *argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss, TreeType ty);
   std::string getArgAccessInfo(llvm::Argument &arg);
   std::string getAllocAttribute(std::string projStr, bool isPassedToCallee);
-  std::vector<llvm::Function*> getTransitiveClosure(llvm::Function &F);
-  // void printGlobalLockWarningFunc(); 
-  void updateSharedFieldMap(std::string fieldName, bool isKernel);
+  void computeAccessedFieldsInStructType(std::string structTypeName);
+  // compute Shared Data Based On Type
+  void computeSharedDataInFunc(llvm::Function &F);
+  std::set<std::string> computeAccessFieldsForArg(ArgumentWrapper *argW, llvm::DIType* rootDIType);
+  std::set<std::string> computeSharedDataForType(llvm::DIType* dt);
+  std::set<std::string> computeSharedDataInDomain(llvm::DIType* dt, std::set<llvm::Function*> domain);
+  std::string computeFieldID(llvm::DIType* rootType, llvm::DIType* fieldType);
   ProgramDependencyGraph *_getPDG() { return PDG; }
 
 private:
   ProgramDependencyGraph *PDG;
+  llvm::Module *module;
   llvm::CallGraph *CG;
   std::ofstream idl_file;
-  std::set<std::string> deviceObjStore;
-  std::set<std::string> kernelObjStore; 
-  std::set<std::string> importedFuncList;
-  std::set<std::string> kernelFuncList;
-  std::set<std::string> definedFuncList;
-  std::set<std::string> blackFuncList;
-  std::set<std::string> staticFuncptrList;
-  std::set<std::string> staticFuncList;
-  std::set<std::string> lockFuncList;
-  std::map<std::string, std::string> driverFuncPtrCallTargetMap;
-  std::set<std::string> processedFuncPtrNames;
-  std::map<std::string, std::array<int, 2>> sharedFieldMap;
-  std::string curImportedTransFuncName;
+  std::set<llvm::Function *> kernelDomainFuncs;
+  std::set<llvm::Function *> driverDomainFuncs;
+  std::set<std::string> driverExportFuncPtrNames;
+  std::map<std::string, std::string> driverExportFuncPtrNameMap;
+  std::map<std::string, std::set<std::string>> sharedDataTypeMap;
   bool seenFuncOps;
   bool crossBoundary; // indicate whether transitive closure cross two domains
 };
