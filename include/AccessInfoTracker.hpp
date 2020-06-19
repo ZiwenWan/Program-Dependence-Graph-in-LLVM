@@ -50,8 +50,9 @@ public:
   void computeSharedDataInFunc(llvm::Function &F);
   std::set<std::string> computeAccessFieldsForArg(ArgumentWrapper *argW, llvm::DIType* rootDIType);
   std::set<std::string> computeSharedDataForType(llvm::DIType* dt);
-  std::set<std::string> computeSharedDataInDomain(llvm::DIType* dt, std::set<llvm::Function*> domain);
+  std::set<std::string> computeAccessedDataInDomain(llvm::DIType* dt, std::set<llvm::Function*> domain);
   std::string computeFieldID(llvm::DIType* rootType, llvm::DIType* fieldType);
+  bool isChildFieldShared(llvm::DIType* argDIType, llvm::DIType* fieldDIType);
   ProgramDependencyGraph *_getPDG() { return PDG; }
 
 private:

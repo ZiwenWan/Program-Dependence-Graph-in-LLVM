@@ -152,7 +152,7 @@ void pdg::AccessInfoTracker::computeArgAccessInfo(ArgumentWrapper* argW, TreeTyp
     return;
   }
 
-  // setup search domain, this is used to compute needed data in the receiver domain.
+  // setup search domain, this is used to compute needed data
   std::set<Function *> searchDomain;
   searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
   searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
@@ -606,11 +606,6 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
 
     curDIType = DIUtils::getLowestDIType(curDIType);
 
-    // if (DIUtils::isFuncPointerTy(curDIType))
-    // {
-    //   generateIDLforFuncPtrWithDI(curDIType, F.getParent(), argName);
-    // }
-
     if (!DIUtils::isStructTy(curDIType))
       continue;
 
@@ -623,16 +618,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       if ((*childT)->getAccessType() == AccessType::NOACCESS)
         continue;
 
-      // check if an accessed field is in the set of computed shared data
-      std::string argDITypeName = DIUtils::getDITypeName(argDIType);
-      if (sharedDataTypeMap.find(argDITypeName) == sharedDataTypeMap.end())
-      {
-        errs() << "[WARNING] " << "cannot find struct type " << argDITypeName << "\n";
-        break;
-      }
-      std::string childFieldID =  computeFieldID(argDIType, childDIType);
-      auto sharedFields = sharedDataTypeMap[argDITypeName];
-      if (sharedFields.find(childFieldID) == sharedFields.end())
+      // check if an accessed field is in the set of shared data
+      if (!isChildFieldShared(argDIType, childDIType))
         continue;
 
       // only check access status under cross boundary case. If not cross, we do not check and simply perform
@@ -751,10 +738,16 @@ void pdg::AccessInfoTracker::computeSharedDataInFunc(Function &F)
   // for each argument, computes it debugging information type
   for (auto &arg : F.args())
   {
+    // do not process non-struct ptr type, struct type is coersed
     DIType* argDIType = DIUtils::getArgDIType(arg);
+    if (!DIUtils::isStructPointerTy(argDIType))
+      continue;
+    // check if shared fields for this struct type is already done
     std::string argTypeName = DIUtils::getArgTypeName(arg);
-    if (sharedDataTypeMap.find(argTypeName) == sharedDataTypeMap.end())
-      sharedDataTypeMap.insert(std::pair<std::string, std::set<std::string> >(argTypeName, std::set<std::string>()));
+    if (sharedDataTypeMap.find(argTypeName) != sharedDataTypeMap.end())
+      continue;
+    
+    sharedDataTypeMap.insert(std::pair<std::string, std::set<std::string>>(argTypeName, std::set<std::string>()));
     std::set<std::string> accessedFieldsInArg = computeSharedDataForType(argDIType);
     for (auto accessedField : accessedFieldsInArg)
     {
@@ -763,11 +756,12 @@ void pdg::AccessInfoTracker::computeSharedDataInFunc(Function &F)
   }
 }
 
+
 std::set<std::string> pdg::AccessInfoTracker::computeSharedDataForType(DIType *dt)
 {
   // compute accessed fields in driver/kernel domain separately. 
-  std::set<std::string> accessedFieldsInDriver = computeSharedDataInDomain(dt, driverDomainFuncs);
-  std::set<std::string> accessedFieldsInKernel = computeSharedDataInDomain(dt, kernelDomainFuncs);
+  std::set<std::string> accessedFieldsInDriver = computeAccessedDataInDomain(dt, driverDomainFuncs);
+  std::set<std::string> accessedFieldsInKernel = computeAccessedDataInDomain(dt, kernelDomainFuncs);
   // then, take the union of the accessed fields in the two domains.
   std::set<std::string> sharedFields;
   for (auto str : accessedFieldsInDriver)
@@ -778,7 +772,7 @@ std::set<std::string> pdg::AccessInfoTracker::computeSharedDataForType(DIType *d
   return sharedFields;
 }
 
-std::set<std::string> pdg::AccessInfoTracker::computeSharedDataInDomain(DIType* dt, std::set<Function*> domain)
+std::set<std::string> pdg::AccessInfoTracker::computeAccessedDataInDomain(DIType* dt, std::set<Function*> domain)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto funcMap = pdgUtils.getFuncMap();
@@ -811,9 +805,25 @@ std::set<std::string> pdg::AccessInfoTracker::computeAccessFieldsForArg(Argument
   // iterate through each node, find their addr variables and then analyze the accesses to the addr variables
   for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE); treeI != argW->tree_end(TreeType::FORMAL_IN_TREE); ++treeI)
   {
-    // hanlde static defined functions, assume all functions poineter that are linked with defined function in device driver module should be used by kernel.
-    if (DIUtils::isFuncPointerTy((*treeI)->getDIType()))
-      continue;
+    // hanlde function pointer exported by driver domain
+    DIType* fieldDIType = (*treeI)->getDIType();
+    std::string fieldName = DIUtils::getDIFieldName(fieldDIType);
+    if (fieldName.find("ops") != std::string::npos)
+    {
+        std::string fieldID = computeFieldID(rootDIType, fieldDIType);
+        accessedFields.insert(fieldID);
+        continue;
+    }
+
+    if (DIUtils::isFuncPointerTy(fieldDIType))
+    {
+      if (driverExportFuncPtrNames.find(fieldName) != driverExportFuncPtrNames.end())
+      {
+        std::string fieldID = computeFieldID(rootDIType, fieldDIType);
+        accessedFields.insert(fieldID);
+      }
+     continue; 
+    }
 
     // get valdep pair, and check for intraprocedural accesses
     auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
@@ -821,9 +831,9 @@ std::set<std::string> pdg::AccessInfoTracker::computeAccessFieldsForArg(Argument
     {
       auto dataW = valDepPair.first->getData();
       AccessType accType = getAccessTypeForInstW(dataW);
-      if (static_cast<int>(accType) > static_cast<int>((*treeI)->getAccessType()))
+      if (accType != AccessType::NOACCESS)
       {
-        std::string fieldID = computeFieldID(rootDIType, (*treeI)->getDIType());
+        std::string fieldID = computeFieldID(rootDIType, fieldDIType);
         accessedFields.insert(fieldID);
       }
     }
@@ -835,6 +845,30 @@ std::string pdg::AccessInfoTracker::computeFieldID(DIType* rootDIType, DIType* f
 {
   std::string id = DIUtils::getDIFieldName(rootDIType) + DIUtils::getDIFieldName(fieldDIType);
   return id;
+}
+
+bool pdg::AccessInfoTracker::isChildFieldShared(DIType* argDIType, DIType* fieldDIType)
+{
+  // if field is a function pointer, and its name is in function pointer list exported by driver, then we retrun it.
+  if (DIUtils::isFuncPointerTy(fieldDIType))
+  {
+    std::string fieldName = DIUtils::getDIFieldName(fieldDIType);
+    if (driverExportFuncPtrNames.find(fieldName) != driverExportFuncPtrNames.end())
+      return true;
+  }
+
+  // compute field id and check if it is presents in the set of shared data computed for the arg Type
+  std::string argTypeName = DIUtils::getDITypeName(argDIType);
+  if (sharedDataTypeMap.find(argTypeName) == sharedDataTypeMap.end())
+  {
+    errs() << "[WARNING] " << "cannot find struct type " << argTypeName << "\n";
+    return false; 
+  }
+  std::string fieldID = computeFieldID(argDIType, fieldDIType);
+  auto sharedFields = sharedDataTypeMap[argTypeName];
+  if (sharedFields.find(fieldID) == sharedFields.end())
+    return false;
+  return true;
 }
 
 static RegisterPass<pdg::AccessInfoTracker>
