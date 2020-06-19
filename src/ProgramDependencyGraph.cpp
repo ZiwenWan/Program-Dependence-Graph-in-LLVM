@@ -517,6 +517,8 @@ bool pdg::ProgramDependencyGraph::connectAllPossibleFunctions(CallInst *CI, std:
   InstructionWrapper *CInstW = pdgUtils.getInstMap()[CI];
   for (Function *func : indirect_call_candidates)
   {
+    if (func->isDeclaration() || func->empty())
+      continue;
     if (!connectCallerAndCallee(CInstW, func))
       return false;
   }
