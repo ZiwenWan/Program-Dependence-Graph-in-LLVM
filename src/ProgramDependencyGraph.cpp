@@ -555,7 +555,6 @@ bool pdg::ProgramDependencyGraph::connectCallerAndCallee(InstructionWrapper *cal
   std::vector<ArgumentWrapper *>::iterator callInst_argI = pdgUtils.getCallMap()[CI]->getArgWList().begin();
   std::vector<ArgumentWrapper *>::iterator func_argE = pdgUtils.getFuncMap()[callee]->getArgWList().end();
 
-  // increase formal/actual tree iterator simutaneously
   for (; func_argI != func_argE; ++func_argI, ++callInst_argI)
   {
     // intra-connection between ACTUAL/FORMAL IN/OUT trees
@@ -586,6 +585,14 @@ bool pdg::ProgramDependencyGraph::connectCallerAndCallee(InstructionWrapper *cal
         }
       }
     }
+  }
+
+  // add return edge from the return instruction to the call instruction of caller.
+  auto retInstList = pdgUtils.getFuncMap()[callee]->getReturnInstList();
+  for (ReturnInst* retInst : retInstList)
+  {
+    auto retW = pdgUtils.getInstMap()[retInst];
+    PDG->addDependency(retW, callInstW, DependencyType::DATA_GENERAL);
   }
 
   return true;

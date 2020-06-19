@@ -5,7 +5,6 @@ add_definitions(${LLVM_DEFINITIONS})
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
 set (CMAKE_CXX_STANDARD 11)
-add_subdirectory(test)
 
 #
 # We will build one library: libtmplugin.so.  It corresponds to a plugin that we

@@ -1,7 +1,6 @@
 #include "FunctionWrapper.hpp"
 
 using namespace llvm;
-
 pdg::FunctionWrapper::FunctionWrapper(Function *Func)
 {
   this->Func = Func;
@@ -48,6 +47,12 @@ void pdg::FunctionWrapper::addLoadInst(Instruction *inst)
 {
   if (LoadInst *li = dyn_cast<LoadInst>(inst))
     loadInstList.push_back(li);
+}
+
+void pdg::FunctionWrapper::addReturnInst(Instruction *inst)
+{
+  if (ReturnInst *ri = dyn_cast<ReturnInst>(inst))
+    returnInstList.push_back(ri);
 }
 
 void pdg::FunctionWrapper::addCallInst(Instruction *inst) {
