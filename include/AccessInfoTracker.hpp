@@ -47,13 +47,19 @@ public:
   std::string getAllocAttribute(std::string projStr, bool isPassedToCallee);
   void computeAccessedFieldsInStructType(std::string structTypeName);
   // compute Shared Data Based On Type
+  void computeSharedDataForGlobalVars();
   void computeSharedDataInFunc(llvm::Function &F);
-  std::set<std::string> computeAccessFieldsForArg(ArgumentWrapper *argW, llvm::DIType* rootDIType);
+  std::set<std::string> computeAccessedFieldsForDIType(tree<InstructionWrapper *> objectTree, llvm::DIType *rootDIType);
   std::set<std::string> computeSharedDataForType(llvm::DIType* dt);
   std::set<std::string> computeAccessedDataInDomain(llvm::DIType* dt, std::set<llvm::Function*> domain);
-  std::string computeFieldID(llvm::DIType* rootType, llvm::DIType* fieldType);
+  void inferAsynchronousCalledFunction(std::set<llvm::Function *> crossDomainFuncs);
   bool isChildFieldShared(llvm::DIType* argDIType, llvm::DIType* fieldDIType);
   ProgramDependencyGraph *_getPDG() { return PDG; }
+  std::map<std::string, std::set<std::string>> getSharedDataTypeMap() { return sharedDataTypeMap; }
+  std::string getReturnAttributeStr(llvm::Function &F);
+  bool mayAlias(llvm::Value &V1, llvm::Value &V2, llvm::Function &F);
+  std::set<llvm::Instruction *> getIntraFuncAlias(llvm::Instruction *inst);
+  uint64_t getArrayArgSize(llvm::Value &V, llvm::Function &F);
 
 private:
   ProgramDependencyGraph *PDG;
@@ -63,8 +69,11 @@ private:
   std::set<llvm::Function *> kernelDomainFuncs;
   std::set<llvm::Function *> driverDomainFuncs;
   std::set<std::string> driverExportFuncPtrNames;
+  std::set<std::string> accessedFieldsInAsyncCalls;
+  std::set<llvm::Function*> asyncCalls;
   std::map<std::string, std::string> driverExportFuncPtrNameMap;
   std::map<std::string, std::set<std::string>> sharedDataTypeMap;
+  std::map<std::string, AccessType> globalFieldAccessInfo;
   bool seenFuncOps;
   bool crossBoundary; // indicate whether transitive closure cross two domains
 };

@@ -65,7 +65,6 @@ class InstructionWrapper {
     virtual int getNodeOffset() const { return -1; }
     virtual llvm::DIType *getDIType() const { return nullptr; }
     virtual std::vector<std::string> getBitFieldsName() const { return std::vector<std::string>(); }
-    virtual void addBitFieldName(std::string) {};
 
   private:
     llvm::Instruction *Inst;
@@ -109,13 +108,22 @@ class TreeTypeWrapper : public InstructionWrapper
       this->dt = dt;
     }
 
+    TreeTypeWrapper(llvm::Value *val,
+                    GraphNodeType nodetype,
+                    int node_offset,
+                    llvm::DIType *dt) : InstructionWrapper(val, nodetype)
+    {
+      this->treeNodeType = nullptr;
+      this->parentTreeNodeType = nullptr;
+      this->node_offset = node_offset;
+      this->dt = dt;
+    }
+
     llvm::Type *getLLVMType() const override { return treeNodeType; }
     llvm::Type *getParentLLVMType() const override { return parentTreeNodeType; }
     llvm::Argument *getArgument() const override { return arg; }
     int getNodeOffset() const override { return node_offset; }
     llvm::DIType *getDIType() const override { return dt; }
-    std::vector<std::string> getBitFieldsName() const override { return bitFieldsName; }
-    void addBitFieldName(std::string bitFieldName) override { bitFieldsName.push_back(bitFieldName); }
 
   private:
     llvm::Argument *arg;
@@ -123,7 +131,6 @@ class TreeTypeWrapper : public InstructionWrapper
     llvm::Type *parentTreeNodeType;
     int node_offset;
     llvm::DIType *dt;
-    std::vector<std::string> bitFieldsName;
 };
 
 } // namespace pdg

@@ -84,7 +84,9 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
       if (I1 == I2)
         continue;
       if (isMustAlias(*I1, *I2, *Func))
+      {
         DDG->addDependency(instMap[&*I1], instMap[&*I2], DependencyType::DATA_ALIAS);
+      }
     }
   }
 }

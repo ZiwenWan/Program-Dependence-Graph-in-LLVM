@@ -3,6 +3,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/InlineAsm.h"
 #include "FunctionWrapper.hpp"
 #include "CallWrapper.hpp"
 #include "sea_dsa/CallGraphUtils.hh"

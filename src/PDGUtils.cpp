@@ -65,7 +65,7 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
 
     if (CallInst *ci = dyn_cast<CallInst>(inst))
     {
-      if (isa<DbgDeclareInst>(ci))
+      if (isa<DbgInfoIntrinsic>(ci))
         G_funcMap[&F]->addDbgInst(inst);
       else
         G_funcMap[&F]->addCallInst(inst);

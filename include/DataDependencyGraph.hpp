@@ -3,17 +3,17 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Instructions.h"
-
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
-// #include "llvm/Analysis/CFLSteensAliasAnalysis.h"
-// #include "llvm/Analysis/CFLAndersAliasAnalysis.h"
-
 #include "DependencyGraph.hpp"
 #include "CallWrapper.hpp"
 #include "FunctionWrapper.hpp"
+#include "sea_dsa/CompleteCallGraph.hh"
+#include "sea_dsa/CallGraphUtils.hh"
+#include "sea_dsa/DsaAnalysis.hh"
+#include "sea_dsa/Global.hh"
 
 namespace pdg
 {

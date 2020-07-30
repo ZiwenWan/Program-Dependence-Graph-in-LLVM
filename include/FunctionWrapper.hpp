@@ -25,15 +25,15 @@ public:
   InstructionWrapper *getEntryW() { return entryW; }
   std::vector<llvm::StoreInst *> &getStoreInstList() { return storeInstList; }
   std::vector<llvm::LoadInst *> &getLoadInstList() { return loadInstList; }
-  std::vector<llvm::Instruction *> &getReturnInstList() { return returnInstList; }
+  std::vector<llvm::ReturnInst *> &getReturnInstList() { return returnInstList; }
   std::vector<llvm::CallInst *> &getCallInstList() { return callInstList; }
   std::vector<llvm::CastInst *> &getCastInstList() { return castInstList; }
   std::vector<llvm::IntrinsicInst *> &getIntrinsicInstList() { return intrinsicInstList; }
-  std::vector<llvm::DbgDeclareInst *> &getDbgDeclareInstList() { return dbgDeclareInst; }
+  std::vector<llvm::DbgInfoIntrinsic *> &getDbgInstList() { return dbgInstList; }
   std::vector<ArgumentWrapper *> &getArgWList() { return argWList; }
   void addStoreInst(llvm::Instruction *inst);
   void addLoadInst(llvm::Instruction *inst); 
-  void addReturnInst(llvm::Instruction *inst) { returnInstList.push_back(inst); }
+  void addReturnInst(llvm::Instruction *inst);
   void addCallInst(llvm::Instruction *inst);
   void addCastInst(llvm::Instruction *inst);
   void addIntrinsicInst(llvm::Instruction *inst);
@@ -50,11 +50,11 @@ private:
   llvm::AliasSetTracker *AST;
   std::vector<llvm::StoreInst *> storeInstList;
   std::vector<llvm::LoadInst *> loadInstList;
-  std::vector<llvm::Instruction *> returnInstList;
+  std::vector<llvm::ReturnInst *> returnInstList;
   std::vector<llvm::CallInst *> callInstList;
   std::vector<llvm::CastInst *> castInstList;
   std::vector<llvm::IntrinsicInst *> intrinsicInstList;
-  std::vector<llvm::DbgDeclareInst *> dbgDeclareInst;
+  std::vector<llvm::DbgInfoIntrinsic *> dbgInstList;
   std::vector<ArgumentWrapper *> argWList;
   std::set<llvm::Function *> dependent_funcs;
   std::set<llvm::Value *> ptrSet;

@@ -38,14 +38,13 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 
   // compute a set of functions that need PDG construction
   auto funcsNeedPDGConstruction = computeFunctionsNeedPDGConstruction(M);
-  unsigned totalFuncInModule;
-  for (auto &F : M)
-  {
-    totalFuncInModule++;
-  }
+  // unsigned totalFuncInModule = 0;
+  // for (auto &F : M)
+  // {
+  //   totalFuncInModule++;
+  // }
 
-  errs() << "find " << funcsNeedPDGConstruction.size() << " funcs need PDG construction. Total Size: " << totalFuncInModule << "\n";
-
+  errs() << "find " << funcsNeedPDGConstruction.size() << " funcs need PDG construction." << "\n";
   // start building pdg for each function
   for (Function *F : funcsNeedPDGConstruction)
   {
@@ -53,6 +52,8 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
       continue;
     buildPDGForFunc(F);
   }
+  buildObjectTreeForGlobalVars();
+  connectGlobalObjectTreeWithAddressVars();
   errs() << "Finish building pdg\n";
   return false;
 }
@@ -310,15 +311,19 @@ Instruction *pdg::ProgramDependencyGraph::getArgAllocaInst(Argument &arg)
   if (funcMap.find(f) == funcMap.end())
     return nullptr;
   
-  for (auto dbgInst : funcMap[f]->getDbgDeclareInstList())
+  for (auto dbgInst : funcMap[f]->getDbgInstList())
   {
-    if (auto DLV = dyn_cast<DILocalVariable>(dbgInst->getVariable()))
+    DILocalVariable *DLV = nullptr;
+    if (auto declareInst = dyn_cast<DbgDeclareInst>(dbgInst))
+      DLV = declareInst->getVariable();
+    if (auto valueInst = dyn_cast<DbgValueInst>(dbgInst))
+      DLV = valueInst->getVariable();
+    if (!DLV)
+      continue;
+    if (DLV->isParameter() && DLV->getScope()->getSubprogram() == arg.getParent()->getSubprogram() && DLV->getArg() == arg.getArgNo() + 1)
     {
-      if (DLV->isParameter() && DLV->getScope()->getSubprogram() == arg.getParent()->getSubprogram() && DLV->getArg() == arg.getArgNo() + 1)
-      {
-        Instruction *allocaInst = dyn_cast<Instruction>(dbgInst->getVariableLocation());
-        return allocaInst;
-      }
+      Instruction *allocaInst = dyn_cast<Instruction>(dbgInst->getVariableLocation());
+      return allocaInst;
     }
   }
   // errs() << arg.getParent()->getName() << " " << arg.getArgNo() << "\n";
@@ -377,9 +382,19 @@ bool pdg::ProgramDependencyGraph::isIndirectCallOrInlineAsm(CallInst *CI)
   return true;
 }
 
-tree<pdg::InstructionWrapper *>::iterator pdg::ProgramDependencyGraph::getInstInsertLoc(pdg::ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy)
+tree<InstructionWrapper *>::iterator pdg::ProgramDependencyGraph::getTreeNodeInsertLoc(tree<InstructionWrapper*> &objectTree, InstructionWrapper* treeW)
 {
-  tree<pdg::InstructionWrapper *>::iterator insert_loc = argW->getTree(treeTy).begin();
+  tree<InstructionWrapper*>::iterator insertLoc = objectTree.begin();
+  while ((*insertLoc) != treeW && insertLoc != objectTree.end())
+  {
+    insertLoc++;
+  }
+  return insertLoc;
+}
+
+tree<InstructionWrapper *>::iterator pdg::ProgramDependencyGraph::getInstInsertLoc(pdg::ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy)
+{
+  tree<InstructionWrapper *>::iterator insert_loc = argW->getTree(treeTy).begin();
   while ((*insert_loc) != tyW && insert_loc != argW->getTree(treeTy).end())
   {
     insert_loc++;
@@ -433,8 +448,11 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
   {
     DIType *argDIType = DIUtils::getArgDIType(arg);
     if (!argDIType)
+    {
       errs() << "[WARNING]: Arg null " << Func->getName() << " - " << arg.getArgNo() << "\n";
-    assert(argDIType != nullptr && "cannot build formal tree due to lack of argument debugging info.");
+      return;
+    }
+    // assert(argDIType != nullptr && "cannot build formal tree due to lack of argument debugging info.");
     InstructionWrapper *treeTyW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::FORMAL_IN, &arg, arg.getType(), nullptr, 0, argDIType);
     pdgUtils.getFuncInstWMap()[Func].insert(treeTyW);
     //find the right arg, and set tree root
@@ -489,9 +507,9 @@ InstructionWrapper *pdg::ProgramDependencyGraph::buildPointerTypeNodeWithDI(Argu
 {
   auto &pdgUtils = PDGUtils::getInstance();
   TreeType treeTy = TreeType::FORMAL_IN_TREE;
-  Argument &arg = *argW->getArg();
   try
   {
+    Argument &arg = *argW->getArg();
     InstructionWrapper *pointedTypeW = new TreeTypeWrapper(arg.getParent(),
                                                            GraphNodeType::PARAMETER_FIELD,
                                                            &arg,
@@ -509,32 +527,6 @@ InstructionWrapper *pdg::ProgramDependencyGraph::buildPointerTypeNodeWithDI(Argu
     exit(0);
   }
 }
-
-// hybrid DI
-// InstructionWrapper *pdg::ProgramDependencyGraph::buildPointerTypeNodeWithDI(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator insert_loc, DIType *dt)
-// {
-//   auto &pdgUtils = PDGUtils::getInstance();
-//   TreeType treeTy = TreeType::FORMAL_IN_TREE;
-//   Argument &arg = *argW->getArg();
-//   PointerType *pt = dyn_cast<PointerType>(curTyNode->getLLVMType());
-//   Type *pointedNodeTy = pt->getElementType();
-//   try
-//   {
-//     InstructionWrapper *pointedTypeW = new TreeTypeWrapper(arg.getParent(),
-//                                                            GraphNodeType::PARAMETER_FIELD,
-//                                                            &arg,
-//                                                            pointedNodeTy,
-//                                                            curTyNode->getLLVMType(),
-//                                                            0,
-//                                                            DIUtils::getBaseDIType(dt));
-//     pdgUtils.getFuncInstWMap()[arg.getParent()].insert(pointedTypeW);
-//     argW->getTree(treeTy).append_child(insert_loc, pointedTypeW);
-//     return pointedTypeW;
-//   } catch (std::exception &e) {
-//     errs() << e.what() << "\n";
-//     exit(0);
-//   }
-// }
 
 void pdg::ProgramDependencyGraph::buildTypeTree(Argument &arg, InstructionWrapper *treeTyW, TreeType treeTy)
 {
@@ -610,8 +602,7 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
   ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
   if (argW == nullptr)
     throw new ArgWrapperIsNullPtr("Argument Wrapper is nullptr");
-
-  tree<InstructionWrapper *>::iterator insert_loc; // insert location in the parameter tree for the type wrapper
+  auto &formalInTree = argW->getTree(TreeType::FORMAL_IN_TREE);
   int depth = 0;
   while (!instWQ.empty())
   {
@@ -631,13 +622,12 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
       if (!nodeDIType)
         continue;
 
-      insert_loc = getInstInsertLoc(argW, curTyNode, treeTy);
-      // process pointer type node.
 
+      // process pointer type node.
       if (DIUtils::isPointerType(nodeDIType))
       {
         // extract the pointed value, push it to inst queue for further process.
-        InstructionWrapper *pointedTypeW = buildPointerTypeNodeWithDI(argW, curTyNode, insert_loc, nodeDIType);
+        InstructionWrapper *pointedTypeW = buildPointerTreeNodeWithDI(arg, *curTyNode, formalInTree, *nodeDIType);
         instWQ.push(pointedTypeW);
         try
         {
@@ -662,7 +652,8 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
         DIType *fieldDIType = dyn_cast<DIType>(DINodeArr[i]);
         InstructionWrapper *fieldNodeW = new TreeTypeWrapper(Func, GraphNodeType::PARAMETER_FIELD, &arg, nullptr, nullptr, i, fieldDIType);
         pdgUtils.getFuncInstWMap()[Func].insert(fieldNodeW);
-        argW->getTree(treeTy).append_child(insert_loc, fieldNodeW);
+        tree<InstructionWrapper *>::iterator insertLoc = getTreeNodeInsertLoc(formalInTree, curTyNode);
+        argW->getTree(treeTy).append_child(insertLoc, fieldNodeW);
         instWQ.push(fieldNodeW);
         DITypeQ.push(DIUtils::getBaseDIType(fieldDIType));
       }
@@ -670,124 +661,237 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
   }
 }
 
-// void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, InstructionWrapper *treeTyW, TreeType treeTy, DIType *argDIType)
-// {
-//   auto &pdgUtils = PDGUtils::getInstance();
-//   Function *Func = arg.getParent();
-//   // setup instWQ to avoid recusion processing
-//   std::queue<InstructionWrapper *> instWQ;
-//   std::queue<DIType *> DITypeQ;
-//   instWQ.push(treeTyW);
-//   DITypeQ.push(argDIType);
+InstructionWrapper *pdg::ProgramDependencyGraph::buildPointerTreeNodeWithDI(Value &val, InstructionWrapper &parentTreeNodeW, tree<InstructionWrapper *> &objectTree, DIType &curDIType)
+{
+  tree<InstructionWrapper*>::iterator insertLoc = getTreeNodeInsertLoc(objectTree, &parentTreeNodeW);
+  auto &pdgUtils = PDGUtils::getInstance();
+  InstructionWrapper *pointedTreeW = nullptr;
+  try
+  {
+    if (Argument *arg = dyn_cast<Argument>(&val))
+    {
+      pointedTreeW = new TreeTypeWrapper(arg->getParent(),
+                                         GraphNodeType::PARAMETER_FIELD,
+                                         arg,
+                                         nullptr,
+                                         nullptr,
+                                         0,
+                                         DIUtils::getBaseDIType(&curDIType));
+      auto funcInstWMap = pdgUtils.getFuncInstWMap();
+      funcInstWMap[arg->getParent()].insert(pointedTreeW);
+    }
+    else
+    {
+      // build for global variables
+      pointedTreeW = new TreeTypeWrapper(&val,
+                                         GraphNodeType::PARAMETER_FIELD,
+                                         0,
+                                         DIUtils::getBaseDIType(&curDIType));
+    }
 
-//   ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
-//   if (argW == nullptr)
-//     throw new ArgWrapperIsNullPtr("Argument Wrapper is nullptr");
+    objectTree.append_child(insertLoc, pointedTreeW);
+    return pointedTreeW;
+  }
+  catch (std::exception &e)
+  {
+    errs() << e.what() << "\n";
+    exit(0);
+  }
+}
 
-//   if (argDIType == nullptr)
-//   {
-//     errs() << arg.getArgNo() << "\n";
-//     return;
-//     // throw new ArgHasNoDITypeException("Argument Debug Type is nullptr");
-//   }
+// TODO: we should also consider instructions that are not of alloca types.
+std::set<InstructionWrapper *> pdg::ProgramDependencyGraph::collectAllocaInstWsOnDIType(DIType *dt)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto funcMap = pdgUtils.getFuncMap();
+  auto instMap = pdgUtils.getInstMap();
+  std::set<InstructionWrapper *> ret;
+  // iterate through functions, find all the that does not has an argument of this ditype parameter.
+  for (Function &F : *module)
+  {
+    if (F.isDeclaration() || F.empty())
+      continue;
+    auto dbgInstList = funcMap[&F]->getDbgInstList();
+    bool hasArgMatchDIType = false;
+    for (Argument &arg : F.args())
+    {
+      auto argDIType = DIUtils::getArgDIType(arg);
+      if (DIUtils::getDITypeName(argDIType) == DIUtils::getDITypeName(dt))
+      {
+        hasArgMatchDIType = true;
+        break;
+      }
+    }
+    if (hasArgMatchDIType)
+      continue;
 
-//   tree<InstructionWrapper *>::iterator insert_loc; // insert location in the parameter tree for the type wrapper
-//   int depth = 0;
-//   while (!instWQ.empty())
-//   {
-//     if (depth >= EXPAND_LEVEL)
-//       return;
-//     depth += 1;
-//     int qSize = instWQ.size();
-//     while (qSize > 0)
-//     {
-//       qSize -= 1;
-//       InstructionWrapper *curTyNode = instWQ.front();
-//       DIType *instDIType = DITypeQ.front();
-//       instWQ.pop();
-//       DITypeQ.pop();
-//       insert_loc = getInstInsertLoc(argW, curTyNode, treeTy);
-//       // handle recursion type using 1-limit approach % turned off at this time since we already choose to use k-limit approach for building parmater tree
-//       // track back from child to parent, if find same type, stop building.
-//       // if (hasRecursiveType(argW, insert_loc)) {
-//       //   return;
-//       // }
-//       // if is pointer type, create a node represent pointer type.
-//       Type *curNodeTy = curTyNode->getLLVMType();
-//       if (curNodeTy->isPointerTy())
-//       {
-//         InstructionWrapper* pointedTypeW = buildPointerTypeNodeWithDI(argW, curTyNode, insert_loc, instDIType);
-//         instWQ.push(pointedTypeW); // put the pointed node to queue
-//         try {
-//           DITypeQ.push(DIUtils::getBaseDIType(instDIType)); // put the debug info node to the queue
-//         } catch (std::exception &e) {
-//           errs() << e.what() << "\n";
-//           exit(0);
-//         }
-//         continue;
-//       }
+    for (auto instI = inst_begin(&F); instI != inst_end(&F); ++instI)
+    {
+      DIType *instDIType = DIUtils::getInstDIType(&*instI, dbgInstList);
+      if (!instDIType)
+        continue;
+      if (DIUtils::getDITypeName(instDIType) == DIUtils::getDITypeName(dt)) // getting the alloca instruction for local variable
+        ret.insert(instMap[&*instI]);
+    }
+  }
 
-//       if (!instDIType)
-//       {
-//         errs() << Func->getName() << " arg." << arg.getArgNo() << " No DIType left in the queue..." << "\n";
-//         return;
-//       }
+  return ret;
+}
 
-//       // compose for struct
-//       if (!curNodeTy->isStructTy())
-//         continue;
+void pdg::ProgramDependencyGraph::connectGlobalObjectTreeWithAddressVars()
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto instMap = pdgUtils.getInstMap();
+  for (auto pair : globalObjectTrees)
+  {
+    auto globalVar = pair.first;
+    auto objectTree = pair.second;
+    // link all users of global variable with the root node
+    for (auto user : globalVar->users())
+    {
+      if (Instruction *i = dyn_cast<Instruction>(user))
+      {
+        auto treeBegin = objectTree.begin();
+        PDG->addDependency(*treeBegin, instMap[i], DependencyType::VAL_DEP);
+        // a special handling for global variable. The root node and the child node of root node have the same set of addres variables
+        treeBegin++;
+        PDG->addDependency(*treeBegin, instMap[i], DependencyType::VAL_DEP);
+      }
+    }
+    
+    // link with all local alloca of the struct type that is not handeled by global var or cross-domain parameter
+    DIType* globalVarDIType = DIUtils::getGlobalVarDIType(*globalVar);
+    auto allocaInstWs = collectAllocaInstWsOnDIType(globalVarDIType);
+    for (auto allocInstW : allocaInstWs)
+    {
+      auto treeBegin = objectTree.begin();
+      PDG->addDependency(*treeBegin, allocInstW, DependencyType::VAL_DEP);
+    }
 
-//       instDIType = DIUtils::getLowestDIType(instDIType);
-//       if (!isa<DICompositeType>(instDIType))
-//         continue;
+    for (tree<InstructionWrapper *>::iterator treeI = objectTree.begin(); treeI != objectTree.end(); ++treeI)
+    {
+      if (tree<InstructionWrapper *>::depth(treeI) == 0)
+        continue;
 
-//       Type *parentType = nullptr;
-//       // for struct type, insert all children to the tree
-//       auto DINodeArr = dyn_cast<DICompositeType>(instDIType)->getElements();
+      // for tree nodes that are not root, get parent node's dependent instructions and then find loadInst or GEP Inst from parent's loads instructions
+      auto ParentI = tree<InstructionWrapper *>::parent(treeI);
+      auto parentValDepNodes = getNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
+      for (auto pair : parentValDepNodes)
+      {
+        auto parentDepInstW = pair.first->getData();
+        // collect all alias instructions for each parent' dependent instruction
+        std::set<InstructionWrapper*> parentDepInstAliasList = getAllAlias(parentDepInstW->getInstruction());
+        parentDepInstAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
+        for (auto depInstAlias : parentDepInstAliasList)
+        {
+          if (depInstAlias->getInstruction() == nullptr)
+            continue;
 
-//       if (DINodeArr.size() != curNodeTy->getStructNumElements())
-//       {
-//         errs() << "Type fields doesn't align. Func: " << Func->getName() << DINodeArr.size() << "-" << curNodeTy->getStructNumElements()  << " arg." << arg.getArgNo() << "\n";
-//         continue;
-//       }
+          std::set<InstructionWrapper*> readInstWs;
+          getReadInstsOnInst(depInstAlias->getInstruction(), readInstWs);
+          for (auto readInstW : readInstWs)
+          {
+            if (isa<LoadInst>(readInstW->getInstruction()))
+              PDG->addDependency(*treeI, readInstW, DependencyType::VAL_DEP);
+            // for GEP, checks the offset acutally match
+            else if (isa<GetElementPtrInst>(readInstW->getInstruction()))
+            {
+              if (isTreeNodeGEPMatch(*treeI, readInstW->getInstruction()))
+              {
+                PDG->addDependency(*treeI, readInstW, DependencyType::VAL_DEP);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
-//       for (unsigned int child_offset = 0; child_offset < curNodeTy->getStructNumElements(); child_offset++)
-//       {
-//         parentType = curTyNode->getLLVMType();
-//         // field sensitive processing. Get correspond gep and link tree node with gep.
-//         Type *childType = curNodeTy->getStructElementType(child_offset);
-//         DIType *childDIType = dyn_cast<DIType>(DINodeArr[child_offset]);
-//         InstructionWrapper *typeFieldW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::PARAMETER_FIELD, &arg, childType, parentType, child_offset, childDIType);
-//         // does bit field processing
-//         if (curNodeTy->isIntegerTy() && instDIType->isBitField())
-//         {
-//           unsigned bitFieldPackingSizeInBits = curNodeTy->getIntegerBitWidth();
-//           while (bitFieldPackingSizeInBits > 0 && instDIType->isBitField())
-//           {
-//             typeFieldW->addBitFieldName(DIUtils::getDIFieldName(instDIType));
-//             errs() << "Bit field.." << DIUtils::getDIFieldName(instDIType) << "\n";
-//             uint64_t bitFieldSize = instDIType->getSizeInBits();
-//             bitFieldPackingSizeInBits -= bitFieldSize;
-//             instDIType = DITypeQ.front();
-//             if (!instDIType->isBitField())
-//               break;
-//             DITypeQ.pop();
-//           }
-//           continue;
-//         }
+void pdg::ProgramDependencyGraph::buildObjectTreeForGlobalVars()
+{
+  // 1. iterate through global vars
+  for (Module::global_iterator globalIt = module->global_begin(); globalIt != module->global_end(); ++globalIt)
+  {
+    if (GlobalVariable *globalVar = dyn_cast<GlobalVariable>(&*globalIt))
+    {
+      // 2. check if a global var is of struct pointer type
+      DIType* globalVarDIType = DIUtils::getGlobalVarDIType(*globalVar);
+      if (!globalVarDIType) 
+        continue;
+      // build object tree for struct pointer global
+      if (DIUtils::isStructPointerTy(globalVarDIType))
+        buildObjectTreeForGlobalVar(*globalVar, *globalVarDIType);
+    }
+  }
+}
 
-//         pdgUtils.getFuncInstWMap()[arg.getParent()].insert(typeFieldW);
-//         // start inserting formal tree instructions
-//         argW->getTree(treeTy).append_child(insert_loc, typeFieldW);
-//         //skip function ptr, FILE*
-//         if (isFilePtrOrFuncTy(childType))
-//           continue;
-//         instWQ.push(typeFieldW);
-//         DITypeQ.push(DIUtils::getBaseDIType(childDIType));
-//       }
-//     }
-//   }
-// }
+void pdg::ProgramDependencyGraph::buildObjectTreeForGlobalVar(GlobalVariable &GV, DIType &DI)
+{
+  tree<InstructionWrapper *> objectTree;
+  InstructionWrapper *globalW = new InstructionWrapper(&GV, GraphNodeType::GLOBAL_VALUE);
+  objectTree.set_head(globalW);
+  // find all the uses of the global variable, set the user instructions as the address variable for the global var
+  auto &pdgUtils = PDGUtils::getInstance();
+  std::queue<InstructionWrapper *> instWQ;
+  std::queue<DIType *> DITypeQ;
+  instWQ.push(globalW);
+  DITypeQ.push(&DI);
+
+  int depth = 0;
+  tree<InstructionWrapper*>::iterator insertLoc;
+  while (!instWQ.empty())
+  {
+    if (depth > EXPAND_LEVEL)
+      break;
+    depth++;
+    int qSize = instWQ.size();
+    while (qSize > 0)
+    {
+      qSize -= 1;
+      InstructionWrapper *curTyNode = instWQ.front();
+      DIType *nodeDIType = DITypeQ.front();
+      instWQ.pop();
+      DITypeQ.pop();
+
+      if (!nodeDIType)
+        continue;
+      insertLoc = getTreeNodeInsertLoc(objectTree, curTyNode);
+      // process pointer type
+      if (DIUtils::isPointerType(nodeDIType))
+      {
+        // extract the pointed value, push it to inst queue for further process.
+        InstructionWrapper *pointedTypeW = buildPointerTreeNodeWithDI(GV, *curTyNode, objectTree, *nodeDIType);
+        instWQ.push(pointedTypeW);
+        try
+        {
+          DITypeQ.push(DIUtils::getBaseDIType(nodeDIType));
+        }
+        catch (std::exception &e)
+        {
+          errs() << e.what() << "\n";
+          exit(0);
+        }
+        continue;
+      }
+      // stop bulding if not a struct field
+      if (!DIUtils::isStructTy(nodeDIType))
+        continue;
+      // get structure fields based on debugging information
+      nodeDIType = DIUtils::getLowestDIType(nodeDIType);
+      auto DINodeArr = dyn_cast<DICompositeType>(nodeDIType)->getElements();
+      for (unsigned i = 0; i < DINodeArr.size(); ++i)
+      {
+        DIType *fieldDIType = dyn_cast<DIType>(DINodeArr[i]);
+        InstructionWrapper *fieldNodeW = new TreeTypeWrapper(&GV, GraphNodeType::PARAMETER_FIELD, i, fieldDIType);
+        objectTree.append_child(insertLoc, fieldNodeW);
+        instWQ.push(fieldNodeW);
+        DITypeQ.push(DIUtils::getBaseDIType(fieldDIType));
+      }
+    }
+  }
+  globalObjectTrees.insert(std::make_pair(&GV, objectTree));
+}
 
 void pdg::ProgramDependencyGraph::drawFormalParameterTree(Function *Func, TreeType treeTy)
 {
@@ -809,22 +913,20 @@ void pdg::ProgramDependencyGraph::drawFormalParameterTree(Function *Func, TreeTy
   }
 }
 
-std::vector<InstructionWrapper *> pdg::ProgramDependencyGraph::getReadInstsOnInst(Instruction *inst)
+void pdg::ProgramDependencyGraph::getReadInstsOnInst(Instruction *inst, std::set<InstructionWrapper*> &readInstWs)
 {
-  std::vector<InstructionWrapper *> ret;
   auto depList = getNodeDepList(inst);
   for (auto pair : depList)
   {
     if (pair.second == DependencyType::DATA_READ)
-      ret.push_back(const_cast<InstructionWrapper *>(pair.first->getData()));
+      readInstWs.insert(const_cast<InstructionWrapper *>(pair.first->getData()));
   }
-  return ret;
 }
 
-std::vector<InstructionWrapper *> pdg::ProgramDependencyGraph::getAllAlias(Instruction *inst)
+std::set<InstructionWrapper *> pdg::ProgramDependencyGraph::getAllAlias(Instruction *inst)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  std::vector<InstructionWrapper *> ret;
+  std::set<InstructionWrapper *> ret;
   auto instW = pdgUtils.getInstMap()[inst];
   std::set<InstructionWrapper *> seen_nodes;
   std::queue<InstructionWrapper *> workQ;
@@ -849,7 +951,7 @@ std::vector<InstructionWrapper *> pdg::ProgramDependencyGraph::getAllAlias(Instr
 
         seen_nodes.insert(tmpInstW);
         workQ.push(tmpInstW);
-        ret.push_back(tmpInstW);
+        ret.insert(tmpInstW);
       }
     }
   }
@@ -874,7 +976,7 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
 
     if (argAlloc == nullptr)
     {
-      errs() << "Cannot get arg alloc" << callee->getName() << "\n";
+      errs() << "Cannot get arg alloc " << (*argI)->getArg()->getArgNo() << " - " << callee->getName() << "\n";
       return;
     }
 
@@ -904,7 +1006,7 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
         // collect all alias instructions for each parent' dependent instruction
         auto parentDepInstAliasList = getAllAlias(parentDepInstW->getInstruction());
         parentDepInstAliasList.clear(); // TODO: need to be removded
-        parentDepInstAliasList.push_back(const_cast<InstructionWrapper *>(parentDepInstW));
+        parentDepInstAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
 
         for (auto depInstAlias : parentDepInstAliasList)
         {
@@ -912,7 +1014,8 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
             continue;
 
           // PDG->addDependency(*ParentI, depInstAlias, DependencyType::VAL_DEP); // add Val_Dep dependency between parent node and its dep insts
-          auto readInsts = getReadInstsOnInst(depInstAlias->getInstruction());
+          std::set<InstructionWrapper*> readInsts;
+          getReadInstsOnInst(depInstAlias->getInstruction(), readInsts);
 
           for (auto readInstW : readInsts)
           {
@@ -1267,13 +1370,14 @@ void pdg::ProgramDependencyGraph::connectCallerAndActualTrees(Function *caller)
         {
           auto parentDepInstW = pair.first->getData();
           auto parentDepInstAliasList = getAllAlias(parentDepInstW->getInstruction());
-          parentDepInstAliasList.push_back(const_cast<InstructionWrapper *>(parentDepInstW));
+          parentDepInstAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
 
           for (auto depInstAlias : parentDepInstAliasList)
           {
             if (depInstAlias->getInstruction() == nullptr)
               continue;
-            auto readInstWs = getReadInstsOnInst(depInstAlias->getInstruction());
+            std::set<InstructionWrapper*> readInstWs;
+            getReadInstsOnInst(depInstAlias->getInstruction(), readInstWs);
 
             for (auto readInstW : readInstWs)
             {
@@ -1302,7 +1406,6 @@ Value *pdg::ProgramDependencyGraph::getCallSiteParamVal(CallInst *CI, unsigned i
   }
   return CI->getArgOperand(idx);
 }
-
 
 static RegisterPass<pdg::ProgramDependencyGraph>
     PDG("pdg", "Program Dependency Graph Construction", false, true);

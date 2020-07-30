@@ -38,9 +38,12 @@ public:
   void drawActualParameterTree(llvm::CallInst *CI, TreeType treeTy);
   void buildFormalTreeForFunc(llvm::Function *Func);
   void buildFormalTreeForArg(llvm::Argument &arg, TreeType treeTy);
+  InstructionWrapper *buildPointerTreeNodeWithDI(llvm::Value &val, InstructionWrapper &parentTreeNodeW, tree<InstructionWrapper *> &objectTree, llvm::DIType &curDIType);
+  void buildObjectTreeForGlobalVars();
+  void buildObjectTreeForGlobalVar(llvm::GlobalVariable &GV, llvm::DIType &DI);
   bool hasRecursiveType(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator insert_loc);
   bool isFilePtrOrFuncTy(llvm::Type* ty);
-  InstructionWrapper* buildPointerTypeNode(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator);
+  InstructionWrapper *buildPointerTypeNode(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator insertLoc);
   InstructionWrapper *buildPointerTypeNodeWithDI(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator, llvm::DIType *dt);
   void buildTypeTree(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType);
   void buildTypeTreeWithDI(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType *argDIType);
@@ -50,18 +53,21 @@ public:
   bool connectAllPossibleFunctions(llvm::CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates);
   void connectActualTreeToFormalTree(llvm::CallInst *CI, llvm::Function *called_func);
   bool connectCallerAndCallee(InstructionWrapper *instW, llvm::Function *callee);
+  void connectGlobalObjectTreeWithAddressVars();
+  std::set<InstructionWrapper*> collectAllocaInstWsOnDIType(llvm::DIType* dt);
   // field sensitive related functions
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);
   llvm::Instruction *getArgAllocaInst(llvm::Argument &arg);
   llvm::Value *getCallSiteParamVal(llvm::CallInst* CI, unsigned idx);
   // tree building helper functions
-  std::vector<InstructionWrapper*> getReadInstsOnInst(llvm::Instruction* inst);
-  std::vector<InstructionWrapper *> getAllAlias(llvm::Instruction *inst);
+  void getReadInstsOnInst(llvm::Instruction* inst, std::set<InstructionWrapper*> &readInsts);
+  std::set<InstructionWrapper *> getAllAlias(llvm::Instruction *inst);
   bool isFuncTypeMatch(llvm::FunctionType *funcType1, llvm::FunctionType *funcType2);
   bool isTreeNodeGEPMatch(InstructionWrapper *treeNode, llvm::Instruction *GEP);
   bool isIndirectCallOrInlineAsm(llvm::CallInst *CI);
   bool nameMatch(std::string str1, std::string str2);
   tree<InstructionWrapper *>::iterator getInstInsertLoc(ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy);
+  tree<InstructionWrapper *>::iterator getTreeNodeInsertLoc(tree<InstructionWrapper *> &objectTree, InstructionWrapper *treeW);
   //  dep printer related functions
   std::vector<DependencyNode<InstructionWrapper> *> getNodeSet() { return PDG->getNodeSet(); }
   DependencyGraph<InstructionWrapper> *_getPDG() { return PDG; }
@@ -70,6 +76,7 @@ public:
   llvm::Function* getCalledFunction(llvm::CallInst* CI);
   bool isFuncPointer(llvm::Type *ty);
   bool isStructPointer(llvm::Type *ty);
+  std::map<llvm::GlobalVariable*, tree<InstructionWrapper *>> getGlobalObjectTrees() { return globalObjectTrees; }
 
 private:
   llvm::Module *module;
@@ -78,6 +85,7 @@ private:
   DataDependencyGraph *ddg;
   std::vector<llvm::Instruction*> lockCallSites;
   std::set<std::string> lockCallNameList;
+  std::map<llvm::GlobalVariable*, tree<InstructionWrapper*>> globalObjectTrees;
 };
 } // namespace pdg
 
