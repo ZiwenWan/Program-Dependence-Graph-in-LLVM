@@ -38,7 +38,9 @@ target_link_libraries(pdg "${CMAKE_CURRENT_SOURCE_DIR}/sea-dsa/build/lib/libSeaD
 # Turn on C++11, turn off C++ RTTI.
 #
 target_compile_features(pdg PRIVATE cxx_range_for cxx_auto_type)
-set_target_properties(pdg PROPERTIES COMPILE_FLAGS "-fno-rtti")
+# set_target_properties(pdg PROPERTIES COMPILE_FLAGS "-fno-rtti")
+set_target_properties(pdg PROPERTIES COMPILE_FLAGS "-D__GLIBCXX_USE_CXX11_ABI=0 -fno-rtti" )
+
 
 #
 # OS X-specific configuration

@@ -29,6 +29,7 @@ class DIUtils
     static void printStructFieldNames(llvm::DINodeArray DINodeArr);
     static bool isPointerType(llvm::DIType *dt);
     static bool isStructPointerTy(llvm::DIType *dt);
+    static bool isUnionPointerTy(llvm::DIType *dt);
     static bool isStructTy(llvm::DIType *dt);
     static bool isFuncPointerTy(llvm::DIType *dt);
     static llvm::DIType *stripMemberTag(llvm::DIType *dt);

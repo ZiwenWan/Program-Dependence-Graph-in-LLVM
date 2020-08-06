@@ -74,7 +74,7 @@ private:
   std::map<std::string, std::string> driverExportFuncPtrNameMap;
   std::map<std::string, std::set<std::string>> sharedDataTypeMap;
   std::map<std::string, AccessType> globalFieldAccessInfo;
-  bool seenFuncOps;
+  std::set<std::string> seenFuncOps;
   bool crossBoundary; // indicate whether transitive closure cross two domains
 };
 

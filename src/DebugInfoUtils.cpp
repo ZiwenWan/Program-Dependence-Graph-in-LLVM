@@ -439,12 +439,24 @@ bool pdg::DIUtils::isStructPointerTy(DIType *dt)
 {
   if (dt == nullptr)
     return false;
-
   dt = stripMemberTag(dt);
   if (dt->getTag() == dwarf::DW_TAG_pointer_type) {
     auto baseTy = getLowestDIType(dt);
     if (baseTy != nullptr) 
       return (baseTy->getTag() == dwarf::DW_TAG_structure_type);
+  }
+  return false;
+}
+
+bool pdg::DIUtils::isUnionPointerTy(DIType *dt)
+{
+  if (dt == nullptr)
+    return false;
+  dt = stripMemberTag(dt);
+  if (dt->getTag() == dwarf::DW_TAG_pointer_type) {
+    auto baseTy = getLowestDIType(dt);
+    if (baseTy != nullptr) 
+      return (baseTy->getTag() == dwarf::DW_TAG_union_type);
   }
   return false;
 }
@@ -455,7 +467,7 @@ bool pdg::DIUtils::isStructTy(DIType *dt)
     return false;
   if (dt->getTag() == dwarf::DW_TAG_pointer_type)
     return false;
-  auto baseTy = getLowestDIType(dt);
+  auto baseTy = getLowestDIType(dt); // strip off tag member type
   if (baseTy != nullptr)
     return (baseTy->getTag() == dwarf::DW_TAG_structure_type);
   return false;
@@ -621,7 +633,14 @@ std::string pdg::DIUtils::getInvalidTypeStr(DIType* dt)
 
 bool pdg::DIUtils::isUnionType(DIType *dt)
 {
-  return (dt->getTag() == dwarf::DW_TAG_union_type);
+  if (dt == nullptr)
+    return false;
+  if (dt->getTag() == dwarf::DW_TAG_pointer_type)
+    return false;
+  auto baseTy = getLowestDIType(dt); // strip off tag member type
+  if (baseTy != nullptr)
+    return (baseTy->getTag() == dwarf::DW_TAG_union_type);
+  return false;
 }
 
 bool pdg::DIUtils::isArrayType(DIType *dt)

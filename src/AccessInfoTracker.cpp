@@ -97,8 +97,8 @@ AccessType pdg::AccessInfoTracker::getAccessTypeForInstW(const InstructionWrappe
 
     if (depType == DependencyType::DATA_DEF_USE)
     {
-      if (isa<LoadInst>(depInstW->getInstruction()) || isa<GetElementPtrInst>(depInstW->getInstruction()))
-        accessType = AccessType::READ;
+      // if (isa<LoadInst>(depInstW->getInstruction()) || isa<GetElementPtrInst>(depInstW->getInstruction()))
+      accessType = AccessType::READ;
     }
 
     // check for store instruction.
@@ -794,20 +794,23 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     bool accessed = false;
 
     // only process sturct pointer and function pointer, these are the only types that we should generate projection for
-    if (!DIUtils::isStructPointerTy(curDIType) && !DIUtils::isFuncPointerTy(curDIType))
+    if (!DIUtils::isStructPointerTy(curDIType) &&
+        !DIUtils::isFuncPointerTy(curDIType) &&
+        !DIUtils::isUnionPointerTy(curDIType) &&
+        !DIUtils::isStructTy(curDIType))
       continue;
 
-    curDIType = DIUtils::getLowestDIType(curDIType);
+    DIType* baseType = DIUtils::getLowestDIType(curDIType);
 
-    if (!DIUtils::isStructTy(curDIType))
+    if (!DIUtils::isStructTy(baseType) && !DIUtils::isUnionType(baseType))
       continue;
 
-    treeI++;
+    if (DIUtils::isStructPointerTy(curDIType) || DIUtils::isUnionPointerTy(curDIType))
+      treeI++;
     for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
     {
       auto childT = tree<InstructionWrapper *>::child(treeI, i);
       auto childDIType = (*childT)->getDIType();
-
       // std::string fieldID = DIUtils::computeFieldID(argDIType, childDIType);
       // determien if a field is accessed in asynchrnous context. If so, add it to projection.
       // if (accessedFieldsInAsyncCalls.find(fieldID) != accessedFieldsInAsyncCalls.end())
@@ -819,14 +822,11 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       //     (*childT)->setAccessType(accType);
       //   }
       // }
-
       if ((*childT)->getAccessType() == AccessType::NOACCESS)
         continue;
-
       // check if an accessed field is in the set of shared data
       // if (!isChildFieldShared(argDIType, childDIType))
       //   continue;
-
       // only check access status under cross boundary case. If not cross, we do not check and simply perform
       // normal field finding analysis.
       accessed = true;
@@ -866,7 +866,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
         }
 
         std::string fieldTypeName = tmpName;
-        if (fieldTypeName.find("device_ops") == std::string::npos) // specific handling for function ops
+        if (fieldTypeName.find("ops") == std::string::npos) // specific handling for struct ops
           fieldTypeName = tmpName + "_" + tmpFuncName;
 
         projection_str << "\t\t"
@@ -876,6 +876,20 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       }
       else if (DIUtils::isStructTy(childDIType))
       {
+        auto fieldTypeName = DIUtils::getDITypeName(childDIType);
+        projection_str << "\t\t"
+                       << "projection " << fieldTypeName << " "
+                       << " " << DIUtils::getDIFieldName(childDIType)<< "_" << funcName << ";\n";
+        treeNodeQ.push(childT);
+        continue;
+      }
+      else if (DIUtils::isUnionType(childDIType))
+      {
+        auto fieldTypeName = DIUtils::getDITypeName(childDIType) + funcName;
+        // continue;
+        projection_str << "\t\t"
+                       << "union " << fieldTypeName << " "
+                       << " " << DIUtils::getDIFieldName(childDIType) << ";\n";
         continue;
       }
       else
@@ -887,34 +901,44 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     }
 
     // if any child field is accessed, we need to print out the projection for the current struct.
-    if (DIUtils::isStructTy(curDIType))
+    if (DIUtils::isStructTy(baseType))
     {
       std::stringstream temp;
-      std::string structName = DIUtils::getDIFieldName(curDIType);
-
-      // a very specific handling for generating IDL for function ops
-      if (structName.find("device_ops") == std::string::npos)
+      std::string structName = DIUtils::getDIFieldName(curDIType); // the name is stored in tag member.
+      // a very specific handling for generating IDL for function struct ops
+      if (structName.find("ops") == std::string::npos)
       {
         temp << "\tprojection "
              << "< struct " << structName << " > " << structName << "_" << funcName << " "
              << " {\n"
              << projection_str.str() << " \t}\n\n";
-      } else {
-        if (!seenFuncOps)
+      }
+      else
+      {
+        if (seenFuncOps.find(structName) == seenFuncOps.end()) // only generate projection for struct ops at the first time we see it.
         {
           temp << "\tprojection "
-               << "< struct " << structName << " > " << structName <<  " "
+               << "< struct " << structName << " > " << structName << " "
                << " {\n"
                << projection_str.str() << " \t}\n\n";
-          seenFuncOps = true;
+          seenFuncOps.insert(structName);
         }
       }
-
+      projection_str = std::move(temp);
+    }
+    else if (DIUtils::isUnionType(baseType))
+    {
+      std::stringstream temp;
+      std::string unionName = DIUtils::getDIFieldName(baseType);
+      // a very specific handling for generating IDL for function ops
+      temp << "\tprojection "
+           << "< union " << unionName << " > " << unionName << "_" << funcName << " "
+           << " {\n"
+           << projection_str.str() << " \t}\n\n";
       projection_str = std::move(temp);
     }
     else
       projection_str.str(""); 
-
     // process function pointers. Need to find all candidate called functions, and get all the access information from them.
     // while (!funcPtrQ.empty())
     // {
@@ -925,7 +949,6 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     //   if (processedFuncPtrNames.find(funcPtrName) == processedFuncPtrNames.end())
     //     generateIDLforFuncPtrWithDI((*funcT)->getDIType(), F.getParent(), funcPtrName);
     // }
-
     idl_file << projection_str.str();
     accessed = false;
   }

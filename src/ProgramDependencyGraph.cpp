@@ -41,10 +41,12 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   // unsigned totalFuncInModule = 0;
   // for (auto &F : M)
   // {
-  //   totalFuncInModule++;
+  //   if (F.isDeclaration() || F.empty())
+  //     continue;
+  //   buildPDGForFunc(&F);
   // }
-
-  errs() << "find " << funcsNeedPDGConstruction.size() << " funcs need PDG construction." << "\n";
+// 
+  // errs() << "find " << funcsNeedPDGConstruction.size() << " funcs need PDG construction." << "\n";
   // start building pdg for each function
   for (Function *F : funcsNeedPDGConstruction)
   {
@@ -52,8 +54,8 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
       continue;
     buildPDGForFunc(F);
   }
-  buildObjectTreeForGlobalVars();
-  connectGlobalObjectTreeWithAddressVars();
+  // buildObjectTreeForGlobalVars();
+  // connectGlobalObjectTreeWithAddressVars();
   errs() << "Finish building pdg\n";
   return false;
 }
@@ -641,8 +643,8 @@ void pdg::ProgramDependencyGraph::buildTypeTreeWithDI(Argument &arg, Instruction
         continue;
       }
 
-      // stop bulding if not a struct field
-      if (!DIUtils::isStructTy(nodeDIType))
+      // stop bulding if not a struct type
+      if (!DIUtils::isStructTy(nodeDIType) && !DIUtils::isUnionType(nodeDIType))
         continue;
       // get structure fields based on debugging information
       nodeDIType = DIUtils::getLowestDIType(nodeDIType);
@@ -1000,25 +1002,34 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
       // for tree nodes that are not root, get parent node's dependent instructions and then find loadInst or GEP Inst from parent's loads instructions
       auto ParentI = tree<InstructionWrapper *>::parent(treeI);
       auto parentValDepNodes = getNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
+      if (DIUtils::isUnionType((*ParentI)->getDIType()))
+      {
+        for (auto pair : parentValDepNodes)
+        {
+          auto parentDepInstW = pair.first->getData();
+          PDG->addDependency(*treeI, parentDepInstW, DependencyType::VAL_DEP);
+        }
+        continue;
+      }
+
       for (auto pair : parentValDepNodes)
       {
         auto parentDepInstW = pair.first->getData();
         // collect all alias instructions for each parent' dependent instruction
         auto parentDepInstAliasList = getAllAlias(parentDepInstW->getInstruction());
-        parentDepInstAliasList.clear(); // TODO: need to be removded
+        // parentDepInstAliasList.clear(); // TODO: need to be removded
         parentDepInstAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
-
+        errs() << "for " << DIUtils::getDIFieldName((*treeI)->getDIType()) << "\n";
         for (auto depInstAlias : parentDepInstAliasList)
         {
           if (depInstAlias->getInstruction() == nullptr)
             continue;
-
-          // PDG->addDependency(*ParentI, depInstAlias, DependencyType::VAL_DEP); // add Val_Dep dependency between parent node and its dep insts
           std::set<InstructionWrapper*> readInsts;
           getReadInstsOnInst(depInstAlias->getInstruction(), readInsts);
-
+          errs() << *(depInstAlias->getInstruction()) << "\n";
           for (auto readInstW : readInsts)
           {
+            errs() << "\t" << *(readInstW->getInstruction()) << "\n";
             if (isa<LoadInst>(readInstW->getInstruction()))
               PDG->addDependency(*treeI, readInstW, DependencyType::VAL_DEP);
             // for GEP, checks the offset acutally match
@@ -1311,6 +1322,7 @@ bool pdg::ProgramDependencyGraph::isTreeNodeGEPMatch(InstructionWrapper *treeNod
       // check if the offset is equal
       // bool srcTypeMatch = (GEPSrcTy == parentNodeTy);
       // bool resTypeMatch = (GEPResTy == treeNodeTy);
+      errs() << field_idx << " - " << field_offset << "\n";
       return (field_idx == field_offset);
       // bool offsetMatch = (field_idx == field_offset);
       // // if (offsetMatch && resTypeMatch && srcTypeMatch)

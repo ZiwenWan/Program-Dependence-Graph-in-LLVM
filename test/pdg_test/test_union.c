@@ -1,31 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct B {
-    int c;
+union UTEST{
+    struct {
+        int c;
+        int b;
+    } B;
+    struct {
+        int d;
+    } C;
 };
 
-struct C {
-    int d;
-};
-
-struct S {
-    int a;
-    union {
-        struct B* b;
-        struct C* c;
-    };
-};
+int f(union UTEST *utest) {
+    if (utest->B.c > 5)
+        return utest->B.c;
+    return 5;
+}
 
 int main() {
-    struct B b = {5};
-    struct C c = {10};
-    struct S* ss = (struct S*)malloc(sizeof(struct S));
-    ss->a = 5;
-    ss->b = &b;
-    ss->c = &c;
-    printf("%d\n", ss->b->c);
-    printf("%d\n", ss->c->d);
-    free(ss);
+    union UTEST utest;
+    utest.B.c = 10;
+    f(&utest);
     return 0;
 }
+
