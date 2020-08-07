@@ -1019,17 +1019,14 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
         auto parentDepInstAliasList = getAllAlias(parentDepInstW->getInstruction());
         // parentDepInstAliasList.clear(); // TODO: need to be removded
         parentDepInstAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
-        errs() << "for " << DIUtils::getDIFieldName((*treeI)->getDIType()) << "\n";
         for (auto depInstAlias : parentDepInstAliasList)
         {
           if (depInstAlias->getInstruction() == nullptr)
             continue;
           std::set<InstructionWrapper*> readInsts;
           getReadInstsOnInst(depInstAlias->getInstruction(), readInsts);
-          errs() << *(depInstAlias->getInstruction()) << "\n";
           for (auto readInstW : readInsts)
           {
-            errs() << "\t" << *(readInstW->getInstruction()) << "\n";
             if (isa<LoadInst>(readInstW->getInstruction()))
               PDG->addDependency(*treeI, readInstW, DependencyType::VAL_DEP);
             // for GEP, checks the offset acutally match
@@ -1322,7 +1319,6 @@ bool pdg::ProgramDependencyGraph::isTreeNodeGEPMatch(InstructionWrapper *treeNod
       // check if the offset is equal
       // bool srcTypeMatch = (GEPSrcTy == parentNodeTy);
       // bool resTypeMatch = (GEPResTy == treeNodeTy);
-      errs() << field_idx << " - " << field_offset << "\n";
       return (field_idx == field_offset);
       // bool offsetMatch = (field_idx == field_offset);
       // // if (offsetMatch && resTypeMatch && srcTypeMatch)

@@ -16,7 +16,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   driverExportFuncPtrNameMap = pdgUtils.computeDriverExportFuncPtrNameMap();
   inferAsynchronousCalledFunction(crossDomainFuncCalls);
   // start generating IDL
-  // computeSharedDataForGlobalVars();
+  computeSharedDataForGlobalVars();
   std::string file_name = "kernel";
   file_name += ".idl";
   idl_file.open(file_name);
@@ -27,7 +27,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
     if (F->isDeclaration())
       continue;
     computeFuncAccessInfo(*F);
-    // computeSharedDataInFunc(*F);
+    computeSharedDataInFunc(*F);
     generateIDLforFunc(*F);
   }
   idl_file << "}";
@@ -213,13 +213,13 @@ void pdg::AccessInfoTracker::computeArgAccessInfo(ArgumentWrapper* argW, TreeTyp
   }
 
   // setup search domain, this is used to compute needed data
-  std::set<Function *> searchDomain;
-  searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
-  searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
+  // std::set<Function *> searchDomain;
+  // searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
+  // searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
   // as the passed in function is the starting point of cross-domain call, we check which domain the function is in.
-  std::set<Function*> receiverDomainTrans = getTransitiveClosureInDomain(*func, searchDomain);
+  // std::set<Function*> receiverDomainTrans = getTransitiveClosureInDomain(*func, searchDomain);
   computeIntraprocArgAccessInfo(argW, *func);
-  computeInterprocArgAccessInfo(argW, *func, receiverDomainTrans);
+  computeInterprocArgAccessInfo(argW, *func);
 }
 
 // intraprocedural
@@ -253,77 +253,171 @@ void pdg::AccessInfoTracker::computeIntraprocArgAccessInfo(ArgumentWrapper *argW
   }
 }
 
-void pdg::AccessInfoTracker::computeInterprocArgAccessInfo(ArgumentWrapper* argW, Function &F, std::set<Function*> receiverDomainTrans)
+void pdg::AccessInfoTracker::computeInterprocArgAccessInfo(ArgumentWrapper* argW, Function &F)
 {
   errs() << "start computing inter proc info for: " << F.getName() << " - " << argW->getArg()->getArgNo() << "\n";
   auto &pdgUtils = PDGUtils::getInstance();
   auto instMap = pdgUtils.getInstMap();
+  std::map<std::string, AccessType> interprocAccessFieldMap;
   for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE); treeI != argW->tree_end(TreeType::FORMAL_IN_TREE); ++treeI)
   {
-    // if has an address variable, then simply check if any alias exists in the transitive closure.
     auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
     for (auto valDepPair : valDepPairList)
     {
       auto dataW = valDepPair.first->getData();
       // compute interprocedural access info in the receiver domain
-      std::set<Value *> aliasSet = findAliasInDomain(*(dataW->getInstruction()), F, receiverDomainTrans);
-      for (auto alias : aliasSet)
+      // std::set<Value *> aliasSet = findAliasInDomain(*(dataW->getInstruction()), F, receiverDomainTrans);
+      auto depNodePairs = PDG->getNodesWithDepType(dataW, DependencyType::DATA_CALL_PARA);
+      for (auto depNodePair : depNodePairs)
       {
-        if (Instruction *i = dyn_cast<Instruction>(alias))
+        auto depInstW = depNodePair.first->getData();
+        if (CallInst *ci = dyn_cast<CallInst>(depInstW->getInstruction()))
         {
-          // analyze alias read/write info
-          auto aliasW = instMap[i];
-          AccessType aliasAccType = getAccessTypeForInstW(aliasW);
-          if (static_cast<int>(aliasAccType) > static_cast<int>((*treeI)->getAccessType()))
-            (*treeI)->setAccessType(aliasAccType);
+          int callArgIdx = getCallOperandIdx(dataW->getInstruction(), ci);
+          if (callArgIdx < 0) // invalid idx
+            continue;
+          if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+          {
+            if (calledFunc->isDeclaration() || calledFunc->empty())
+              continue;
+            auto accessFieldMap = computeInterprocAccessedFieldMap(*calledFunc, callArgIdx);
+            interprocAccessFieldMap.insert(accessFieldMap.begin(), accessFieldMap.end());
+          }
         }
       }
     }
+  }
 
-    // if the list is empty, then this node doesn't has any address variable inside a function
-    if (valDepPairList.size() != 0)
-      continue;
-    // no need for checking the root node 
-    if (tree<InstructionWrapper*>::depth(treeI) == 0)
-      continue;
-    //  get parent node
-    auto parentI = tree<InstructionWrapper*>::parent(treeI);
-    // check if parent is a struct 
-    DIType* parentDIType = (*parentI)->getDIType();
-    if (!DIUtils::isStructTy(parentDIType))
-      continue;
-    auto parentValDepList = PDG->getNodesWithDepType(*parentI, DependencyType::VAL_DEP);
-    if (parentValDepList.size() == 0)
-      continue;
-    
-    unsigned childIdx = (*treeI)->getNodeOffset();
-    auto dataW = parentValDepList.front().first->getData();
-    assert(dataW->getInstruction() && "cannot find parent instruction while computing interproce access info.");
-    // get struct layout
-    DIType* childDIType = (*treeI)->getDIType();
-    auto dataLayout = module->getDataLayout();
-    std::string parentStructName = DIUtils::getDIFieldName(parentDIType);
-    parentStructName = "struct." + parentStructName;
-    auto parentLLVMStructTy = module->getTypeByName(StringRef(parentStructName));
-    if (!parentLLVMStructTy)
-      continue;
-    if (childIdx >= parentLLVMStructTy->getNumElements())
-      continue;
-    // compute element offset in byte
-    auto parentStructLayout = dataLayout.getStructLayout(parentLLVMStructTy);
-    unsigned childOffsetInByte = parentStructLayout->getElementOffset(childIdx);
-    auto interProcAlias = findAliasInDomainWithOffset(*dataW->getInstruction(), F, childOffsetInByte, receiverDomainTrans);
-    for (auto alias : interProcAlias)
+  for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE); treeI != argW->tree_end(TreeType::FORMAL_IN_TREE); ++treeI)
+  {
+    DIType* parentDIType = nullptr;
+    DIType* curNodeDIType = (*treeI)->getDIType();
+    if (tree<InstructionWrapper *>::depth(treeI) != 0)
     {
-      if (Instruction *i = dyn_cast<Instruction>(alias))
-      {
-        auto aliasW = instMap[i];
-        AccessType aliasAccType = getAccessTypeForInstW(aliasW);
-        if (static_cast<int>(aliasAccType) > static_cast<int>((*treeI)->getAccessType()))
-          (*treeI)->setAccessType(aliasAccType);
-      }
+      auto ParentI = tree<InstructionWrapper *>::parent(treeI);
+      parentDIType = (*ParentI)->getDIType();
+    }
+    std::string fieldId = DIUtils::computeFieldID(parentDIType, curNodeDIType);
+    if (interprocAccessFieldMap.find(fieldId) != interprocAccessFieldMap.end())
+      (*treeI)->setAccessType(interprocAccessFieldMap[fieldId]);
+  }
+}
+
+int pdg::AccessInfoTracker::getCallOperandIdx(Value* operand, CallInst* callInst)
+{
+  int argNo = 0;
+  for (auto arg_iter = callInst->arg_begin(); arg_iter != callInst->arg_end(); ++arg_iter)
+  {
+    if (Instruction *tmpInst = dyn_cast<Instruction>(&*arg_iter))
+    {
+      if (tmpInst == operand)
+        return argNo;
+    }
+    argNo++;
+  }
+  if (argNo == callInst->getNumArgOperands())
+    return -1;
+  return argNo;
+}
+
+// void pdg::AccessInfoTracker::computeInterprocArgAccessInfo(ArgumentWrapper* argW, Function &F, std::set<Function*> receiverDomainTrans)
+// {
+//   errs() << "start computing inter proc info for: " << F.getName() << " - " << argW->getArg()->getArgNo() << "\n";
+//   auto &pdgUtils = PDGUtils::getInstance();
+//   auto instMap = pdgUtils.getInstMap();
+//   for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE); treeI != argW->tree_end(TreeType::FORMAL_IN_TREE); ++treeI)
+//   {
+//     // if has an address variable, then simply check if any alias exists in the transitive closure.
+//     auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+//     for (auto valDepPair : valDepPairList)
+//     {
+//       auto dataW = valDepPair.first->getData();
+//       // compute interprocedural access info in the receiver domain
+//       std::set<Value *> aliasSet = findAliasInDomain(*(dataW->getInstruction()), F, receiverDomainTrans);
+//       for (auto alias : aliasSet)
+//       {
+//         if (Instruction *i = dyn_cast<Instruction>(alias))
+//         {
+//           // analyze alias read/write info
+//           auto aliasW = instMap[i];
+//           AccessType aliasAccType = getAccessTypeForInstW(aliasW);
+//           if (static_cast<int>(aliasAccType) > static_cast<int>((*treeI)->getAccessType()))
+//             (*treeI)->setAccessType(aliasAccType);
+//         }
+//       }
+//     }
+
+//     // if the list is empty, then this node doesn't has any address variable inside a function
+//     if (valDepPairList.size() != 0)
+//       continue;
+//     // no need for checking the root node 
+//     if (tree<InstructionWrapper*>::depth(treeI) == 0)
+//       continue;
+//     //  get parent node
+//     auto parentI = tree<InstructionWrapper*>::parent(treeI);
+//     // check if parent is a struct 
+//     DIType* parentDIType = (*parentI)->getDIType();
+//     if (!DIUtils::isStructTy(parentDIType))
+//       continue;
+//     auto parentValDepList = PDG->getNodesWithDepType(*parentI, DependencyType::VAL_DEP);
+//     if (parentValDepList.size() == 0)
+//       continue;
+    
+//     unsigned childIdx = (*treeI)->getNodeOffset();
+//     auto dataW = parentValDepList.front().first->getData();
+//     assert(dataW->getInstruction() && "cannot find parent instruction while computing interproce access info.");
+//     // get struct layout
+//     DIType* childDIType = (*treeI)->getDIType();
+//     auto dataLayout = module->getDataLayout();
+//     std::string parentStructName = DIUtils::getDIFieldName(parentDIType);
+//     parentStructName = "struct." + parentStructName;
+//     auto parentLLVMStructTy = module->getTypeByName(StringRef(parentStructName));
+//     if (!parentLLVMStructTy)
+//       continue;
+//     if (childIdx >= parentLLVMStructTy->getNumElements())
+//       continue;
+//     // compute element offset in byte
+//     auto parentStructLayout = dataLayout.getStructLayout(parentLLVMStructTy);
+//     unsigned childOffsetInByte = parentStructLayout->getElementOffset(childIdx);
+//     auto interProcAlias = findAliasInDomainWithOffset(*dataW->getInstruction(), F, childOffsetInByte, receiverDomainTrans);
+//     for (auto alias : interProcAlias)
+//     {
+//       if (Instruction *i = dyn_cast<Instruction>(alias))
+//       {
+//         auto aliasW = instMap[i];
+//         AccessType aliasAccType = getAccessTypeForInstW(aliasW);
+//         if (static_cast<int>(aliasAccType) > static_cast<int>((*treeI)->getAccessType()))
+//           (*treeI)->setAccessType(aliasAccType);
+//       }
+//     }
+//   }
+// }
+
+std::map<std::string, AccessType> pdg::AccessInfoTracker::computeInterprocAccessedFieldMap(Function& callee, unsigned argNo)
+{
+  std::map<std::string, AccessType> accessFieldMap;
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto funcMap = pdgUtils.getFuncMap();
+  auto funcW = funcMap[&callee];
+  ArgumentWrapper* argW = funcW->getArgWByIdx(argNo);
+  if (argW == nullptr)
+    return accessFieldMap;
+  computeIntraprocArgAccessInfo(argW, callee); //TODO: has opportunity for optimization by avoid recomputing intra access info
+  for (auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE); treeI != argW->tree_end(TreeType::FORMAL_IN_TREE); ++treeI)
+  {
+    if ((*treeI)->getAccessType() == AccessType::NOACCESS)
+      continue;
+    std::string parentFieldName = "";
+    std::string fieldName = DIUtils::getDIFieldName((*treeI)->getDIType());
+    if (tree<InstructionWrapper *>::depth(treeI) != 0)
+    {
+      auto ParentI = tree<InstructionWrapper *>::parent(treeI);
+      std::string fieldId = DIUtils::computeFieldID((*ParentI)->getDIType(), (*treeI)->getDIType());
+      if (!fieldId.empty())
+        accessFieldMap.insert(std::make_pair(fieldId, (*treeI)->getAccessType()));
     }
   }
+  return accessFieldMap;
 }
 
 std::set<Value *> pdg::AccessInfoTracker::findAliasInDomainWithOffset(Value &V, Function &F, unsigned offset, std::set<Function *> receiverDomainTrans)
@@ -811,22 +905,22 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     {
       auto childT = tree<InstructionWrapper *>::child(treeI, i);
       auto childDIType = (*childT)->getDIType();
-      // std::string fieldID = DIUtils::computeFieldID(argDIType, childDIType);
+      std::string fieldID = DIUtils::computeFieldID(argDIType, childDIType);
       // determien if a field is accessed in asynchrnous context. If so, add it to projection.
-      // if (accessedFieldsInAsyncCalls.find(fieldID) != accessedFieldsInAsyncCalls.end())
-      // {
-      //   // retrieve the access type for a field accessed in asynchornous context
-      //   if (globalFieldAccessInfo.find(fieldID) != globalFieldAccessInfo.end())
-      //   {
-      //     auto accType = globalFieldAccessInfo[fieldID];
-      //     (*childT)->setAccessType(accType);
-      //   }
-      // }
+      if (accessedFieldsInAsyncCalls.find(fieldID) != accessedFieldsInAsyncCalls.end())
+      {
+        // retrieve the access type for a field accessed in asynchornous context
+        if (globalFieldAccessInfo.find(fieldID) != globalFieldAccessInfo.end())
+        {
+          auto accType = globalFieldAccessInfo[fieldID];
+          (*childT)->setAccessType(accType);
+        }
+      }
       if ((*childT)->getAccessType() == AccessType::NOACCESS)
         continue;
       // check if an accessed field is in the set of shared data
-      // if (!isChildFieldShared(argDIType, childDIType))
-      //   continue;
+      if (!isChildFieldShared(argDIType, childDIType))
+        continue;
       // only check access status under cross boundary case. If not cross, we do not check and simply perform
       // normal field finding analysis.
       accessed = true;

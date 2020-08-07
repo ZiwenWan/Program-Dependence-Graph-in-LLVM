@@ -92,7 +92,7 @@ void pdg::FunctionWrapper::setAST(AliasSetTracker* _AST)
 
 pdg::ArgumentWrapper *pdg::FunctionWrapper::getArgWByIdx(int idx)
 {
-  if (idx > argWList.size())
+  if (idx >= argWList.size())
   {
     errs() << "request index excess argW list length... Return nullptr" << "\n";
     return nullptr;

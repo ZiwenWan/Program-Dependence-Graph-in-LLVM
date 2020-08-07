@@ -592,7 +592,13 @@ std::set<std::string> pdg::DIUtils::computeSharedDataType(Module& M, std::set<Fu
 
 std::string pdg::DIUtils::computeFieldID(DIType *rootDIType, DIType *fieldDIType)
 {
-  std::string id = DIUtils::getDIFieldName(rootDIType) + DIUtils::getDIFieldName(fieldDIType);
+  std::string rootName = "";
+  std::string childName = "";
+  if (rootDIType != nullptr)
+    rootName = DIUtils::getDIFieldName(rootDIType);
+  if (fieldDIType != nullptr)
+    rootName = DIUtils::getDIFieldName(fieldDIType);
+  std::string id =  rootName + childName;
   return id;
 }
 

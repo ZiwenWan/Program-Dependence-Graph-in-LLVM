@@ -23,7 +23,8 @@ public:
   void computeFuncAccessInfo(llvm::Function &F);
   void computeArgAccessInfo(ArgumentWrapper *argW, TreeType treeTy);
   void computeIntraprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F);
-  void computeInterprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F, std::set<llvm::Function *> receiverDomainTrans);
+  void computeInterprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F);
+  std::map<std::string, AccessType> computeInterprocAccessedFieldMap(llvm::Function &callee, unsigned argNo);
   std::string getRegisteredFuncPtrName(std::string funcName);
   std::set<llvm::Value *> findAliasInDomainWithOffset(llvm::Value &V, llvm::Function &F, unsigned offset, std::set<llvm::Function *> receiverDomainTrans);
   std::set<llvm::Value *> findAliasInDomain(llvm::Value &V, llvm::Function &F, std::set<llvm::Function *> domainTransitiveClosure);
@@ -60,6 +61,7 @@ public:
   bool mayAlias(llvm::Value &V1, llvm::Value &V2, llvm::Function &F);
   std::set<llvm::Instruction *> getIntraFuncAlias(llvm::Instruction *inst);
   uint64_t getArrayArgSize(llvm::Value &V, llvm::Function &F);
+  int getCallOperandIdx(llvm::Value *operand, llvm::CallInst *callInst);
 
 private:
   ProgramDependencyGraph *PDG;
