@@ -71,6 +71,27 @@ bool pdg::DataDependencyGraph::isMustAlias(Value &V1, Value &V2, Function &F)
   return false;
 }
 
+bool pdg::DataDependencyGraph::isMayAlias(Value &V1, Value &V2, Function &F)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto m_dsa = pdgUtils.getDsaAnalysis();
+  sea_dsa::Graph *G = &m_dsa->getDsaAnalysis().getGraph(F);
+  if (!G)
+    return false;
+  if (!G->hasCell(V1) || !G->hasCell(V2))
+    return false;
+  auto const &c1 = G->getCell(V1);
+  auto const &c2 = G->getCell(V2);
+  auto const &s1 = c1.getNode()->getAllocSites();
+  auto const &s2 = c2.getNode()->getAllocSites();
+  for (auto const a1 : s1)
+  {
+    if (s2.find(a1) != s2.end())
+      return true;
+  }
+  return false;
+}
+
 void pdg::DataDependencyGraph::collectAliasDependencies()
 {
   auto &pdgUtils = PDGUtils::getInstance();
@@ -79,19 +100,42 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
   auto instMap = pdgUtils.getInstMap();
   for (auto I1 = inst_begin(Func); I1 != inst_end(Func); ++I1)
   {
-    for (auto I2 = I1; I2 != inst_end(Func); ++I2)
+    // handle cast
+    if (CastInst *ci = dyn_cast<CastInst>(&*I1))
+    {
+      Instruction* tmpInst = dyn_cast<Instruction>(&*I1);
+      DDG->addDependency(instMap[tmpInst], instMap[&*I1], DependencyType::DATA_ALIAS);
+      continue;
+    }
+
+    // handle call instruction that return an address
+    if (CallInst *ci = dyn_cast<CallInst>(&*I1))
+    {
+      if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+      {
+        if (ci->getType()->isPointerTy())
+        {
+          for (auto arg_iter = ci->arg_begin(); arg_iter != ci->arg_end(); ++arg_iter)
+          {
+            Instruction *tmpInst = dyn_cast<Instruction>(&*arg_iter);
+            if (!tmpInst) continue;
+            if (Func->getName() == "msr_open")
+              errs() << "adding dep: " << *tmpInst << " - " << *ci << "\n";
+            DDG->addDependency(instMap[tmpInst], instMap[ci], DependencyType::DATA_ALIAS);
+          }
+        }
+      }
+      continue;
+    }
+
+    for (auto I2 = inst_begin(Func); I2 != inst_end(Func); ++I2)
     {
       if (I1 == I2)
         continue;
-      if (isa<GetElementPtrInst>(&*I2))
+      if (auto gep = dyn_cast<GetElementPtrInst>(&*I2))
         continue;
-      if (isMustAlias(*I1, *I2, *Func))
+      if (isMayAlias(*I1, *I2, *Func))
         DDG->addDependency(instMap[&*I1], instMap[&*I2], DependencyType::DATA_ALIAS);
-      if (CastInst *ci = dyn_cast<CastInst>(&*I2))
-      {
-        if (ci->getOperand(0) == &*I1)
-          DDG->addDependency(instMap[&*I1], instMap[&*I2], DependencyType::DATA_ALIAS);
-      }
     }
   }
 }

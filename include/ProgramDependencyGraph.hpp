@@ -61,7 +61,7 @@ public:
   llvm::Value *getCallSiteParamVal(llvm::CallInst* CI, unsigned idx);
   // tree building helper functions
   void getReadInstsOnInst(llvm::Instruction* inst, std::set<InstructionWrapper*> &readInsts);
-  std::set<InstructionWrapper *> getAllAlias(llvm::Instruction *inst);
+  void getAllAlias(llvm::Instruction *inst, std::set<InstructionWrapper*> &ret);
   bool isFuncTypeMatch(llvm::FunctionType *funcType1, llvm::FunctionType *funcType2);
   bool isTreeNodeGEPMatch(InstructionWrapper *treeNode, llvm::Instruction *GEP);
   bool isIndirectCallOrInlineAsm(llvm::CallInst *CI);

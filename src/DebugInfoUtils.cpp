@@ -597,7 +597,7 @@ std::string pdg::DIUtils::computeFieldID(DIType *rootDIType, DIType *fieldDIType
   if (rootDIType != nullptr)
     rootName = DIUtils::getDIFieldName(rootDIType);
   if (fieldDIType != nullptr)
-    rootName = DIUtils::getDIFieldName(fieldDIType);
+    childName = DIUtils::getDIFieldName(fieldDIType);
   std::string id =  rootName + childName;
   return id;
 }

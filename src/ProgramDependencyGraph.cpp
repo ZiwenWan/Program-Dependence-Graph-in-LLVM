@@ -782,7 +782,8 @@ void pdg::ProgramDependencyGraph::connectGlobalObjectTreeWithAddressVars()
       {
         auto parentDepInstW = pair.first->getData();
         // collect all alias instructions for each parent' dependent instruction
-        std::set<InstructionWrapper*> parentDepInstAliasList = getAllAlias(parentDepInstW->getInstruction());
+        std::set<InstructionWrapper*> parentDepInstAliasList;
+        getAllAlias(parentDepInstW->getInstruction(), parentDepInstAliasList);
         parentDepInstAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
         for (auto depInstAlias : parentDepInstAliasList)
         {
@@ -925,10 +926,9 @@ void pdg::ProgramDependencyGraph::getReadInstsOnInst(Instruction *inst, std::set
   }
 }
 
-std::set<InstructionWrapper *> pdg::ProgramDependencyGraph::getAllAlias(Instruction *inst)
+void pdg::ProgramDependencyGraph::getAllAlias(Instruction *inst, std::set<InstructionWrapper*> &ret)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  std::set<InstructionWrapper *> ret;
   auto instW = pdgUtils.getInstMap()[inst];
   std::set<InstructionWrapper *> seen_nodes;
   std::queue<InstructionWrapper *> workQ;
@@ -948,6 +948,7 @@ std::set<InstructionWrapper *> pdg::ProgramDependencyGraph::getAllAlias(Instruct
           continue;
 
         auto tmpInstW = const_cast<InstructionWrapper *>(pair.first->getData());
+
         if (!tmpInstW || seen_nodes.find(tmpInstW) != seen_nodes.end())
           continue;
 
@@ -957,7 +958,6 @@ std::set<InstructionWrapper *> pdg::ProgramDependencyGraph::getAllAlias(Instruct
       }
     }
   }
-  return ret;
 }
 
 void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee)
@@ -1016,13 +1016,15 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
       {
         auto parentDepInstW = pair.first->getData();
         // collect all alias instructions for each parent' dependent instruction
-        auto parentDepInstAliasList = getAllAlias(parentDepInstW->getInstruction());
+        std::set<InstructionWrapper*> parentDepAliasList;
+        getAllAlias(parentDepInstW->getInstruction(), parentDepAliasList);
         // parentDepInstAliasList.clear(); // TODO: need to be removded
-        parentDepInstAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
-        for (auto depInstAlias : parentDepInstAliasList)
+        parentDepAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
+        for (auto depInstAlias : parentDepAliasList)
         {
           if (depInstAlias->getInstruction() == nullptr)
             continue;
+          PDG->addDependency(*ParentI, depInstAlias, DependencyType::VAL_DEP);
           std::set<InstructionWrapper*> readInsts;
           getReadInstsOnInst(depInstAlias->getInstruction(), readInsts);
           for (auto readInstW : readInsts)
@@ -1377,7 +1379,8 @@ void pdg::ProgramDependencyGraph::connectCallerAndActualTrees(Function *caller)
         for (auto pair : parentValDepNodes)
         {
           auto parentDepInstW = pair.first->getData();
-          auto parentDepInstAliasList = getAllAlias(parentDepInstW->getInstruction());
+          std::set<InstructionWrapper*> parentDepInstAliasList; 
+          getAllAlias(parentDepInstW->getInstruction(), parentDepInstAliasList);
           parentDepInstAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
 
           for (auto depInstAlias : parentDepInstAliasList)

@@ -43,6 +43,7 @@ public:
   void collectDataDependencyInFunc();
   void collectAliasDependencies();
   bool isMustAlias(llvm::Value &V1, llvm::Value &V2, llvm::Function &F);
+  bool isMayAlias(llvm::Value &V1, llvm::Value &V2, llvm::Function &F);
   DependencyNode<InstructionWrapper> *getNodeByData(llvm::Instruction *inst);
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(InstructionWrapper *instW);

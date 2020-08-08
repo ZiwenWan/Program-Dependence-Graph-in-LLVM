@@ -16,7 +16,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   driverExportFuncPtrNameMap = pdgUtils.computeDriverExportFuncPtrNameMap();
   inferAsynchronousCalledFunction(crossDomainFuncCalls);
   // start generating IDL
-  computeSharedDataForGlobalVars();
+  // computeSharedDataForGlobalVars();
   std::string file_name = "kernel";
   file_name += ".idl";
   idl_file.open(file_name);
@@ -24,10 +24,10 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
            << " {\n";
   for (Function *F : crossDomainFuncCalls)
   {
-    if (F->isDeclaration())
+    if (F->isDeclaration() || F->empty())
       continue;
     computeFuncAccessInfo(*F);
-    computeSharedDataInFunc(*F);
+    // computeSharedDataInFunc(*F);
     generateIDLforFunc(*F);
   }
   idl_file << "}";
@@ -266,7 +266,6 @@ void pdg::AccessInfoTracker::computeInterprocArgAccessInfo(ArgumentWrapper* argW
     {
       auto dataW = valDepPair.first->getData();
       // compute interprocedural access info in the receiver domain
-      // std::set<Value *> aliasSet = findAliasInDomain(*(dataW->getInstruction()), F, receiverDomainTrans);
       auto depNodePairs = PDG->getNodesWithDepType(dataW, DependencyType::DATA_CALL_PARA);
       for (auto depNodePair : depNodePairs)
       {
@@ -850,7 +849,9 @@ void pdg::AccessInfoTracker::generateIDLforFunc(Function &F)
     generateIDLforArg(argW, TreeType::FORMAL_IN_TREE);
   }
   generateIDLforArg(funcW->getRetW(), TreeType::FORMAL_IN_TREE);
-  generateRpcForFunc(F);
+  // don't generate rpc for driver export function pointers
+  if (driverExportFuncPtrNameMap.find(F.getName().str()) == driverExportFuncPtrNameMap.end())
+    generateRpcForFunc(F);
 }
 
 void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType treeTy, std::string funcName, bool handleFuncPtr)
@@ -881,12 +882,9 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     treeNodeQ.pop();
     auto curDIType = (*treeI)->getDIType();
 
-    if (curDIType == nullptr)
-      continue;
-
+    if (curDIType == nullptr) continue;
     std::stringstream projection_str;
     bool accessed = false;
-
     // only process sturct pointer and function pointer, these are the only types that we should generate projection for
     if (!DIUtils::isStructPointerTy(curDIType) &&
         !DIUtils::isFuncPointerTy(curDIType) &&
@@ -905,22 +903,22 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     {
       auto childT = tree<InstructionWrapper *>::child(treeI, i);
       auto childDIType = (*childT)->getDIType();
-      std::string fieldID = DIUtils::computeFieldID(argDIType, childDIType);
+      // std::string fieldID = DIUtils::computeFieldID(argDIType, childDIType);
       // determien if a field is accessed in asynchrnous context. If so, add it to projection.
-      if (accessedFieldsInAsyncCalls.find(fieldID) != accessedFieldsInAsyncCalls.end())
-      {
-        // retrieve the access type for a field accessed in asynchornous context
-        if (globalFieldAccessInfo.find(fieldID) != globalFieldAccessInfo.end())
-        {
-          auto accType = globalFieldAccessInfo[fieldID];
-          (*childT)->setAccessType(accType);
-        }
-      }
+      // if (accessedFieldsInAsyncCalls.find(fieldID) != accessedFieldsInAsyncCalls.end())
+      // {
+      //   // retrieve the access type for a field accessed in asynchornous context
+      //   if (globalFieldAccessInfo.find(fieldID) != globalFieldAccessInfo.end())
+      //   {
+      //     auto accType = globalFieldAccessInfo[fieldID];
+      //     (*childT)->setAccessType(accType);
+      //   }
+      // }
       if ((*childT)->getAccessType() == AccessType::NOACCESS)
         continue;
       // check if an accessed field is in the set of shared data
-      if (!isChildFieldShared(argDIType, childDIType))
-        continue;
+      // if (!isChildFieldShared(argDIType, childDIType))
+      //   continue;
       // only check access status under cross boundary case. If not cross, we do not check and simply perform
       // normal field finding analysis.
       accessed = true;
