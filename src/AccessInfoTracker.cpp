@@ -27,7 +27,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
     if (F->isDeclaration() || F->empty())
       continue;
     computeFuncAccessInfo(*F);
-    // computeSharedDataInFunc(*F);
+    computeSharedDataInFunc(*F);
     generateIDLforFunc(*F);
   }
   idl_file << "}";
@@ -903,22 +903,22 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     {
       auto childT = tree<InstructionWrapper *>::child(treeI, i);
       auto childDIType = (*childT)->getDIType();
-      // std::string fieldID = DIUtils::computeFieldID(argDIType, childDIType);
+      std::string fieldID = DIUtils::computeFieldID(argDIType, childDIType);
       // determien if a field is accessed in asynchrnous context. If so, add it to projection.
-      // if (accessedFieldsInAsyncCalls.find(fieldID) != accessedFieldsInAsyncCalls.end())
-      // {
-      //   // retrieve the access type for a field accessed in asynchornous context
-      //   if (globalFieldAccessInfo.find(fieldID) != globalFieldAccessInfo.end())
-      //   {
-      //     auto accType = globalFieldAccessInfo[fieldID];
-      //     (*childT)->setAccessType(accType);
-      //   }
-      // }
+      if (accessedFieldsInAsyncCalls.find(fieldID) != accessedFieldsInAsyncCalls.end())
+      {
+        // retrieve the access type for a field accessed in asynchornous context
+        if (globalFieldAccessInfo.find(fieldID) != globalFieldAccessInfo.end())
+        {
+          auto accType = globalFieldAccessInfo[fieldID];
+          (*childT)->setAccessType(accType);
+        }
+      }
       if ((*childT)->getAccessType() == AccessType::NOACCESS)
         continue;
       // check if an accessed field is in the set of shared data
-      // if (!isChildFieldShared(argDIType, childDIType))
-      //   continue;
+      if (!isChildFieldShared(argDIType, childDIType))
+        continue;
       // only check access status under cross boundary case. If not cross, we do not check and simply perform
       // normal field finding analysis.
       accessed = true;

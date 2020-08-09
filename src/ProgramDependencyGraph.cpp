@@ -1018,8 +1018,14 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
         // collect all alias instructions for each parent' dependent instruction
         std::set<InstructionWrapper*> parentDepAliasList;
         getAllAlias(parentDepInstW->getInstruction(), parentDepAliasList);
-        // parentDepInstAliasList.clear(); // TODO: need to be removded
+        // parentDepAliasList.clear(); // TODO: need to be removded
         parentDepAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
+        // if (callee->getName() == "__register_chrdev")
+        // {
+        //   errs() << DIUtils::getDIFieldName((*treeI)->getDIType()) << " parent inst: " << *parentDepInstW->getInstruction() << "\n";
+        //   errs() << "\t"
+        //          << "offset: " << ((TreeTypeWrapper *)*treeI)->getNodeOffset() << " i: " << *readInstW->getInstruction() << "\n";
+        // }
         for (auto depInstAlias : parentDepAliasList)
         {
           if (depInstAlias->getInstruction() == nullptr)
@@ -1035,7 +1041,11 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
             else if (isa<GetElementPtrInst>(readInstW->getInstruction()))
             {
               if (isTreeNodeGEPMatch(*treeI, readInstW->getInstruction()))
+              {
+                if (callee->getName() == "__register_chrdev")
+                  errs() << "offset: " << (*treeI)->getNodeOffset() << "\n";
                 PDG->addDependency(*treeI, readInstW, DependencyType::VAL_DEP);
+              }
             }
           }
         }

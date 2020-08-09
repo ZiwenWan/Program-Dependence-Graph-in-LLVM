@@ -58,17 +58,11 @@ bool pdg::DataDependencyGraph::isMustAlias(Value &V1, Value &V2, Function &F)
   auto const &c2 = G->getCell(V2);
   auto const &s1 = c1.getNode()->getAllocSites();
   auto const &s2 = c2.getNode()->getAllocSites();
-  for (auto const a1 : s1)
-  {
-    if (s2.find(a1) != s2.end())
-    {
-      unsigned c1Offset = c1.getOffset();
-      unsigned c2Offset = c2.getOffset();
-      if (c1Offset == c2Offset)
-        return true;
-    }
-  }
-  return false;
+  // if (s1 == s2 && F.getName() == "__register_chrdev")
+  // {
+  //   errs() << "find alias: " << V1 << " - " << V2 << "\n";
+  // }
+  return (s1 == s2 && c1.getOffset() == c2.getOffset() && V1.getType() == V2.getType());
 }
 
 bool pdg::DataDependencyGraph::isMayAlias(Value &V1, Value &V2, Function &F)
@@ -108,7 +102,7 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
       continue;
     }
 
-    // handle call instruction that return an address
+    // handle call instruction that return a memory reference
     if (CallInst *ci = dyn_cast<CallInst>(&*I1))
     {
       if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
@@ -119,8 +113,6 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
           {
             Instruction *tmpInst = dyn_cast<Instruction>(&*arg_iter);
             if (!tmpInst) continue;
-            if (Func->getName() == "msr_open")
-              errs() << "adding dep: " << *tmpInst << " - " << *ci << "\n";
             DDG->addDependency(instMap[tmpInst], instMap[ci], DependencyType::DATA_ALIAS);
           }
         }
@@ -134,7 +126,7 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
         continue;
       if (auto gep = dyn_cast<GetElementPtrInst>(&*I2))
         continue;
-      if (isMayAlias(*I1, *I2, *Func))
+      if (isMustAlias(*I1, *I2, *Func))
         DDG->addDependency(instMap[&*I1], instMap[&*I2], DependencyType::DATA_ALIAS);
     }
   }
