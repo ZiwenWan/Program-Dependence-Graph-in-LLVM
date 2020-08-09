@@ -20,7 +20,8 @@
 #include <set>
 #include <queue>
 #include <fstream>
-#include <sstream> 
+#include <sstream>
+#include <stack>
 /*
 The general lock finding algorithm is as follow:
 1. find shared objects. 
