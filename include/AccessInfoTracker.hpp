@@ -62,6 +62,7 @@ public:
   std::set<llvm::Instruction *> getIntraFuncAlias(llvm::Instruction *inst);
   uint64_t getArrayArgSize(llvm::Value &V, llvm::Function &F);
   int getCallOperandIdx(llvm::Value *operand, llvm::CallInst *callInst);
+  std::string switchIndirectCalledPtrName(std::string funcptr);
 
 private:
   ProgramDependencyGraph *PDG;

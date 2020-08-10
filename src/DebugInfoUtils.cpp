@@ -254,6 +254,8 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, Function *F, std::string fu
           else if (baseType->getTag() == dwarf::DW_TAG_structure_type)
           {
             std::string argTyName = getDITypeName(d);
+            if (F != nullptr && actualArgHasAllocator(*F, i - 1))
+              argTyName = "alloc[callee] " + argTyName;
             if (argTyName.back() == '*')
             {
               argTyName.pop_back();
@@ -652,4 +654,25 @@ bool pdg::DIUtils::isUnionType(DIType *dt)
 bool pdg::DIUtils::isArrayType(DIType *dt)
 {
   return (dt->getTag() == dwarf::DW_TAG_array_type);
+}
+
+bool pdg::DIUtils::actualArgHasAllocator(Function& F, unsigned argIdx)
+{
+  for (auto user : F.users())
+  {
+    if (CallInst *ci = dyn_cast<CallInst>(user))
+    {
+      if (argIdx >= ci->getNumArgOperands())
+        return false;
+      Value* operand = ci->getOperand(argIdx);
+      if (F.getName() == "__rtnl_link_register")
+      {
+        errs() << " arg idx: " << argIdx << "\n";
+        errs() << "Operand is: " << *operand << "\n";
+      }
+      if (isa<GlobalVariable>(operand)) // the function struct should be assigned from a global var.
+        return true;
+    }
+  }
+  return false;
 }

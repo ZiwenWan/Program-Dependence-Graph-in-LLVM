@@ -16,7 +16,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   driverExportFuncPtrNameMap = pdgUtils.computeDriverExportFuncPtrNameMap();
   inferAsynchronousCalledFunction(crossDomainFuncCalls);
   // start generating IDL
-  // computeSharedDataForGlobalVars();
+  computeSharedDataForGlobalVars();
   std::string file_name = "kernel";
   file_name += ".idl";
   idl_file.open(file_name);
@@ -721,7 +721,10 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     }
     else if (PDG->isFuncPointer(argType))
     {
-      idl_file << DIUtils::getFuncSigName(DIUtils::getLowestDIType(DIUtils::getArgDIType(arg)), &F, argName, "");
+      Function *indirectCalledFunc = nullptr;
+      argName = switchIndirectCalledPtrName(argName);
+      Function *indirectFunc = module->getFunction(argName);
+      idl_file << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(DIUtils::getArgDIType(arg)), indirectCalledFunc, argName, "");
     }
     else if (argType->isArrayTy())
     {
@@ -930,14 +933,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
         if (driverExportFuncPtrNames.find(funcName) == driverExportFuncPtrNames.end())
           continue;
         // for each function pointer, swap it with the function name registered to the pointer.
-        for (auto it = driverExportFuncPtrNameMap.begin(); it != driverExportFuncPtrNameMap.end(); ++it)
-        {
-          if (it->second == funcName)
-          {
-            funcName = it->first;
-            break;
-          }
-        }
+        funcName = switchIndirectCalledPtrName(funcName);
         Function *indirectFunc = module->getFunction(funcName);
         if (indirectFunc == nullptr)
           continue;
@@ -1258,6 +1254,15 @@ void pdg::AccessInfoTracker::inferAsynchronousCalledFunction(std::set<Function*>
         calledFuncs.insert(calledFunc);
     }
   }
+
+  // driver export functions, assume to be called from kernel to driver
+  for (auto pair : driverExportFuncPtrNameMap)
+  {
+    Function* f = module->getFunction(pair.first);
+    if (f != nullptr)
+      calledFuncs.insert(f);
+  }
+
   // determien if transitive closure of uncalled functions contains cross-domain functions
   for (auto &F : *module)
   {
@@ -1282,6 +1287,18 @@ void pdg::AccessInfoTracker::inferAsynchronousCalledFunction(std::set<Function*>
     if (isAsynchronousCall)
       asyncCalls.insert(&F);
   }
+}
+
+std::string pdg::AccessInfoTracker::switchIndirectCalledPtrName(std::string funcptrName)
+{
+  for (auto it = driverExportFuncPtrNameMap.begin(); it != driverExportFuncPtrNameMap.end(); ++it)
+  {
+    if (it->second == funcptrName)
+    {
+      return it->first;
+    }
+  }
+  return funcptrName;
 }
 
 static RegisterPass<pdg::AccessInfoTracker>

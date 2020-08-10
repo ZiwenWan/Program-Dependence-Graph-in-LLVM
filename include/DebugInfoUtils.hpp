@@ -43,6 +43,7 @@ class DIUtils
     static std::string getInvalidTypeStr(llvm::DIType *dt);
     static bool isUnionType(llvm::DIType *dt);
     static bool isArrayType(llvm::DIType *dt);
+    static bool actualArgHasAllocator(llvm::Function& F, unsigned argIdx);
 };
 }
 #endif
