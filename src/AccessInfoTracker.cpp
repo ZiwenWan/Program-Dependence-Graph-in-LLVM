@@ -695,7 +695,12 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
         argTypeName.pop_back();
         argFuncName.push_back('*');
       }
-      argTypeName = argTypeName + "_" + argFuncName;
+
+      if (argTypeName.find("ops") == std::string::npos) // handling projection for function structs
+        argTypeName = argTypeName + "_" + argFuncName;
+      else
+        argTypeName.push_back('*');
+      
       // generate array annotation
       uint64_t arrSize = getArrayArgSize(arg, F);
       if (arrSize > 0)
@@ -705,8 +710,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     else if (PDG->isFuncPointer(argType))
     {
       Function *indirectCalledFunc = nullptr;
-      argName = switchIndirectCalledPtrName(argName);
-      Function *indirectFunc = module->getFunction(argName);
+      Function *indirectFunc = module->getFunction(switchIndirectCalledPtrName(argName));
       idl_file << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(DIUtils::getArgDIType(arg)), indirectCalledFunc, argName, "");
     }
     else if (argType->isArrayTy())
@@ -909,9 +913,6 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       // only check access status under cross boundary case. If not cross, we do not check and simply perform
       // normal field finding analysis.
       // alloc attribute
-      std::string accessAttr = "";
-      if ((*childT)->getAccessType() == AccessType::WRITE)
-        accessAttr = " alloc[caller]";
       std::string fieldAnnotation = inferFieldAnnotation(*childT);
       if (DIUtils::isFuncPointerTy(childDIType))
       {
@@ -946,9 +947,9 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
           fieldTypeName = tmpName + "_" + tmpFuncName;
         else 
           fieldTypeName = tmpName + "*";
-
+        
         projection_str << "\t\t"
-                       << "projection " << fieldTypeName << accessAttr << " "
+                       << "projection " << fieldTypeName << fieldAnnotation << " "
                        << " " << DIUtils::getDIFieldName(childDIType) << ";\n";
         treeNodeQ.push(childT);
       }
@@ -956,7 +957,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       {
         auto fieldTypeName = DIUtils::getDITypeName(childDIType);
         projection_str << "\t\t"
-                       << "projection " << fieldTypeName << accessAttr << " "
+                       << "projection " << fieldTypeName << fieldAnnotation << " "
                        << " " << DIUtils::getDIFieldName(childDIType)<< "_" << funcName << ";\n";
         treeNodeQ.push(childT);
         continue;
@@ -1065,9 +1066,17 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
             }
           }
         }
+        // alloc annotation
+        if (StoreInst *ci = dyn_cast<StoreInst>(depInst)) {
+            if (ci->getPointerOperand() == dataW->getInstruction()) {
+              if (isa<GlobalVariable>(ci->getValueOperand()->stripPointerCasts()))
+                return "[alloc(caller)] [out]";
+            }
+        }
       }
     }
   }
+
   return "";
 }
 

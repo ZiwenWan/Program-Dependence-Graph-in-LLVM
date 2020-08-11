@@ -1465,10 +1465,6 @@ std::set<Function *> pdg::ProgramDependencyGraph::inferAsynchronousCalledFunctio
     if (isAsynchronousCall)
       asynCalls.insert(&F);
   }
-  for (auto F : asynCalls)
-  {
-    errs() << "async func: " << F->getName() << "\n";
-  }
   return asynCalls;
 }
 
