@@ -10,11 +10,16 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   auto &pdgUtils = PDGUtils::getInstance();
   // get cross domain functions and setup kernel and driver side functions
   std::set<Function *> crossDomainFuncCalls = pdgUtils.computeCrossDomainFuncs(M);
-  kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(M);
   driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(M);
+  kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(M);
   driverExportFuncPtrNames = pdgUtils.computeDriverExportFuncPtrName();
   driverExportFuncPtrNameMap = pdgUtils.computeDriverExportFuncPtrNameMap();
-  inferAsynchronousCalledFunction(crossDomainFuncCalls);
+  asyncCalls = PDG->inferAsynchronousCalledFunction();
+  stringOperations.insert("strcpy");
+  stringOperations.insert("strlen");
+  stringOperations.insert("strlcpy");
+  stringOperations.insert("strcmp");
+  stringOperations.insert("strncmp");
   // start generating IDL
   computeSharedDataForGlobalVars();
   std::string file_name = "kernel";
@@ -40,39 +45,6 @@ void pdg::AccessInfoTracker::getAnalysisUsage(AnalysisUsage &AU) const
   AU.addRequired<pdg::ProgramDependencyGraph>();
   AU.addRequired<CallGraphWrapperPass>();
   AU.setPreservesAll();
-}
-
-// compute trasitive closure
-std::set<Function *> pdg::AccessInfoTracker::getTransitiveClosureInDomain(Function &F, std::set<Function*> searchDomain)
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  auto funcMap = pdgUtils.getFuncMap();
-  std::set<Function*> transClosure;
-  std::queue<Function *> funcQ;
-  funcQ.push(&F);
-
-  while (!funcQ.empty())
-  {
-    Function *func = funcQ.front();
-    funcQ.pop();
-    auto callInstList = funcMap[func]->getCallInstList();
-    for (auto ci : callInstList)
-    {
-      if (ci->getCalledFunction() == nullptr) // indirect call
-        continue;
-      Function *calledF = ci->getCalledFunction();
-      if (calledF->isDeclaration() || calledF->empty())
-        continue;
-      if (searchDomain.find(calledF) == searchDomain.end()) // skip if not in the receiver domain
-        continue;
-      if (transClosure.find(calledF) != transClosure.end()) // skip if we already added the called function to queue.
-        continue;
-      transClosure.insert(calledF);
-      funcQ.push(calledF);
-    }
-  }
-
-  return transClosure;
 }
 
 std::string pdg::AccessInfoTracker::getRegisteredFuncPtrName(std::string funcName)
@@ -212,12 +184,6 @@ void pdg::AccessInfoTracker::computeArgAccessInfo(ArgumentWrapper* argW, TreeTyp
     return;
   }
 
-  // setup search domain, this is used to compute needed data
-  // std::set<Function *> searchDomain;
-  // searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
-  // searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
-  // as the passed in function is the starting point of cross-domain call, we check which domain the function is in.
-  // std::set<Function*> receiverDomainTrans = getTransitiveClosureInDomain(*func, searchDomain);
   computeIntraprocArgAccessInfo(argW, *func);
   computeInterprocArgAccessInfo(argW, *func);
 }
@@ -527,6 +493,8 @@ void pdg::AccessInfoTracker::computeFuncAccessInfo(Function &F)
   // for arguments
   for (auto argW : funcW->getArgWList())
     computeArgAccessInfo(argW, TreeType::FORMAL_IN_TREE);
+  // for return value
+  computeArgAccessInfo(funcW->getRetW(), TreeType::FORMAL_IN_TREE);
 }
 
 
@@ -703,17 +671,32 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     Type *argType = arg.getType();
     DIType *argDIType = DIUtils::getArgDIType(arg);
     auto &dbgInstList = pdgUtils.getFuncMap()[&F]->getDbgInstList();
-    std::string argName = DIUtils::getArgName(arg, dbgInstList);
+    std::string argName = DIUtils::getArgName(arg);
+    // infer annotation
+    if (argType->isPointerTy())
+    {
+      auto treeI = argW->tree_begin(TreeType::FORMAL_IN_TREE);
+      if (treeI != argW->tree_end(TreeType::FORMAL_IN_TREE))
+      {
+        treeI++;
+        std::string annotation = inferFieldAnnotation(*treeI);
+        if (!annotation.empty())
+          argName = argName + " " + annotation;
+      }
+    }
+
     if (PDG->isStructPointer(argType))
     {
       auto argFuncName = funcName;
-      auto argName = DIUtils::getArgTypeName(arg);
-      if (argName.back() == '*')
+      auto argTypeName = DIUtils::getArgTypeName(arg);
+      auto argName = DIUtils::getArgName(arg);
+      if (argTypeName.back() == '*')
       {
-        argName.pop_back();
+        argTypeName.pop_back();
         argFuncName.push_back('*');
       }
-      std::string argTypeName = argName + "_" + argFuncName;
+      argTypeName = argTypeName + "_" + argFuncName;
+      // generate array annotation
       uint64_t arrSize = getArrayArgSize(arg, F);
       if (arrSize > 0)
         argName = argName + "[" + std::to_string(arrSize) + "]";
@@ -871,7 +854,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
   funcName = getRegisteredFuncPtrName(funcName);
 
   auto &dbgInstList = pdgUtils.getFuncMap()[&F]->getDbgInstList();
-  std::string argName = DIUtils::getArgName(*(argW->getArg()), dbgInstList);
+  std::string argName = DIUtils::getArgName(*(argW->getArg()));
   auto treeBegin = argW->tree_begin(TreeType::FORMAL_IN_TREE);
   DIType* argDIType = (*treeBegin)->getDIType();
 
@@ -902,6 +885,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
 
     if (DIUtils::isStructPointerTy(curDIType) || DIUtils::isUnionPointerTy(curDIType))
       treeI++;
+
     for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
     {
       auto childT = tree<InstructionWrapper *>::child(treeI, i);
@@ -924,7 +908,11 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
         continue;
       // only check access status under cross boundary case. If not cross, we do not check and simply perform
       // normal field finding analysis.
-      accessed = true;
+      // alloc attribute
+      std::string accessAttr = "";
+      if ((*childT)->getAccessType() == AccessType::WRITE)
+        accessAttr = " alloc[caller]";
+      std::string fieldAnnotation = inferFieldAnnotation(*childT);
       if (DIUtils::isFuncPointerTy(childDIType))
       {
         // generate rpc for the indirect function call
@@ -956,9 +944,11 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
         std::string fieldTypeName = tmpName;
         if (fieldTypeName.find("ops") == std::string::npos) // specific handling for struct ops
           fieldTypeName = tmpName + "_" + tmpFuncName;
+        else 
+          fieldTypeName = tmpName + "*";
 
         projection_str << "\t\t"
-                       << "projection " << fieldTypeName << " "
+                       << "projection " << fieldTypeName << accessAttr << " "
                        << " " << DIUtils::getDIFieldName(childDIType) << ";\n";
         treeNodeQ.push(childT);
       }
@@ -966,7 +956,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       {
         auto fieldTypeName = DIUtils::getDITypeName(childDIType);
         projection_str << "\t\t"
-                       << "projection " << fieldTypeName << " "
+                       << "projection " << fieldTypeName << accessAttr << " "
                        << " " << DIUtils::getDIFieldName(childDIType)<< "_" << funcName << ";\n";
         treeNodeQ.push(childT);
         continue;
@@ -1040,6 +1030,45 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     idl_file << projection_str.str();
     accessed = false;
   }
+}
+
+std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *instW)
+{
+  auto valDepPairList = PDG->getNodesWithDepType(instW, DependencyType::VAL_DEP);
+  for (auto valDepPair : valDepPairList)
+  {
+    auto dataW = valDepPair.first->getData();
+    if (!dataW->getInstruction())
+      continue;
+    auto dataDList = PDG->getNodeDepList(dataW->getInstruction());
+    for (auto depPair : dataDList)
+    {
+      InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
+      DependencyType depType = depPair.second;
+      Instruction *depInst = depInstW->getInstruction();
+      if (!depInst)
+        continue;
+      if (depType == DependencyType::DATA_DEF_USE)
+      {
+        if (CallInst *ci = dyn_cast<CallInst>(depInst))
+        {
+          if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+          {
+            if (calledFunc != nullptr)
+            {
+              std::string calledFuncName = calledFunc->getName().str();
+              if (stringOperations.find(calledFuncName) != stringOperations.end())
+              {
+                std::string retStr = "[string]";
+                return retStr;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return "";
 }
 
 std::string pdg::getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI)
@@ -1231,62 +1260,6 @@ bool pdg::AccessInfoTracker::isChildFieldShared(DIType* argDIType, DIType* field
   if (sharedFields.find(fieldID) == sharedFields.end())
     return false;
   return true;
-}
-
-void pdg::AccessInfoTracker::inferAsynchronousCalledFunction(std::set<Function*> crossDomainFuncs)
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  auto funcMap = pdgUtils.getFuncMap();
-  std::set<Function*> asynCalls;
-  // interate through all call instructions and determine all the possible call targets.
-  std::set<Function*> calledFuncs;
-  for (Function &F : *module)
-  {
-    if (F.isDeclaration() || F.empty())
-      continue;
-    auto funcW = funcMap[&F];
-    auto callInstList = funcW->getCallInstList();
-    for (auto callInst : callInstList)
-    {
-      Function *calledFunc = dyn_cast<Function>(callInst->getCalledValue()->stripPointerCasts());
-      // direct call
-      if (calledFunc != nullptr)
-        calledFuncs.insert(calledFunc);
-    }
-  }
-
-  // driver export functions, assume to be called from kernel to driver
-  for (auto pair : driverExportFuncPtrNameMap)
-  {
-    Function* f = module->getFunction(pair.first);
-    if (f != nullptr)
-      calledFuncs.insert(f);
-  }
-
-  // determien if transitive closure of uncalled functions contains cross-domain functions
-  for (auto &F : *module)
-  {
-    if (F.isDeclaration() || F.empty())
-      continue;
-    if (calledFuncs.find(&F) != calledFuncs.end())
-      continue;
-    // eliminated init/uninit functions
-    std::set<Function*> searchDomain; 
-    searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
-    searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
-    std::set<Function*> transitiveFuncs = getTransitiveClosureInDomain(F, searchDomain);
-    bool isAsynchronousCall = true;
-    for (auto crossDomainFunc : crossDomainFuncs)
-    {
-      if (transitiveFuncs.find(crossDomainFunc) != transitiveFuncs.end())
-      {
-        isAsynchronousCall = true; 
-        break;
-      }
-    }
-    if (isAsynchronousCall)
-      asyncCalls.insert(&F);
-  }
 }
 
 std::string pdg::AccessInfoTracker::switchIndirectCalledPtrName(std::string funcptrName)

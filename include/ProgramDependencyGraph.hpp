@@ -49,12 +49,14 @@ public:
   void buildTypeTreeWithDI(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType *argDIType);
   void drawFormalParameterTree(llvm::Function *Func, TreeType treeTy);
   void connectFunctionAndFormalTrees(llvm::Function *callee);
+  void connectTreeNodeWithAddrVars(ArgumentWrapper* argW);
   void connectCallerAndActualTrees(llvm::Function* caller);
   bool connectAllPossibleFunctions(llvm::CallInst *CI, std::vector<llvm::Function *> indirect_call_candidates);
   void connectActualTreeToFormalTree(llvm::CallInst *CI, llvm::Function *called_func);
   bool connectCallerAndCallee(InstructionWrapper *instW, llvm::Function *callee);
-  void connectGlobalObjectTreeWithAddressVars();
-  std::set<InstructionWrapper*> collectAllocaInstWsOnDIType(llvm::DIType* dt);
+  void connectGlobalObjectTreeWithAddressVars(std::set<llvm::Function *> &searchDomain);
+  std::set<llvm::Function *> inferAsynchronousCalledFunction();
+  std::set<InstructionWrapper *> collectAllocaInstWsOnDIType(llvm::DIType *dt, std::set<llvm::Function *> &searchDomain);
   // field sensitive related functions
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);
   llvm::Instruction *getArgAllocaInst(llvm::Argument &arg);

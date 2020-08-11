@@ -200,3 +200,34 @@ std::map<std::string, std::string> pdg::PDGUtils::computeDriverExportFuncPtrName
 
   return exportFuncPtrMap;
 }
+
+// compute trasitive closure
+std::set<Function *> pdg::PDGUtils::getTransitiveClosureInDomain(Function &F, std::set<Function*> searchDomain)
+{
+  std::set<Function*> transClosure;
+  std::queue<Function *> funcQ;
+  funcQ.push(&F);
+
+  while (!funcQ.empty())
+  {
+    Function *func = funcQ.front();
+    funcQ.pop();
+    auto callInstList = G_funcMap[func]->getCallInstList();
+    for (auto ci : callInstList)
+    {
+      if (ci->getCalledFunction() == nullptr) // indirect call
+        continue;
+      Function *calledF = ci->getCalledFunction();
+      if (calledF->isDeclaration() || calledF->empty())
+        continue;
+      if (searchDomain.find(calledF) == searchDomain.end()) // skip if not in the receiver domain
+        continue;
+      if (transClosure.find(calledF) != transClosure.end()) // skip if we already added the called function to queue.
+        continue;
+      transClosure.insert(calledF);
+      funcQ.push(calledF);
+    }
+  }
+
+  return transClosure;
+}

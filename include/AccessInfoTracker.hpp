@@ -63,6 +63,7 @@ public:
   uint64_t getArrayArgSize(llvm::Value &V, llvm::Function &F);
   int getCallOperandIdx(llvm::Value *operand, llvm::CallInst *callInst);
   std::string switchIndirectCalledPtrName(std::string funcptr);
+  std::string inferFieldAnnotation(InstructionWrapper* instW);
 
 private:
   ProgramDependencyGraph *PDG;
@@ -78,6 +79,7 @@ private:
   std::map<std::string, std::set<std::string>> sharedDataTypeMap;
   std::map<std::string, AccessType> globalFieldAccessInfo;
   std::set<std::string> seenFuncOps;
+  std::set<std::string> stringOperations;
   bool crossBoundary; // indicate whether transitive closure cross two domains
 };
 

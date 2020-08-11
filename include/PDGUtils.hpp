@@ -53,6 +53,7 @@ class PDGUtils final
     std::set<llvm::Function *> computeTransitiveClosure(llvm::Function &F);
     std::set<std::string> computeDriverExportFuncPtrName();
     std::map<std::string, std::string> computeDriverExportFuncPtrNameMap();
+    std::set<llvm::Function *> getTransitiveClosureInDomain(llvm::Function &F, std::set<llvm::Function *> searchDomain);
 
   private:
     std::map<const llvm::Instruction *, InstructionWrapper *> G_instMap;

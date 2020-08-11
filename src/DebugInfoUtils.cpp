@@ -4,8 +4,10 @@
 
 using namespace llvm;
 
-std::string pdg::DIUtils::getArgName(Argument& arg, std::vector<DbgInfoIntrinsic*> dbgInstList)
+std::string pdg::DIUtils::getArgName(Argument& arg)
 {
+  auto dbgInsts = collectDbgInstInFunc(*arg.getParent());
+  std::vector<DbgInfoIntrinsic *> dbgInstList(dbgInsts.begin(), dbgInsts.end());
   Function *F = arg.getParent();
   SmallVector<std::pair<unsigned, MDNode *>, 20> func_MDs;
   for (auto dbgInst : dbgInstList)
@@ -61,50 +63,50 @@ std::set<DbgInfoIntrinsic *> pdg::DIUtils::collectDbgInstInFunc(Function &F)
   return ret;
 }
 
-DIType *pdg::DIUtils::getArgDIType(Argument &arg)
-{
-  Function &F = *arg.getParent();
-  std::set<DbgInfoIntrinsic*> dbgInsts = collectDbgInstInFunc(F);
-  for (auto dbgInst : dbgInsts)
-  {
-    DILocalVariable *DLV = nullptr;
-    if (auto declareInst = dyn_cast<DbgDeclareInst>(dbgInst))
-      DLV = declareInst->getVariable();
-    if (auto valueInst = dyn_cast<DbgValueInst>(dbgInst))
-      DLV = valueInst->getVariable();
-    if (!DLV)
-      continue;
-    if (DLV->getArg() == arg.getArgNo() + 1 && !DLV->getName().empty() && DLV->getScope()->getSubprogram() == F.getSubprogram())
-      return DLV->getType().resolve();
-  }
-  return nullptr;
-}
-
 // DIType *pdg::DIUtils::getArgDIType(Argument &arg)
 // {
 //   Function &F = *arg.getParent();
-//   SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
-//   F.getAllMetadata(MDs);
-//   for (auto &MD : MDs)
+//   std::set<DbgInfoIntrinsic*> dbgInsts = collectDbgInstInFunc(F);
+//   for (auto dbgInst : dbgInsts)
 //   {
-//     MDNode *N = MD.second;
-//     if (DISubprogram *subprogram = dyn_cast<DISubprogram>(N))
-//     {
-//       auto *subRoutine = subprogram->getType();
-//       const auto &TypeRef = subRoutine->getTypeArray();
-//       if (F.arg_size() >= TypeRef.size())
-//         break;
-//       int metaDataLoc = 0;
-//       if (arg.getArgNo() != 100)
-//         metaDataLoc = arg.getArgNo() + 1;
-//       const auto &ArgTypeRef = TypeRef[metaDataLoc]; // + 1 to skip return type
-//       DIType *Ty = ArgTypeRef.resolve();
-//       return Ty;
-//     }
+//     DILocalVariable *DLV = nullptr;
+//     if (auto declareInst = dyn_cast<DbgDeclareInst>(dbgInst))
+//       DLV = declareInst->getVariable();
+//     if (auto valueInst = dyn_cast<DbgValueInst>(dbgInst))
+//       DLV = valueInst->getVariable();
+//     if (!DLV)
+//       continue;
+//     if (DLV->getArg() == arg.getArgNo() + 1 && !DLV->getName().empty() && DLV->getScope()->getSubprogram() == F.getSubprogram())
+//       return DLV->getType().resolve();
 //   }
 //   return nullptr;
-//   // throw ArgHasNoDITypeException("Argument doesn't has DIType needed to extract field name...");
 // }
+
+DIType *pdg::DIUtils::getArgDIType(Argument &arg)
+{
+  Function &F = *arg.getParent();
+  SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
+  F.getAllMetadata(MDs);
+  for (auto &MD : MDs)
+  {
+    MDNode *N = MD.second;
+    if (DISubprogram *subprogram = dyn_cast<DISubprogram>(N))
+    {
+      auto *subRoutine = subprogram->getType();
+      const auto &TypeRef = subRoutine->getTypeArray();
+      if (F.arg_size() >= TypeRef.size())
+        break;
+      int metaDataLoc = 0;
+      if (arg.getArgNo() != 100)
+        metaDataLoc = arg.getArgNo() + 1;
+      const auto &ArgTypeRef = TypeRef[metaDataLoc]; // + 1 to skip return type
+      DIType *Ty = ArgTypeRef.resolve();
+      return Ty;
+    }
+  }
+  return nullptr;
+  // throw ArgHasNoDITypeException("Argument doesn't has DIType needed to extract field name...");
+}
 
 DIType *pdg::DIUtils::getFuncRetDIType(Function &F)
 {
@@ -233,9 +235,7 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, Function *F, std::string fu
         {
           if (ptr == argNum)
           {
-            auto dbgInstList = collectDbgInstInFunc(*F);
-            std::vector<DbgInfoIntrinsic *> dbgList(dbgInstList.begin(), dbgInstList.end());
-            argName = getArgName(*argI, dbgList);
+            argName = getArgName(*argI);
             break;
           }
           ptr++;
@@ -660,16 +660,13 @@ bool pdg::DIUtils::actualArgHasAllocator(Function& F, unsigned argIdx)
 {
   for (auto user : F.users())
   {
+    if (F.getName() == "__rtnl_link__register")
+      errs() << "user: " << *user << "\n";
     if (CallInst *ci = dyn_cast<CallInst>(user))
     {
       if (argIdx >= ci->getNumArgOperands())
         return false;
       Value* operand = ci->getOperand(argIdx);
-      if (F.getName() == "__rtnl_link_register")
-      {
-        errs() << " arg idx: " << argIdx << "\n";
-        errs() << "Operand is: " << *operand << "\n";
-      }
       if (isa<GlobalVariable>(operand)) // the function struct should be assigned from a global var.
         return true;
     }
