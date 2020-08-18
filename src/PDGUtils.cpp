@@ -110,10 +110,9 @@ std::set<Function *> pdg::PDGUtils::computeKernelDomainFuncs(Module &M)
   return kernelDomainFuncs;
 }
 
-std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
+std::set<Function *> pdg::PDGUtils::computeImportedFuncs(Module &M)
 {
-  std::set<Function *> crossDomainFuncs;
-  // cross-domain function from driver to kernel
+  std::set<Function*> ret;
   std::ifstream importedFuncs("imported_func.txt");
   for (std::string line; std::getline(importedFuncs, line);)
   {
@@ -121,6 +120,36 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
     if (!f)
       continue;
     if (f->isDeclaration() || f->empty())
+      continue;
+    ret.insert(f);
+  }
+  importedFuncs.close();
+  return ret;
+}
+
+std::set<std::string> pdg::PDGUtils::getBlackListFuncs()
+{
+  std::set<std::string> ret;
+  std::ifstream blackListFuncs("liblcd_funcs.txt");
+  for (std::string line; std::getline(blackListFuncs, line);)
+  {
+    ret.insert(line);
+  }
+  return ret;
+}
+
+std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
+{
+  std::set<Function *> crossDomainFuncs;
+  auto blackListFuncs = getBlackListFuncs();
+  // cross-domain function from driver to kernel
+  std::ifstream importedFuncs("imported_func.txt");
+  for (std::string line; std::getline(importedFuncs, line);)
+  {
+    Function *f = M.getFunction(StringRef(line));
+    if (!f)
+      continue;
+    if (f->isDeclaration() || f->empty() || blackListFuncs.find(f->getName()) != blackListFuncs.end())
       continue;
     crossDomainFuncs.insert(f);
   }
@@ -134,7 +163,7 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
     Function *f = M.getFunction(StringRef(line));
     if (!f)
       continue;
-    if (f->isDeclaration() || f->empty())
+    if (f->isDeclaration() || f->empty() || blackListFuncs.find(f->getName()) != blackListFuncs.end())
       continue;
     crossDomainFuncs.insert(f);
   }

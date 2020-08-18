@@ -6,9 +6,9 @@ using namespace llvm;
 
 std::string pdg::DIUtils::getArgName(Argument& arg)
 {
-  auto dbgInsts = collectDbgInstInFunc(*arg.getParent());
-  std::vector<DbgInfoIntrinsic *> dbgInstList(dbgInsts.begin(), dbgInsts.end());
   Function *F = arg.getParent();
+  auto dbgInsts = collectDbgInstInFunc(*F);
+  std::vector<DbgInfoIntrinsic *> dbgInstList(dbgInsts.begin(), dbgInsts.end());
   SmallVector<std::pair<unsigned, MDNode *>, 20> func_MDs;
   for (auto dbgInst : dbgInstList)
   {
@@ -132,7 +132,7 @@ DIType *pdg::DIUtils::getFuncRetDIType(Function &F)
 
 DIType *pdg::DIUtils::getGlobalVarDIType(GlobalVariable &globalVar)
 {
-  SmallVector<DIGlobalVariableExpression *, 1> GVs;
+  SmallVector<DIGlobalVariableExpression *, 5> GVs;
   globalVar.getDebugInfo(GVs);
   if (GVs.size() == 0)
     return nullptr;
@@ -184,7 +184,7 @@ std::string pdg::DIUtils::getDIFieldName(DIType *ty)
     return s;
   }
   case dwarf::DW_TAG_subroutine_type:
-    return "func ptr";
+    return "";
   case dwarf::DW_TAG_const_type:
   {
     std::string s = getDIFieldName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
@@ -241,7 +241,7 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, Function *F, std::string fu
           ptr++;
         }
       }
-    
+
       if (d == nullptr) // void type
         func_type_str += "void ";
       else // normal types
@@ -250,7 +250,11 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, Function *F, std::string fu
         {
           auto baseType = dit->getBaseType().resolve();
           if (!baseType)
-            continue;
+          {
+            // if a DIderived type has a null base type, this normally 
+            // represent a void pointer
+            func_type_str += "void* ";
+          }
           else if (baseType->getTag() == dwarf::DW_TAG_structure_type)
           {
             std::string argTyName = getDITypeName(d);
@@ -274,7 +278,7 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, Function *F, std::string fu
             func_type_str = func_type_str + getDITypeName(d) + " " + argName;
         }
         else
-          func_type_str = func_type_str + getDITypeName(d) + " " + argName;
+          func_type_str = func_type_str + getDITypeName(d);
       }
 
       if (i < typeRefArr.size() - 1 && !getDITypeName(d).empty())
@@ -361,18 +365,19 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
     switch (ty->getTag())
     {
     case dwarf::DW_TAG_typedef:
-      return getDITypeName(getBaseDIType(ty));
+      return getDITypeName(getBaseDIType(ty)); // need to know the underlying name
+      // return ty->getName(); // directly return typedef name
     case dwarf::DW_TAG_member:
       return getDITypeName(getBaseDIType(ty));
     case dwarf::DW_TAG_array_type:
     {
       if (DIType *arrTy = dyn_cast<DICompositeType>(ty)->getBaseType().resolve())
       {
-        auto arrName = arrTy->getName().str();
+        auto containedTypeName = getDITypeName(arrTy);
         if (arrTy->getSizeInBits() != 0)
-          return arrName + "[" + std::to_string(ty->getSizeInBits() / arrTy->getSizeInBits()) + "]";
+          return containedTypeName + "[" + std::to_string(ty->getSizeInBits() / arrTy->getSizeInBits()) + "]";
         else
-          return arrName + "[]";
+          return containedTypeName + "[]";
       }
     }
     case dwarf::DW_TAG_pointer_type:
@@ -388,14 +393,15 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
     {
       std::string st_name = ty->getName().str();
       if (!st_name.empty())
-        return st_name;
+        return ("struct " + st_name);
       return "struct";
     }
     case dwarf::DW_TAG_const_type:
-      // return "const " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
-      return getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
+      return "const " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
     case dwarf::DW_TAG_enumeration_type:
       return "enum";
+    case dwarf::DW_TAG_volatile_type:
+      return "volatile " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
     default:
     {
       std::string typeName = ty->getName().str();
@@ -554,43 +560,43 @@ DbgDeclareInst* pdg::DIUtils::getDbgInstForInst(Instruction* inst, std::set<DbgD
   return nullptr;
 }
 
-std::set<std::string> pdg::DIUtils::computeSharedDataType(Module& M, std::set<Function*> crossDomainFunctions)
-{
-  std::set<std::string> sharedDataTypes;
-  // compute shared type for global variables
-  for (Module::global_iterator globalIt = M.global_begin(); globalIt != M.global_end(); ++globalIt)
-  {
-    if (GlobalVariable *globalVar = dyn_cast<GlobalVariable>(&*globalIt))
-    {
-      // 2. check if a global var is of struct pointer type
-      DIType* globalVarDIType = getGlobalVarDIType(*globalVar);
-      if (!globalVarDIType) 
-        continue;
-      if (isStructPointerTy(globalVarDIType))
-      {
-        sharedDataTypes.insert(getDIFieldName(globalVarDIType));
-      }
-    }
-  }
+// std::set<std::string> pdg::DIUtils::computeSharedDataType(std::set<Function*> crossDomainFunctions)
+// {
+//   std::set<std::string> sharedDataTypes;
+//   // compute shared type for global variables
+//   for (Module::global_iterator globalIt = M.global_begin(); globalIt != M.global_end(); ++globalIt)
+//   {
+//     if (GlobalVariable *globalVar = dyn_cast<GlobalVariable>(&*globalIt))
+//     {
+//       // 2. check if a global var is of struct pointer type
+//       DIType* globalVarDIType = getGlobalVarDIType(*globalVar);
+//       if (!globalVarDIType) 
+//         continue;
+//       if (isStructPointerTy(globalVarDIType))
+//       {
+//         sharedDataTypes.insert(getDIFieldName(globalVarDIType));
+//       }
+//     }
+//   }
 
-  // compute shared data type for functions
-  for (auto F : crossDomainFunctions)
-  {
-    if (F->isDeclaration() || F->empty())
-      continue;
-    for (auto &arg : F->args())
-    {
-      // do not process non-struct ptr type, struct type is coersed
-      DIType *argDIType = DIUtils::getArgDIType(arg);
-      if (!DIUtils::isStructPointerTy(argDIType))
-        continue;
-      // check if shared fields for this struct type is already done
-      std::string argTypeName = DIUtils::getArgTypeName(arg);
-      sharedDataTypes.insert(argTypeName);
-    }
-  }
-  return sharedDataTypes;
-}
+//   // compute shared data type for functions
+//   for (auto F : crossDomainFunctions)
+//   {
+//     if (F->isDeclaration() || F->empty())
+//       continue;
+//     for (auto &arg : F->args())
+//     {
+//       // do not process non-struct ptr type, struct type is coersed
+//       DIType *argDIType = DIUtils::getArgDIType(arg);
+//       if (!DIUtils::isStructPointerTy(argDIType))
+//         continue;
+//       // check if shared fields for this struct type is already done
+//       std::string argTypeName = DIUtils::getArgTypeName(arg);
+//       sharedDataTypes.insert(argTypeName);
+//     }
+//   }
+//   return sharedDataTypes;
+// }
 
 std::string pdg::DIUtils::computeFieldID(DIType *rootDIType, DIType *fieldDIType)
 {
@@ -660,8 +666,6 @@ bool pdg::DIUtils::actualArgHasAllocator(Function& F, unsigned argIdx)
 {
   for (auto user : F.users())
   {
-    if (F.getName() == "__rtnl_link__register")
-      errs() << "user: " << *user << "\n";
     if (CallInst *ci = dyn_cast<CallInst>(user))
     {
       if (argIdx >= ci->getNumArgOperands())
@@ -672,4 +676,65 @@ bool pdg::DIUtils::actualArgHasAllocator(Function& F, unsigned argIdx)
     }
   }
   return false;
+}
+
+unsigned pdg::DIUtils::computeTotalFieldNumberInStructType(DIType* dt)
+{
+  if (!isStructPointerTy(dt))
+    return -1;
+  std::queue<DIType*> workQ;
+  std::set<DIType*> seenTypes;
+  workQ.push(dt);
+  unsigned fieldNum = 0;
+  while (!workQ.empty())
+  {
+    DIType* curDIType = workQ.front();
+    workQ.pop();
+    DIType* lowestDIType = getLowestDIType(curDIType);
+    if (seenTypes.find(lowestDIType) != seenTypes.end())
+      continue;
+    seenTypes.insert(lowestDIType);
+    auto DINodeArr = dyn_cast<DICompositeType>(lowestDIType)->getElements();
+    fieldNum += DINodeArr.size();
+    for (unsigned i = 0; i < DINodeArr.size(); ++i)
+    {
+      DIType *fieldDIType = dyn_cast<DIType>(DINodeArr[i]);
+      fieldDIType = getLowestDIType(fieldDIType);
+      if (isStructTy(fieldDIType))
+        workQ.push(fieldDIType);
+    }
+  }
+  return fieldNum;
+}
+
+std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Function *> crossDomainFuncs)
+{
+  std::set<DIType*> sharedDITypes;
+  // collect shared type from global variables
+  for (Module::global_iterator globalIt = M.global_begin(); globalIt != M.global_end(); ++globalIt)
+  {
+    if (GlobalVariable *globalVar = dyn_cast<GlobalVariable>(&*globalIt))
+    {
+      // 2. check if a global var is of struct pointer type
+      DIType* globalVarDIType = getGlobalVarDIType(*globalVar);
+      if (!globalVarDIType) 
+        continue;
+      // build object tree for struct pointer global
+      if (isStructPointerTy(globalVarDIType))
+        sharedDITypes.insert(globalVarDIType);
+    }
+  }
+ // collect shared type from interface functions
+  for (auto func : crossDomainFuncs)
+  {
+    if (func->isDeclaration() || func->empty())
+      continue;
+    for (Argument &arg : func->args())
+    {
+      auto argDIType = getArgDIType(arg);
+      if (isStructPointerTy(argDIType))
+        sharedDITypes.insert(argDIType);
+    }
+  }
+  return sharedDITypes;
 }

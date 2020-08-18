@@ -48,7 +48,7 @@ public:
   std::string getAllocAttribute(std::string projStr, bool isPassedToCallee);
   void computeAccessedFieldsInStructType(std::string structTypeName);
   // compute Shared Data Based On Type
-  void computeSharedDataForGlobalVars();
+  void computeSharedData();
   void computeSharedDataInFunc(llvm::Function &F);
   std::set<std::string> computeAccessedFieldsForDIType(tree<InstructionWrapper *> objectTree, llvm::DIType *rootDIType);
   std::set<std::string> computeSharedDataForType(llvm::DIType* dt);
@@ -72,15 +72,20 @@ private:
   std::ofstream idl_file;
   std::set<llvm::Function *> kernelDomainFuncs;
   std::set<llvm::Function *> driverDomainFuncs;
+  std::set<llvm::Function*> importedFuncs;
   std::set<std::string> driverExportFuncPtrNames;
   std::set<std::string> accessedFieldsInAsyncCalls;
   std::set<llvm::Function*> asyncCalls;
   std::map<std::string, std::string> driverExportFuncPtrNameMap;
+  std::set<std::string> usedCallBackFuncs;
   std::map<std::string, std::set<std::string>> sharedDataTypeMap;
+  std::map<std::string, llvm::DIType*> diTypeNameMap;
   std::map<std::string, AccessType> globalFieldAccessInfo;
   std::set<std::string> seenFuncOps;
   std::set<std::string> stringOperations;
   bool crossBoundary; // indicate whether transitive closure cross two domains
+  unsigned eliminatedFieldNum;
+  unsigned savedSyncDataSize;
 };
 
 std::string getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI);

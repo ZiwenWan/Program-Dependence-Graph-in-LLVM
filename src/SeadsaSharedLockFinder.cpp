@@ -44,102 +44,97 @@ public:
 
   bool runOnModule(Module &M)
   {
-    // unsigned ptrInModule = countPtrInModule(M);
-    // errs() << "total pointer in module: " << ptrInModule << "\n";
-    // // seperate kernel and driver functions
-    // seperateKernelDriverFunctions(M);
-    // // collects boundary functions 
-    // std::set<std::string> boundaryFunctions = findBoundaryFunctions();
-    // // set up lock and unlock instruction map
-    // lockUnlockMap.insert(std::make_pair("mutex_lock", "mutex_unlock"));
-    // lockUnlockMap.insert(std::make_pair("_raw_spin_lock", "_raw_spin_unlock"));
-    // lockUnlockMap.insert(std::make_pair("_raw_spin_lock_irq", "_raw_spin_unlock_irq"));
-    // // 1. collects pointers to shared data
-    // // alias analysis is done through sea-dsa.
-    // m_dsa = &getAnalysis<sea_dsa::DsaAnalysis>();
-    // // CCG = &getAnalysis<sea_dsa::CompleteCallGraph>();
-    // std::set<Value *> ptrToSharedData = collectPtrToSharedData(boundaryFunctions, M);
-    // // 2. identify critical sections
-    // // using CDG to compute corresponding lock/unlock pairs instead of CFG.
-    // std::set<std::pair<Instruction*, Instruction*>> criticalSections = collectCS(M);
-    // errs() << "CS size in module: " << criticalSections.size() << "\n";
-    // // 3. collects store instructions in CS and test if shared data can be modified 
-    // unsigned warningCount = 0;
-    // for (auto CS : criticalSections)
-    // {
-    //   // Eliminate critcal sections that use private lock
-    //   if (usePrivateLock(CS))
-    //     continue;
+    unsigned ptrInModule = countPtrInModule(M);
+    errs() << "total pointer in module: " << ptrInModule << "\n";
+    // seperate kernel and driver functions
+    seperateKernelDriverFunctions(M);
+    // collects boundary functions 
+    std::set<std::string> boundaryFunctions = findBoundaryFunctions();
+    // set up lock and unlock instruction map
+    lockUnlockMap.insert(std::make_pair("mutex_lock", "mutex_unlock"));
+    lockUnlockMap.insert(std::make_pair("_raw_spin_lock", "_raw_spin_unlock"));
+    lockUnlockMap.insert(std::make_pair("_raw_spin_lock_irq", "_raw_spin_unlock_irq"));
+    // 1. collects pointers to shared data
+    // alias analysis is done through sea-dsa.
+    m_dsa = &getAnalysis<sea_dsa::DsaAnalysis>();
+    // CCG = &getAnalysis<sea_dsa::CompleteCallGraph>();
+    std::set<Value *> ptrToSharedData = collectPtrToSharedData(boundaryFunctions, M);
+    // 2. identify critical sections
+    // using CDG to compute corresponding lock/unlock pairs instead of CFG.
+    std::set<std::pair<Instruction*, Instruction*>> criticalSections = collectCS(M);
+    errs() << "CS size in module: " << criticalSections.size() << "\n";
+    // 3. collects store instructions in CS and test if shared data can be modified 
+    unsigned warningCount = 0;
+    for (auto CS : criticalSections)
+    {
+      // Eliminate critcal sections that use private lock
+      if (usePrivateLock(CS))
+        continue;
 
-    //   // TODO: Eliminate warnings that has following cross-domain calls that synchronize the modified states
-    //   auto instInCS = collectInstructionsInCS(CS);
-    //   for (Instruction* inst : instInCS)
-    //   {
-    //     // if (isa<CallInst>(inst))
-    //     // {
-    //     //   CallSite CS = CallSite(inst);
-    //     //   printCallGraph(CS);
-    //     // }
-    //     if (StoreInst *st = dyn_cast<StoreInst>(inst))
-    //     {
-    //       auto storedToVal = st->getPointerOperand();
-    //       if (ptrToSharedData.find(storedToVal) != ptrToSharedData.end())
-    //       {
-    //         //TODO: use IDL to synchronized fields
-    //         // if (modifyStatesAreSynchronized(CS))
-    //         //   continue;
-    //         // here one possible case is that the modification happens in the other domain. But this modification should be 
-    //         // captured by the IDL. So, we should identify whether a modifiaiton is cross-domain modification. If so, then
-    //         // no warning need to be generated. Otherwise, if it is a modifcation in the same domain, we need to check if this 
-    //         // modifcation will be synchronized accross domain by following calls to the other domain. If so, no warning need to 
-    //         // be generated, other wise, generate warning.
-    //         Function* CSFunction = CS.first->getFunction(); // get function that contain the critical section
-    //         bool inDriver = (driverFunctions.find(CSFunction) != driverFunctions.end());
-    //         std::set<Function*> searchDomain = inDriver ? kernelFunctions : driverFunctions;
-    //         Function* modifyFunc = st->getFunction();
-    //         if (searchDomain.find(modifyFunc) != searchDomain.end()) // this means a modification happens in a cross-domain function.
-    //           continue;
+      // TODO: Eliminate warnings that has following cross-domain calls that synchronize the modified states
+      auto instInCS = collectInstructionsInCS(CS);
+      for (Instruction* inst : instInCS)
+      {
+        if (StoreInst *st = dyn_cast<StoreInst>(inst))
+        {
+          auto storedToVal = st->getPointerOperand();
+          if (ptrToSharedData.find(storedToVal) != ptrToSharedData.end())
+          {
+            //TODO: use IDL to synchronized fields
+            // if (modifyStatesAreSynchronized(CS))
+            //   continue;
+            // here one possible case is that the modification happens in the other domain. But this modification should be 
+            // captured by the IDL. So, we should identify whether a modifiaiton is cross-domain modification. If so, then
+            // no warning need to be generated. Otherwise, if it is a modifcation in the same domain, we need to check if this 
+            // modifcation will be synchronized accross domain by following calls to the other domain. If so, no warning need to 
+            // be generated, other wise, generate warning.
+            Function* CSFunction = CS.first->getFunction(); // get function that contain the critical section
+            bool inDriver = (driverFunctions.find(CSFunction) != driverFunctions.end());
+            std::set<Function*> searchDomain = inDriver ? kernelFunctions : driverFunctions;
+            Function* modifyFunc = st->getFunction();
+            if (searchDomain.find(modifyFunc) != searchDomain.end()) // this means a modification happens in a cross-domain function.
+              continue;
 
-    //         warningCount += 1;
-    //         errs() << "Warning: " << warningCount << "\n";
-    //         Value* sourcePtr = aliasMap[storedToVal];
-    //         assert(sourcePtr != nullptr);
-    //         errs() << "[source pointer]: " << *sourcePtr << "\n";
-    //         if (Argument *arg = dyn_cast<Argument>(sourcePtr))
-    //         {
-    //           errs() << "[source pointer type]: argument" << "\n";
-    //           errs() << "[Arg function]: " << arg->getParent()->getName() << "\n";
-    //         }
-    //         if (Instruction *i = dyn_cast<Instruction>(sourcePtr))
-    //         {
-    //           errs() << "[source pointer type]: variable " << "\n";
-    //           errs() << "[Var function]: " << i->getFunction()->getName() << "\n";
-    //         }
+            warningCount += 1;
+            errs() << "Warning: " << warningCount << "\n";
+            Value* sourcePtr = aliasMap[storedToVal];
+            assert(sourcePtr != nullptr);
+            errs() << "[source pointer]: " << *sourcePtr << "\n";
+            if (Argument *arg = dyn_cast<Argument>(sourcePtr))
+            {
+              errs() << "[source pointer type]: argument" << "\n";
+              errs() << "[Arg function]: " << arg->getParent()->getName() << "\n";
+            }
+            if (Instruction *i = dyn_cast<Instruction>(sourcePtr))
+            {
+              errs() << "[source pointer type]: variable " << "\n";
+              errs() << "[Var function]: " << i->getFunction()->getName() << "\n";
+            }
 
-    //         errs() << "[shared data modifed function]: " << st->getFunction()->getName() << "\n";
-    //         errs() << "[modify store inst]: " << *st << "\n";
-    //         if (CSFunction != modifyFunc)
-    //           errs() << "[call graph]: " << CSFunction->getName() << " -> " << modifyFunc->getName() << "\n";
-    //         // print more informative information such as file name, modify location in the source code
-    //         // print source code location
-    //         printDebugLoc(st, CS);
-    //         // print modified data name if possible. Basically, keep on back tracking the shared data. Then,
-    //         printModifiedData(st);
-    //         // here, try to get alloca site in the whole program
-    //         sea_dsa::Graph *funcGraph = &m_dsa->getDsaAnalysis().getGraph(*st->getFunction());
-    //         printAllocSites(st, funcGraph);
-    //         errs() << " ------------------------------------------------ \n";
-    //       }
-    //     }
-    //   }
-    // }
-    sharedDataTypeMap = getAnalysis<AccessInfoTracker>().getSharedDataTypeMap();
-    // start processing for atomic operation
-    auto &pdgUtils = PDGUtils::getInstance();
-    crossDomainFuncs = pdgUtils.computeCrossDomainFuncs(M);
-    sharedDataTypes = DIUtils::computeSharedDataType(M, pdgUtils.computeCrossDomainFuncs(M));
-    errs() << "number of shared type: " << sharedDataTypes.size() << "\n";
-    printWarningsForAtomicOperation(M);
+            errs() << "[shared data modifed function]: " << st->getFunction()->getName() << "\n";
+            errs() << "[modify store inst]: " << *st << "\n";
+            if (CSFunction != modifyFunc)
+              errs() << "[call graph]: " << CSFunction->getName() << " -> " << modifyFunc->getName() << "\n";
+            // print more informative information such as file name, modify location in the source code
+            // print source code location
+            printDebugLoc(st, CS);
+            // print modified data name if possible. Basically, keep on back tracking the shared data.
+            printModifiedData(st);
+            // here, try to get alloca site in the whole program
+            // sea_dsa::Graph *funcGraph = &m_dsa->getDsaAnalysis().getGraph(*st->getFunction());
+            // printAllocSites(st, funcGraph);
+            errs() << " ------------------------------------------------ \n";
+          }
+        }
+      }
+    }
+    // sharedDataTypeMap = getAnalysis<AccessInfoTracker>().getSharedDataTypeMap();
+    // // start processing for atomic operation
+    // auto &pdgUtils = PDGUtils::getInstance();
+    // crossDomainFuncs = pdgUtils.computeCrossDomainFuncs(M);
+    // sharedDataTypes = DIUtils::computeSharedDataType(M, pdgUtils.computeCrossDomainFuncs(M));
+    // errs() << "number of shared type: " << sharedDataTypes.size() << "\n";
+    // printWarningsForAtomicOperation(M);
     return false;
   }
 
@@ -732,6 +727,12 @@ public:
     errs() << "CS location: " << CS.first->getFunction()->getName() << "\n";
   }
 
+  void printModifiedData(Instruction* inst)
+  {
+    std::string dataName = getModifiedDataName(inst);
+    errs() << "[Modified Data]: " << dataName << "\n";
+  }
+
   int getGepOffset(GetElementPtrInst *gep)
   {
     int operand_num = gep->getNumOperands();
@@ -863,8 +864,8 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const
   {
-    // AU.addRequired<sea_dsa::DsaAnalysis>();
-    AU.addRequired<AccessInfoTracker>();
+    AU.addRequired<sea_dsa::DsaAnalysis>();
+    // AU.addRequired<AccessInfoTracker>();
     AU.setPreservesAll();
   }
 

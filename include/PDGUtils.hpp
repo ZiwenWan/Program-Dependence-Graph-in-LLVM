@@ -47,11 +47,13 @@ class PDGUtils final
     void setDsaAnalysis(sea_dsa::DsaAnalysis *_m_dsa) { m_dsa = _m_dsa; }
     sea_dsa::DsaAnalysis *getDsaAnalysis() { return m_dsa; }
     // functions used for PDG construction optimization
+    std::set<llvm::Function *> computeImportedFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeCrossDomainFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeDriverDomainFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeKernelDomainFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeTransitiveClosure(llvm::Function &F);
     std::set<std::string> computeDriverExportFuncPtrName();
+    std::set<std::string> getBlackListFuncs();
     std::map<std::string, std::string> computeDriverExportFuncPtrNameMap();
     std::set<llvm::Function *> getTransitiveClosureInDomain(llvm::Function &F, std::set<llvm::Function *> searchDomain);
 

@@ -29,7 +29,7 @@ public:
   // PDG processing
   bool processCallInst(InstructionWrapper *instW);
   bool processIndirectCallInst(llvm::CallInst *CI, InstructionWrapper *instW);
-  void addNodeDependencies(InstructionWrapper *instW);
+  void addNodeDependencies(InstructionWrapper *instW, DataDependencyGraph* ddg);
   std::set<llvm::Function *> computeFunctionsNeedPDGConstruction(llvm::Module &M);
   // parameter tree building
   std::vector<llvm::Function *> collectIndirectCallCandidates(llvm::FunctionType *functionType, llvm::Function &oriFunc, const std::set<std::string> &filterFuncs = std::set<std::string>());
@@ -47,6 +47,9 @@ public:
   InstructionWrapper *buildPointerTypeNodeWithDI(ArgumentWrapper *argW, InstructionWrapper *curTyNode, tree<InstructionWrapper *>::iterator, llvm::DIType *dt);
   void buildTypeTree(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType);
   void buildTypeTreeWithDI(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType *argDIType);
+  void buildGlobalTypeTrees(std::set<llvm::DIType *> sharedTypes);
+  void buildGlobalTypeTreeForDIType(llvm::DIType &DI);
+  void connectGlobalTypeTreeWithAddressVars(std::set<llvm::Function *> &searchDomain);
   void drawFormalParameterTree(llvm::Function *Func, TreeType treeTy);
   void connectFunctionAndFormalTrees(llvm::Function *callee);
   void connectTreeNodeWithAddrVars(ArgumentWrapper* argW);
@@ -65,7 +68,12 @@ public:
   void getReadInstsOnInst(llvm::Instruction* inst, std::set<InstructionWrapper*> &readInsts);
   void getAllAlias(llvm::Instruction *inst, std::set<InstructionWrapper*> &ret);
   bool isFuncTypeMatch(llvm::FunctionType *funcType1, llvm::FunctionType *funcType2);
-  bool isTreeNodeGEPMatch(InstructionWrapper *treeNode, llvm::Instruction *GEP);
+  llvm::StructType *getStructTypeFromGEP(llvm::Instruction *inst);
+  llvm::Value *getLShrOnGep(llvm::GetElementPtrInst *gep);
+  bool isGEPforBitField(llvm::GetElementPtrInst *gep);
+  uint64_t getGEPOffsetInBits(llvm::StructType *structTy, llvm::GetElementPtrInst *gep);
+  unsigned getGEPAccessFieldOffset(llvm::GetElementPtrInst *gep);
+  bool isTreeNodeGEPMatch(llvm::StructType* structTy, InstructionWrapper *treeNode, llvm::Instruction *GEP);
   bool isIndirectCallOrInlineAsm(llvm::CallInst *CI);
   bool nameMatch(std::string str1, std::string str2);
   tree<InstructionWrapper *>::iterator getInstInsertLoc(ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy);
@@ -79,15 +87,17 @@ public:
   bool isFuncPointer(llvm::Type *ty);
   bool isStructPointer(llvm::Type *ty);
   std::map<llvm::GlobalVariable*, tree<InstructionWrapper *>> getGlobalObjectTrees() { return globalObjectTrees; }
+  std::map<llvm::DIType*, tree<InstructionWrapper *>> getGlobalTypeTrees() { return globalTypeTrees; }
 
 private:
   llvm::Module *module;
   DependencyGraph<InstructionWrapper> *PDG;
-  ControlDependencyGraph *cdg;
-  DataDependencyGraph *ddg;
+  // ControlDependencyGraph *cdg;
+  // DataDependencyGraph *ddg;
   std::vector<llvm::Instruction*> lockCallSites;
   std::set<std::string> lockCallNameList;
   std::map<llvm::GlobalVariable*, tree<InstructionWrapper*>> globalObjectTrees;
+  std::map<llvm::DIType*, tree<InstructionWrapper*>> globalTypeTrees;
 };
 } // namespace pdg
 

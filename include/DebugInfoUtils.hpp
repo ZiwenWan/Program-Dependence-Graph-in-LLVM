@@ -38,12 +38,14 @@ class DIUtils
     static llvm::DbgDeclareInst *getDbgInstForInst(llvm::Instruction *inst, std::set<llvm::DbgDeclareInst *> dbgInstList);
     static std::set<llvm::DbgInfoIntrinsic *> collectDbgInstInFunc(llvm::Function &F);
     static std::vector<llvm::Function *> collectIndirectCallCandidatesWithDI(llvm::DIType *funcDIType, llvm::Module *module, std::map<std::string, std::string> funcptrTargetMap);
-    static std::set<std::string> computeSharedDataType(llvm::Module &M, std::set<llvm::Function *> crossDomainFunctions);
+    // static std::set<std::string> computeSharedDataType(llvm::Module &M, std::set<llvm::Function *> crossDomainFunctions);
     static std::string computeFieldID(llvm::DIType *rootType, llvm::DIType *fieldType);
     static std::string getInvalidTypeStr(llvm::DIType *dt);
     static bool isUnionType(llvm::DIType *dt);
     static bool isArrayType(llvm::DIType *dt);
     static bool actualArgHasAllocator(llvm::Function& F, unsigned argIdx);
+    static unsigned computeTotalFieldNumberInStructType(llvm::DIType* dt);
+    static std::set<llvm::DIType*> collectSharedDITypes(llvm::Module &M, std::set<llvm::Function*> crossDomainFuncs);
 };
 }
 #endif

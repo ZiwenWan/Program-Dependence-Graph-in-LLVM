@@ -10,6 +10,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   auto &pdgUtils = PDGUtils::getInstance();
   // get cross domain functions and setup kernel and driver side functions
   std::set<Function *> crossDomainFuncCalls = pdgUtils.computeCrossDomainFuncs(M);
+  importedFuncs = pdgUtils.computeImportedFuncs(M);
   driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(M);
   kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(M);
   driverExportFuncPtrNames = pdgUtils.computeDriverExportFuncPtrName();
@@ -20,8 +21,11 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   stringOperations.insert("strlcpy");
   stringOperations.insert("strcmp");
   stringOperations.insert("strncmp");
+  // counter for how many field we eliminate using shared data
+  eliminatedFieldNum = 0;
+  savedSyncDataSize = 0;
+  computeSharedData();
   // start generating IDL
-  computeSharedDataForGlobalVars();
   std::string file_name = "kernel";
   file_name += ".idl";
   idl_file.open(file_name);
@@ -32,11 +36,36 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
     if (F->isDeclaration() || F->empty())
       continue;
     computeFuncAccessInfo(*F);
-    computeSharedDataInFunc(*F);
     generateIDLforFunc(*F);
   }
   idl_file << "}";
   idl_file.close();
+  std::string sharedDataStatsStr = "sharedDataStats.txt";
+  std::ofstream sharedDataStatsFile;
+  sharedDataStatsFile.open(sharedDataStatsStr);
+  sharedDataStatsFile << "shared data stats: \n";
+  sharedDataStatsFile << "number of shared data types: " << sharedDataTypeMap.size() << "\n";
+  unsigned numOfSharedFields = 0;
+  unsigned numOfPrivateFields = 0;
+  unsigned totalNumOfFields = 0;
+  for (auto pair : sharedDataTypeMap)
+  {
+    // sharedDataStatsFile << "shared data type: " << pair.first;
+    // sharedDataStatsFile << "\tnumber of shared fields: " << pair.second.size() << "\n";
+    numOfSharedFields += pair.second.size();
+    totalNumOfFields += DIUtils::computeTotalFieldNumberInStructType(diTypeNameMap[pair.first]);
+    // for (auto s : pair.second)
+    // {
+    //   sharedDataStatsFile << "\t" << s << "\n";
+    // }
+    // sharedDataStatsFile << "-------------------------------- \n";
+  }
+  sharedDataStatsFile << "total number of fields: " << totalNumOfFields << "\n";
+  sharedDataStatsFile << "number of shared fields: " << numOfSharedFields << "\n";
+  sharedDataStatsFile << "number of eliminated fields: " << eliminatedFieldNum << "\n";
+  sharedDataStatsFile << "number of save data in bytes: " << savedSyncDataSize << "\n";
+  sharedDataStatsFile.close();
+
   return false;
 }
 
@@ -104,21 +133,20 @@ void pdg::AccessInfoTracker::printRetValueAccessInfo(Function &Func)
   }
 }
 
-void pdg::AccessInfoTracker::computeSharedDataForGlobalVars()
+void pdg::AccessInfoTracker::computeSharedData()
 {
-  auto globalObjectTrees = PDG->getGlobalObjectTrees();
+  auto globalTypeTrees = PDG->getGlobalTypeTrees();
   auto &pdgUtils = PDGUtils::getInstance();
   auto instMap = pdgUtils.getInstMap();
-  for (auto pair : globalObjectTrees)
+  for (auto pair : globalTypeTrees)
   {
-    auto GV = pair.first;
-    auto objectTree = pair.second;
-    DIType* GVDIType = DIUtils::getGlobalVarDIType(*GV);
-    if (!GVDIType)
+    DIType* sharedType = pair.first;
+    auto typeTree = pair.second;
+    if (!sharedType)
       continue;
     std::set<std::string> accessedFields;
     // iterate through each node, find their addr variables and then analyze the accesses to the addr variables
-    for (auto treeI = objectTree.begin(); treeI != objectTree.end(); ++treeI)
+    for (auto treeI = typeTree.begin(); treeI != typeTree.end(); ++treeI)
     {
       DIType *fieldDIType = (*treeI)->getDIType();
       // hanlde static defined functions, assume all functions poineter that are linked with defined function in device driver module should be used by kernel.
@@ -127,7 +155,7 @@ void pdg::AccessInfoTracker::computeSharedDataForGlobalVars()
         std::string funcptrName = DIUtils::getDIFieldName((*treeI)->getDIType());
         if (driverExportFuncPtrNames.find(funcptrName) != driverExportFuncPtrNames.end())
         {
-          std::string fieldID = DIUtils::computeFieldID(GVDIType, fieldDIType);
+          std::string fieldID = DIUtils::computeFieldID(sharedType, fieldDIType);
           accessedFields.insert(fieldID);
         }
         continue;
@@ -141,7 +169,7 @@ void pdg::AccessInfoTracker::computeSharedDataForGlobalVars()
         AccessType accType = getAccessTypeForInstW(dataW);
         if (accType != AccessType::NOACCESS)
         {
-          std::string fieldID = DIUtils::computeFieldID(GVDIType, fieldDIType);
+          std::string fieldID = DIUtils::computeFieldID(sharedType, fieldDIType);
           accessedFields.insert(fieldID);
           // compute field accessed in asynchronous called functions
           Instruction* inst = dataW->getInstruction();
@@ -155,11 +183,14 @@ void pdg::AccessInfoTracker::computeSharedDataForGlobalVars()
       }
     }
 
-    std::string GVName = DIUtils::getDITypeName(GVDIType);
-    if (sharedDataTypeMap.find(GVName) == sharedDataTypeMap.end())
-      sharedDataTypeMap[GVName] = accessedFields;
+    std::string sharedTypeName = DIUtils::getDITypeName(sharedType);
+    if (sharedDataTypeMap.find(sharedTypeName) == sharedDataTypeMap.end())
+    {
+      sharedDataTypeMap[sharedTypeName] = accessedFields;
+      diTypeNameMap[sharedTypeName] = sharedType;
+    }
     else 
-      sharedDataTypeMap[GVName].insert(accessedFields.begin(), accessedFields.end());
+      sharedDataTypeMap[sharedTypeName].insert(accessedFields.begin(), accessedFields.end());
   }
 }
 
@@ -200,9 +231,11 @@ void pdg::AccessInfoTracker::computeIntraprocArgAccessInfo(ArgumentWrapper *argW
     if (DIUtils::isFuncPointerTy((*treeI)->getDIType()))
     {
       std::string funcptrName = DIUtils::getDIFieldName((*treeI)->getDIType());
-      if (driverExportFuncPtrNames.find(funcptrName) != driverExportFuncPtrNames.end())
+      std::string funcName = switchIndirectCalledPtrName(funcptrName);
+      if (driverExportFuncPtrNameMap.find(funcName) != driverExportFuncPtrNameMap.end())
       {
         (*treeI)->setAccessType(AccessType::READ);
+        usedCallBackFuncs.insert(funcName);
         continue;
       }
     }
@@ -663,7 +696,10 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       retTypeName = retTypeName + retAttributeStr;
   }
   
-  idl_file << "\trpc " << retTypeName << " " << funcName << "( ";
+  idl_file << "\trpc " << retTypeName << " " << funcName;
+  if (funcName.find("ioremap") != std::string::npos)
+    idl_file << " [ioremap(caller)] ";
+  idl_file << "( ";
   // handle parameters
   for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
   {
@@ -701,7 +737,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       else
         argTypeName.push_back('*');
       
-      // generate array annotation
+      // generate array annotation for struct pointers
       uint64_t arrSize = getArrayArgSize(arg, F);
       if (arrSize > 0)
         argName = argName + "[" + std::to_string(arrSize) + "]";
@@ -780,6 +816,7 @@ std::set<Instruction*> pdg::AccessInfoTracker::getIntraFuncAlias(Instruction *in
 {
   Function *F = inst->getFunction();
   std::set<Instruction*> aliasSet;
+  aliasSet.insert(inst);
   for (auto instI = inst_begin(F); instI != inst_end(F); instI++)
   {
     if (&*instI == inst)
@@ -806,6 +843,19 @@ std::string pdg::AccessInfoTracker::getReturnAttributeStr(Function &F)
     auto aliasSet = getIntraFuncAlias(retVal);
     for (auto alias : aliasSet)
     {
+      if (CallInst *ci = dyn_cast<CallInst>(alias))
+      {
+        if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+        {
+          if (calledFunc == &F) continue;
+          if (calledFunc->isDeclaration() || calledFunc->empty()) continue;
+          
+          std::string calleeRetStr = getReturnAttributeStr(*calledFunc);
+          if (!calleeRetStr.empty())
+            return calleeRetStr;
+        }
+      }
+
       if (!G->hasCell(*alias))
         continue;
       auto const &c = G->getCell(*alias);
@@ -831,7 +881,16 @@ std::string pdg::AccessInfoTracker::getReturnAttributeStr(Function &F)
 void pdg::AccessInfoTracker::generateIDLforFunc(Function &F)
 {
   // if a function is defined on the same side, no need to generate IDL rpc for this function.
-  errs() << "Start generating IDL for " << F.getName() << "\n";
+  std::string funcName = F.getName().str();
+  errs() << "Start generating IDL for " << funcName << "\n";
+  // here, we don't generate any projection and rpc for indirect functions that are 
+  // never used in interface functions
+  if (driverExportFuncPtrNameMap.find(funcName) != driverExportFuncPtrNameMap.end())
+  {
+    if (usedCallBackFuncs.find(funcName) == usedCallBackFuncs.end())
+      return;
+  }
+
   auto &pdgUtils = PDGUtils::getInstance();
   FunctionWrapper *funcW = pdgUtils.getFuncMap()[&F];
   for (auto argW : funcW->getArgWList())
@@ -871,10 +930,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     auto treeI = treeNodeQ.front();
     treeNodeQ.pop();
     auto curDIType = (*treeI)->getDIType();
-
     if (curDIType == nullptr) continue;
     std::stringstream projection_str;
-    bool accessed = false;
     // only process sturct pointer and function pointer, these are the only types that we should generate projection for
     if (!DIUtils::isStructPointerTy(curDIType) &&
         !DIUtils::isFuncPointerTy(curDIType) &&
@@ -905,11 +962,28 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
           (*childT)->setAccessType(accType);
         }
       }
-      if ((*childT)->getAccessType() == AccessType::NOACCESS)
+
+      // optimization conditions
+      bool childNodeNoAccess = ((*childT)->getAccessType() == AccessType::NOACCESS);
+      // if this is a call back func from kernel to driver, then we can assume the accessed fields are already shared.
+      // because the passed in object must have already has a copy in the kernel side.
+      bool isCallBackFunc = (driverExportFuncPtrNameMap.find(F.getName().str()) != driverExportFuncPtrNameMap.end());
+      bool isPrivateField = (!isChildFieldShared(argDIType, childDIType));
+      // parameters passed in call back functions can be considered shared,
+      // as they are sent by kernel, which allocates obj.
+      if (!isCallBackFunc)
+      {
+        if (isPrivateField)
+        {
+          eliminatedFieldNum += 1;
+          savedSyncDataSize += (childDIType->getSizeInBits() / 8);
+          continue;
+        }
+      }
+      if (childNodeNoAccess)
         continue;
-      // check if an accessed field is in the set of shared data
-      if (!isChildFieldShared(argDIType, childDIType))
-        continue;
+      // check if an accessed field is in the set of shared data, also, assume if the function call from kernel to driver 
+      // will pass shared objects
       // only check access status under cross boundary case. If not cross, we do not check and simply perform
       // normal field finding analysis.
       // alloc attribute
@@ -964,11 +1038,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       }
       else if (DIUtils::isUnionType(childDIType))
       {
-        auto fieldTypeName = DIUtils::getDITypeName(childDIType) + funcName;
-        // continue;
-        projection_str << "\t\t"
-                       << "union " << fieldTypeName << " "
-                       << " " << DIUtils::getDIFieldName(childDIType) << ";\n";
+        // currently, anonymous union type is not handled.
+        projection_str << "\t\t" << "// union type \n";
         continue;
       }
       else
@@ -983,7 +1054,11 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     if (DIUtils::isStructTy(baseType))
     {
       std::stringstream temp;
-      std::string structName = DIUtils::getDIFieldName(curDIType); // the name is stored in tag member.
+      std::string structName = DIUtils::getDITypeName(curDIType); // the name is stored in tag member.
+      // remove * in projection definition
+      if (structName.back() == '*')
+        structName.pop_back();
+
       // a very specific handling for generating IDL for function struct ops
       if (structName.find("ops") == std::string::npos)
       {
@@ -1029,7 +1104,6 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     //     generateIDLforFuncPtrWithDI((*funcT)->getDIType(), F.getParent(), funcPtrName);
     // }
     idl_file << projection_str.str();
-    accessed = false;
   }
 }
 
@@ -1067,23 +1141,35 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
           }
         }
         // alloc annotation
-        if (StoreInst *ci = dyn_cast<StoreInst>(depInst)) {
-            if (ci->getPointerOperand() == dataW->getInstruction()) {
-              if (isa<GlobalVariable>(ci->getValueOperand()->stripPointerCasts()))
-                return "[alloc(caller)] [out]";
+        if (StoreInst *si = dyn_cast<StoreInst>(depInst))
+        {
+          if (si->getPointerOperand() == dataW->getInstruction())
+          {
+            if (isa<GlobalVariable>(si->getValueOperand()->stripPointerCasts()))
+              return "[alloc(caller)] [out]";
+          }
+        }
+        // dealloc annotation
+        if (CallInst *ci = dyn_cast<CallInst>(depInst))
+        {
+          if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+          {
+            if (calledFunc->getName().str().find("free") != std::string::npos)
+            {
+              return "[dealloc(caller)]";
             }
+          }
         }
       }
     }
   }
-
   return "";
 }
 
 std::string pdg::getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI)
 {
   std::vector<std::string> access_attribute = {
-      "No Access",
+      "",
       "",
       "[out]"};
   int accessIdx = static_cast<int>((*treeI)->getAccessType());
@@ -1110,8 +1196,10 @@ void pdg::AccessInfoTracker::computeSharedDataInFunc(Function &F)
       continue;
     // check if shared fields for this struct type is already done
     std::string argTypeName = DIUtils::getArgTypeName(arg);
-    if (sharedDataTypeMap.find(argTypeName) == sharedDataTypeMap.end())
+    if (sharedDataTypeMap.find(argTypeName) == sharedDataTypeMap.end()) {
       sharedDataTypeMap.insert(std::pair<std::string, std::set<std::string>>(argTypeName, std::set<std::string>()));
+      diTypeNameMap[argTypeName] = argDIType;
+    }
     std::set<std::string> accessedFieldsInArg = computeSharedDataForType(argDIType);
     sharedDataTypeMap[argTypeName].insert(accessedFieldsInArg.begin(), accessedFieldsInArg.end());
   }

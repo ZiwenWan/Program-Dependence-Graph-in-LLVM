@@ -16,6 +16,17 @@ namespace pdg
 {
 class InstructionWrapper {
   public:
+    InstructionWrapper(GraphNodeType nodetype)
+    {
+      this->Inst = nullptr;
+      this->Func = nullptr;
+      this->BB = nullptr;
+      this->value = nullptr;
+      this->nodetype = nodetype;
+      this->isVisited = false;
+      this->access_type = AccessType::NOACCESS;
+    }
+    
     InstructionWrapper(llvm::Function *Func, GraphNodeType nodetype)
     {
       this->Inst = nullptr;
@@ -112,6 +123,16 @@ class TreeTypeWrapper : public InstructionWrapper
                     GraphNodeType nodetype,
                     int node_offset,
                     llvm::DIType *dt) : InstructionWrapper(val, nodetype)
+    {
+      this->treeNodeType = nullptr;
+      this->parentTreeNodeType = nullptr;
+      this->node_offset = node_offset;
+      this->dt = dt;
+    }
+
+    TreeTypeWrapper(GraphNodeType nodetype,
+                    int node_offset,
+                    llvm::DIType *dt) : InstructionWrapper(nodetype)
     {
       this->treeNodeType = nullptr;
       this->parentTreeNodeType = nullptr;
