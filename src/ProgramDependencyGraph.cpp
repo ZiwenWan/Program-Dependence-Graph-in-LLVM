@@ -32,6 +32,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   auto &pdgUtils = PDGUtils::getInstance();
   pdgUtils.constructFuncMap(M);
   pdgUtils.collectGlobalInsts(M);
+  unsafeTypeCastNum = 0;
   // start constructing points to graph
   sea_dsa::DsaAnalysis *m_dsa = &getAnalysis<sea_dsa::DsaAnalysis>();
   pdgUtils.setDsaAnalysis(m_dsa);

@@ -722,7 +722,7 @@ unsigned pdg::DIUtils::computeTotalFieldNumberInStructType(DIType* dt)
     {
       DIType *fieldDIType = dyn_cast<DIType>(DINodeArr[i]);
       fieldDIType = getLowestDIType(fieldDIType);
-      if (isStructTy(fieldDIType))
+      if (isStructTy(fieldDIType) || isUnionType(fieldDIType))
         workQ.push(fieldDIType);
     }
   }

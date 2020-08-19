@@ -23,9 +23,9 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   stringOperations.insert("strcmp");
   stringOperations.insert("strncmp");
   // counter for how many field we eliminate using shared data
-  eliminatedFieldNum = 0;
+  privateDataSize = 0;
   savedSyncDataSize = 0;
-  computeSharedData();
+  numProjectedFields = 0;
   // start generating IDL
   std::string file_name = "kernel";
   file_name += ".idl";
@@ -37,6 +37,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
     if (F->isDeclaration() || F->empty())
       continue;
     // computeFuncAccessInfo(*F);
+    computeSharedData();
     computeFuncAccessInfoBottomUp(*F);
     generateIDLforFunc(*F);
   }
@@ -73,7 +74,6 @@ void pdg::AccessInfoTracker::printNumStats()
   sharedDataStatsFile << "shared data stats: \n";
   sharedDataStatsFile << "number of shared data types: " << sharedDataTypeMap.size() << "\n";
   unsigned numOfSharedFields = 0;
-  unsigned numOfPrivateFields = 0;
   unsigned totalNumOfFields = 0;
   for (auto pair : sharedDataTypeMap)
   {
@@ -83,14 +83,17 @@ void pdg::AccessInfoTracker::printNumStats()
     totalNumOfFields += DIUtils::computeTotalFieldNumberInStructType(diTypeNameMap[pair.first]);
     // for (auto s : pair.second)
     // {
-    //   sharedDataStatsFile << "\t" << s << "\n";
+    //   errs() << s << "\n";
     // }
     // sharedDataStatsFile << "-------------------------------- \n";
   }
   sharedDataStatsFile << "total number of fields: " << totalNumOfFields << "\n";
   sharedDataStatsFile << "number of shared fields: " << numOfSharedFields << "\n";
-  sharedDataStatsFile << "number of eliminated fields: " << eliminatedFieldNum << "\n";
-  sharedDataStatsFile << "number of save data in bytes: " << savedSyncDataSize << "\n";
+  sharedDataStatsFile << "number of private fields: " << (totalNumOfFields - numOfSharedFields) << "\n";
+  sharedDataStatsFile << "number of projected fields: " << numProjectedFields << "\n";
+  sharedDataStatsFile << "save data in bytes: " << savedSyncDataSize << "\n";
+  sharedDataStatsFile << "save data using shared data in bytes: " << privateDataSize << "\n";
+  sharedDataStatsFile << "total save data in bytes: " << (savedSyncDataSize + privateDataSize) << "\n";
   sharedDataStatsFile.close();
 }
 
@@ -188,16 +191,30 @@ void pdg::AccessInfoTracker::computeSharedData()
 
       // get valdep pair, and check for intraprocedural accesses
       auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+      bool accessInKernel = false;
+      bool accessInDriver = false;
       for (auto valDepPair : valDepPairList)
       {
         auto dataW = valDepPair.first->getData();
+        Instruction *inst = dataW->getInstruction();
         AccessType accType = getAccessTypeForInstW(dataW);
         if (accType != AccessType::NOACCESS)
         {
+          if (inst != nullptr)
+          {
+            Function *f = inst->getFunction();
+            if (driverDomainFuncs.find(f) != driverDomainFuncs.end())
+              accessInDriver = true;
+            if (kernelDomainFuncs.find(f) != kernelDomainFuncs.end())
+              accessInKernel = true;
+          }
+
+          if (!accessInDriver || !accessInKernel)
+            continue;
+
           std::string fieldID = DIUtils::computeFieldID(sharedType, fieldDIType);
           accessedFields.insert(fieldID);
           // compute field accessed in asynchronous called functions
-          Instruction* inst = dataW->getInstruction();
           if (inst != nullptr)
           {
             Function* parentFunc = inst->getFunction();
@@ -1070,18 +1087,23 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       {
         if (isPrivateField)
         {
-          eliminatedFieldNum += 1;
-          savedSyncDataSize += (childDIType->getSizeInBits() / 8);
+          numProjectedFields++;
+          privateDataSize += (childDIType->getSizeInBits() / 8);
           continue;
         }
       }
+
       if (childNodeNoAccess)
+      {
+        savedSyncDataSize += (childDIType->getSizeInBits() / 8);
         continue;
+      }
       // check if an accessed field is in the set of shared data, also, assume if the function call from kernel to driver 
       // will pass shared objects
       // only check access status under cross boundary case. If not cross, we do not check and simply perform
       // normal field finding analysis.
       // alloc attribute
+      numProjectedFields++;
       std::string fieldAnnotation = inferFieldAnnotation(*childT);
       if (fieldAnnotation == "[string]")
         stringNum++;

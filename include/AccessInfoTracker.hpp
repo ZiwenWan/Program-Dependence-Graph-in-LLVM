@@ -88,8 +88,9 @@ private:
   std::set<std::string> seenFuncOps;
   std::set<std::string> stringOperations;
   bool crossBoundary; // indicate whether transitive closure cross two domains
-  unsigned eliminatedFieldNum;
+  unsigned numProjectedFields;
   unsigned savedSyncDataSize;
+  unsigned privateDataSize;
   unsigned unionNum;
   unsigned voidPointerNum;
   unsigned pointerArithmeticNum;
