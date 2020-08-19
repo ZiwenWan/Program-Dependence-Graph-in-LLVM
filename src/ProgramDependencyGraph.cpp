@@ -63,7 +63,11 @@ void pdg::ProgramDependencyGraph::buildPDGForFunc(Function *Func)
   auto ddg = &getAnalysis<DataDependencyGraph>(*Func);
 
   for (InstructionWrapper *instW : pdgUtils.getFuncInstWMap()[Func])
+  {
     addNodeDependencies(instW, ddg);
+    if (isUnsafeTypeCast(instW->getInstruction()))
+      unsafeTypeCastNum++;
+  }
 
   if (!pdgUtils.getFuncMap()[Func]->hasTrees())
   {
@@ -1673,6 +1677,20 @@ std::set<Function *> pdg::ProgramDependencyGraph::inferAsynchronousCalledFunctio
       asynCalls.insert(&F);
   }
   return asynCalls;
+}
+
+bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction* inst)
+{
+  if (inst == nullptr)
+    return false;
+
+  if (CastInst *ci = dyn_cast<CastInst>(inst))
+  {
+    if (isStructPointer(ci->getType()) && isStructPointer(ci->getOperand(0)->getType()))
+      return true;
+  }
+
+  return false;
 }
 
 static RegisterPass<pdg::ProgramDependencyGraph>

@@ -186,15 +186,15 @@ std::set<Function *> pdg::PDGUtils::computeTransitiveClosure(Function &F)
     auto callInstList = G_funcMap[func]->getCallInstList();
     for (auto ci : callInstList)
     {
-      if (ci->getCalledFunction() == nullptr) // indirect call
-        continue;
-      Function *calledF = ci->getCalledFunction();
-      if (calledF->isDeclaration() || calledF->empty())
-        continue;
-      if (transClosure.find(calledF) != transClosure.end()) // skip if we already added the called function to queue.
-        continue;
-      transClosure.insert(calledF);
-      funcQ.push(calledF);
+      if (Function *calledF = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+      {
+        if (calledF->isDeclaration() || calledF->empty())
+          continue;
+        if (transClosure.find(calledF) != transClosure.end()) // skip if we already added the called function to queue.
+          continue;
+        transClosure.insert(calledF);
+        funcQ.push(calledF);
+      }
     }
   }
 

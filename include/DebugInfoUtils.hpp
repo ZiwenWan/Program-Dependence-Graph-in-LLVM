@@ -27,6 +27,7 @@ class DIUtils
     static std::string getArgTypeName(llvm::Argument &arg);
     static std::string getFuncSigName(llvm::DIType *ty, llvm::Function *F = nullptr, std::string funcPtrName = "", std::string funcName = "", bool callFromDev = true);
     static void printStructFieldNames(llvm::DINodeArray DINodeArr);
+    static bool isVoidPointer(llvm::DIType *dt);
     static bool isPointerType(llvm::DIType *dt);
     static bool isStructPointerTy(llvm::DIType *dt);
     static bool isUnionPointerTy(llvm::DIType *dt);
@@ -44,6 +45,7 @@ class DIUtils
     static bool isUnionType(llvm::DIType *dt);
     static bool isArrayType(llvm::DIType *dt);
     static bool actualArgHasAllocator(llvm::Function& F, unsigned argIdx);
+    static bool isSentinelType(llvm::DIType* dt);
     static unsigned computeTotalFieldNumberInStructType(llvm::DIType* dt);
     static std::set<llvm::DIType*> collectSharedDITypes(llvm::Module &M, std::set<llvm::Function*> crossDomainFuncs);
 };

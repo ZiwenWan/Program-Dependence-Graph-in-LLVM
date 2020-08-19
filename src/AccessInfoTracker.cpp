@@ -9,6 +9,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   PDG = &getAnalysis<ProgramDependencyGraph>();
   auto &pdgUtils = PDGUtils::getInstance();
   // get cross domain functions and setup kernel and driver side functions
+  initializeNumStats();
   std::set<Function *> crossDomainFuncCalls = pdgUtils.computeCrossDomainFuncs(M);
   importedFuncs = pdgUtils.computeImportedFuncs(M);
   driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(M);
@@ -35,11 +36,37 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   {
     if (F->isDeclaration() || F->empty())
       continue;
-    computeFuncAccessInfo(*F);
+    // computeFuncAccessInfo(*F);
+    computeFuncAccessInfoBottomUp(*F);
     generateIDLforFunc(*F);
   }
   idl_file << "}";
   idl_file.close();
+  printNumStats();
+  return false;
+}
+
+void pdg::AccessInfoTracker::initializeNumStats()
+{
+  unionNum = 0;
+  voidPointerNum = 0;
+  pointerArithmeticNum = PDG->getUnsafeTypeCastNum();
+  sentialArrayNum = 0;
+  arrayNum = 0;
+  stringNum = 0;
+}
+
+void pdg::AccessInfoTracker::printNumStats()
+{
+  std::ofstream numStats("numStats.txt");
+  numStats << "union type number: " << unionNum << "\n";
+  numStats << "void pointer number: " << voidPointerNum << "\n";
+  numStats << "pointer arithmetic number: " << pointerArithmeticNum << "\n";
+  numStats << "sential array number: " << sentialArrayNum << "\n";
+  numStats << "array number: " << arrayNum << "\n";
+  numStats << "string number: " << stringNum << "\n";
+  numStats.close();
+  // eliminated fields
   std::string sharedDataStatsStr = "sharedDataStats.txt";
   std::ofstream sharedDataStatsFile;
   sharedDataStatsFile.open(sharedDataStatsStr);
@@ -65,8 +92,6 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   sharedDataStatsFile << "number of eliminated fields: " << eliminatedFieldNum << "\n";
   sharedDataStatsFile << "number of save data in bytes: " << savedSyncDataSize << "\n";
   sharedDataStatsFile.close();
-
-  return false;
 }
 
 void pdg::AccessInfoTracker::getAnalysisUsage(AnalysisUsage &AU) const
@@ -301,6 +326,38 @@ void pdg::AccessInfoTracker::computeInterprocArgAccessInfo(ArgumentWrapper* argW
   }
 }
 
+std::vector<Function*> pdg::AccessInfoTracker::computeBottomUpCallChain(Function& F)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto funcMap = pdgUtils.getFuncMap();
+  std::vector<Function *> ret;
+  ret.push_back(&F);
+  std::set<Function*> seenFuncs;
+  std::queue<Function *> funcQ;
+  funcQ.push(&F);
+  seenFuncs.insert(&F);
+  while (!funcQ.empty())
+  {
+    Function *func = funcQ.front();
+    funcQ.pop();
+    auto callInstList = funcMap[func]->getCallInstList();
+    for (auto ci : callInstList)
+    {
+      if (Function *calledF = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+      {
+        if (calledF->isDeclaration() || calledF->empty())
+          continue;
+        if (seenFuncs.find(calledF) != seenFuncs.end()) // skip if already visited the called function
+          continue;
+        ret.push_back(calledF);
+        seenFuncs.insert(calledF);
+        funcQ.push(calledF);
+      }
+    }
+  }
+  return ret;
+}
+
 int pdg::AccessInfoTracker::getCallOperandIdx(Value* operand, CallInst* callInst)
 {
   int argNo = 0;
@@ -519,6 +576,21 @@ std::set<Value *> pdg::AccessInfoTracker::findAliasInDomain(Value &V, Function &
   return aliasInDomain;
 }
 
+void pdg::AccessInfoTracker::computeFuncAccessInfoBottomUp(Function& F)
+{
+  // get the call chian ordered in a bottom up manner
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto funcMap = pdgUtils.getFuncMap();
+  std::vector<Function *> bottomUpCallChain = computeBottomUpCallChain(F);
+  for (auto iter = bottomUpCallChain.rbegin(); iter != bottomUpCallChain.rend(); ++iter)
+  {
+    if (funcMap[*iter]->isVisited())
+      continue;
+    computeFuncAccessInfo(**iter);
+    funcMap[*iter]->setVisited(true);
+  }
+}
+
 void pdg::AccessInfoTracker::computeFuncAccessInfo(Function &F)
 {
   auto &pdgUtils = PDGUtils::getInstance();
@@ -693,7 +765,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     retTypeName = "projection " + retTypeName + "_" + retFuncName;
     std::string retAttributeStr = getReturnAttributeStr(F);
     if (!retAttributeStr.empty())
-      retTypeName = retTypeName + retAttributeStr;
+      retTypeName = retTypeName + " " + retAttributeStr;
   }
   
   idl_file << "\trpc " << retTypeName << " " << funcName;
@@ -717,7 +789,11 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
         treeI++;
         std::string annotation = inferFieldAnnotation(*treeI);
         if (!annotation.empty())
+        {
           argName = argName + " " + annotation;
+          if (annotation == "[string]")
+            stringNum++;
+        }
       }
     }
 
@@ -740,7 +816,10 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       // generate array annotation for struct pointers
       uint64_t arrSize = getArrayArgSize(arg, F);
       if (arrSize > 0)
+      {
         argName = argName + "[" + std::to_string(arrSize) + "]";
+        arrayNum++;
+      }
       idl_file << "projection " << argTypeName << " " << argName;
     }
     else if (PDG->isFuncPointer(argType))
@@ -757,6 +836,22 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       if (arrSize > 0)
         argStr = argStr + "[" + std::to_string(arrSize) + "]";
       idl_file << argStr;
+      arrayNum++;
+    }
+    else if (DIUtils::isVoidPointer(argDIType))
+    {
+      voidPointerNum++;
+      idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
+    }
+    else if (DIUtils::isSentinelType(argDIType))
+    {
+      sentialArrayNum++;
+      idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
+    }
+    else if (DIUtils::isUnionPointerTy(argDIType))
+    {
+      unionNum++;
+      idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
     }
     else
       idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
@@ -988,6 +1083,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       // normal field finding analysis.
       // alloc attribute
       std::string fieldAnnotation = inferFieldAnnotation(*childT);
+      if (fieldAnnotation == "[string]")
+        stringNum++;
       if (DIUtils::isFuncPointerTy(childDIType))
       {
         // generate rpc for the indirect function call
@@ -1021,18 +1118,34 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
           fieldTypeName = tmpName + "_" + tmpFuncName;
         else 
           fieldTypeName = tmpName + "*";
-        
+
+        auto pos = fieldTypeName.find("const struct");
+        std::string projectStr = "projection ";
+        if (pos != std::string::npos)
+        {
+          fieldTypeName = fieldTypeName.substr(pos + 13);
+          projectStr = "const " + projectStr;
+        }
+
         projection_str << "\t\t"
-                       << "projection " << fieldTypeName << fieldAnnotation << " "
+                       << projectStr << fieldTypeName << fieldAnnotation << " "
                        << " " << DIUtils::getDIFieldName(childDIType) << ";\n";
         treeNodeQ.push(childT);
       }
       else if (DIUtils::isStructTy(childDIType))
       {
         auto fieldTypeName = DIUtils::getDITypeName(childDIType);
+        fieldTypeName.push_back('*');
+        auto pos = fieldTypeName.find("const struct");
+        std::string projectStr = "projection ";
+        if (pos != std::string::npos)
+        {
+          fieldTypeName = fieldTypeName.substr(pos + 13);
+          projectStr = "const " + projectStr;
+        }
         projection_str << "\t\t"
-                       << "projection " << fieldTypeName << fieldAnnotation << " "
-                       << " " << DIUtils::getDIFieldName(childDIType)<< "_" << funcName << ";\n";
+                       << projectStr << fieldTypeName << fieldAnnotation << " "
+                       << " " << DIUtils::getDIFieldName(childDIType) << "_" << funcName << ";\n";
         treeNodeQ.push(childT);
         continue;
       }
@@ -1048,6 +1161,15 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
         if (!fieldName.empty())
           projection_str << "\t\t" + DIUtils::getDITypeName(childDIType) << " " << getAccessAttributeName(childT) << " " << DIUtils::getDIFieldName(childDIType) << ";\n";
       }
+
+      if (DIUtils::isVoidPointer(childDIType)) 
+        voidPointerNum++;
+      if (DIUtils::isArrayType(childDIType))
+        arrayNum++;
+      if (DIUtils::isSentinelType(childDIType))
+        sentialArrayNum++;
+      if (DIUtils::isUnionPointerTy(childDIType))
+        unionNum++;
     }
 
     // if any child field is accessed, we need to print out the projection for the current struct.
@@ -1055,15 +1177,19 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     {
       std::stringstream temp;
       std::string structName = DIUtils::getDITypeName(curDIType); // the name is stored in tag member.
+      // some formatting on struct type
+      auto pos = structName.find("const");
+      if (pos != std::string::npos)
+        structName = structName.substr(pos + 6);
       // remove * in projection definition
-      if (structName.back() == '*')
+      while (structName.back() == '*')
         structName.pop_back();
 
       // a very specific handling for generating IDL for function struct ops
       if (structName.find("ops") == std::string::npos)
       {
         temp << "\tprojection "
-             << "< struct " << structName << " > " << structName << "_" << funcName << " "
+             << "< " << structName << " > " << structName << "_" << funcName << " "
              << " {\n"
              << projection_str.str() << " \t}\n\n";
       }
@@ -1072,7 +1198,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
         if (seenFuncOps.find(structName) == seenFuncOps.end()) // only generate projection for struct ops at the first time we see it.
         {
           temp << "\tprojection "
-               << "< struct " << structName << " > " << structName << " "
+               << "< " << structName << " > " << structName << " "
                << " {\n"
                << projection_str.str() << " \t}\n\n";
           seenFuncOps.insert(structName);
@@ -1140,7 +1266,7 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
             }
           }
         }
-        // alloc annotation
+        // alloc caller annotation
         if (StoreInst *si = dyn_cast<StoreInst>(depInst))
         {
           if (si->getPointerOperand() == dataW->getInstruction())
@@ -1149,6 +1275,7 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
               return "[alloc(caller)] [out]";
           }
         }
+        
         // dealloc annotation
         if (CallInst *ci = dyn_cast<CallInst>(depInst))
         {

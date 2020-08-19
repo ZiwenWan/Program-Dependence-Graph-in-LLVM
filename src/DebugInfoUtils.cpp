@@ -368,7 +368,12 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
       return getDITypeName(getBaseDIType(ty)); // need to know the underlying name
       // return ty->getName(); // directly return typedef name
     case dwarf::DW_TAG_member:
-      return getDITypeName(getBaseDIType(ty));
+    {
+      auto baseTypeName = getDITypeName(getBaseDIType(ty));
+      if (baseTypeName == "struct")
+        baseTypeName = baseTypeName + " " + ty->getName().str();
+      return baseTypeName;
+    }
     case dwarf::DW_TAG_array_type:
     {
       if (DIType *arrTy = dyn_cast<DICompositeType>(ty)->getBaseType().resolve())
@@ -399,7 +404,11 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
     case dwarf::DW_TAG_const_type:
       return "const " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
     case dwarf::DW_TAG_enumeration_type:
+    {
+      if (!ty->getName().str().empty())
+        return "enum " + ty->getName().str();
       return "enum";
+    }
     case dwarf::DW_TAG_volatile_type:
       return "volatile " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
     default:
@@ -440,6 +449,19 @@ bool pdg::DIUtils::isPointerType(DIType *dt)
   dt = stripMemberTag(dt);
   if (dt != nullptr)
     return (dt->getTag() == dwarf::DW_TAG_pointer_type);
+  return false;
+}
+
+bool pdg::DIUtils::isVoidPointer(DIType *dt)
+{
+  if (dt == nullptr)
+    return false;
+  dt = stripMemberTag(dt);
+  if (dt->getTag() == dwarf::DW_TAG_pointer_type) {
+    auto baseTy = getLowestDIType(dt);
+    if (baseTy == nullptr) 
+      return true;
+  }
   return false;
 }
 
@@ -737,4 +759,38 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
     }
   }
   return sharedDITypes;
+}
+
+bool pdg::DIUtils::isSentinelType(DIType* dt)
+{
+  if (!isStructPointerTy(dt) || !isStructTy(dt))
+    return -1;
+  std::queue<DIType*> workQ;
+  std::set<DIType*> seenTypes;
+  workQ.push(dt);
+  while (!workQ.empty())
+  {
+    DIType* curDIType = workQ.front();
+    workQ.pop();
+    DIType* lowestDIType = getLowestDIType(curDIType);
+    if (seenTypes.find(curDIType) != seenTypes.end())
+    {
+      if (curDIType == dt)
+        return true;
+      continue;
+    }
+    seenTypes.insert(curDIType);
+    auto DINodeArr = dyn_cast<DICompositeType>(lowestDIType)->getElements();
+    for (unsigned i = 0; i < DINodeArr.size(); ++i)
+    {
+      DIType *fieldDIType = dyn_cast<DIType>(DINodeArr[i]);
+      fieldDIType = stripMemberTag(fieldDIType);
+      if (isStructTy(fieldDIType) ||
+          isStructPointerTy(fieldDIType) ||
+          isUnionPointerTy(fieldDIType) ||
+          isUnionType(fieldDIType))
+        workQ.push(fieldDIType);
+    }
+  }
+  return false;
 }

@@ -88,6 +88,8 @@ public:
   bool isStructPointer(llvm::Type *ty);
   std::map<llvm::GlobalVariable*, tree<InstructionWrapper *>> getGlobalObjectTrees() { return globalObjectTrees; }
   std::map<llvm::DIType*, tree<InstructionWrapper *>> getGlobalTypeTrees() { return globalTypeTrees; }
+  bool isUnsafeTypeCast(llvm::Instruction* inst);
+  unsigned getUnsafeTypeCastNum() { return unsafeTypeCastNum; }
 
 private:
   llvm::Module *module;
@@ -98,6 +100,7 @@ private:
   std::set<std::string> lockCallNameList;
   std::map<llvm::GlobalVariable*, tree<InstructionWrapper*>> globalObjectTrees;
   std::map<llvm::DIType*, tree<InstructionWrapper*>> globalTypeTrees;
+  unsigned unsafeTypeCastNum;
 };
 } // namespace pdg
 

@@ -4,6 +4,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include <llvm/Support/raw_ostream.h>
 
 #include "sea_dsa/CallGraphUtils.hh"
 #include "sea_dsa/DsaAnalysis.hh"
@@ -46,6 +47,7 @@ public:
   {
     unsigned ptrInModule = countPtrInModule(M);
     errs() << "total pointer in module: " << ptrInModule << "\n";
+    atomicRegionWarn.open("atomicRegionWarning.txt");
     // seperate kernel and driver functions
     seperateKernelDriverFunctions(M);
     // collects boundary functions 
@@ -62,9 +64,12 @@ public:
     // 2. identify critical sections
     // using CDG to compute corresponding lock/unlock pairs instead of CFG.
     std::set<std::pair<Instruction*, Instruction*>> criticalSections = collectCS(M);
-    errs() << "CS size in module: " << criticalSections.size() << "\n";
+    // std::ofstream sharedLockWarn("sharedLockWarning.txt");
+    // sharedLockWarn << "CS size in module: " << criticalSections.size() << "\n";
     // 3. collects store instructions in CS and test if shared data can be modified 
     unsigned warningCount = 0;
+    unsigned warningCSNum = 0;
+    std::set<Instruction*> seenLockInsts;
     for (auto CS : criticalSections)
     {
       // Eliminate critcal sections that use private lock
@@ -95,46 +100,61 @@ public:
             if (searchDomain.find(modifyFunc) != searchDomain.end()) // this means a modification happens in a cross-domain function.
               continue;
 
-            warningCount += 1;
-            errs() << "Warning: " << warningCount << "\n";
-            Value* sourcePtr = aliasMap[storedToVal];
-            assert(sourcePtr != nullptr);
-            errs() << "[source pointer]: " << *sourcePtr << "\n";
-            if (Argument *arg = dyn_cast<Argument>(sourcePtr))
-            {
-              errs() << "[source pointer type]: argument" << "\n";
-              errs() << "[Arg function]: " << arg->getParent()->getName() << "\n";
-            }
-            if (Instruction *i = dyn_cast<Instruction>(sourcePtr))
-            {
-              errs() << "[source pointer type]: variable " << "\n";
-              errs() << "[Var function]: " << i->getFunction()->getName() << "\n";
-            }
+            if (seenLockInsts.find(CS.first) != seenLockInsts.end())
+              continue;
+            seenLockInsts.insert(CS.first);
+            warningCSNum++;
 
-            errs() << "[shared data modifed function]: " << st->getFunction()->getName() << "\n";
-            errs() << "[modify store inst]: " << *st << "\n";
-            if (CSFunction != modifyFunc)
-              errs() << "[call graph]: " << CSFunction->getName() << " -> " << modifyFunc->getName() << "\n";
-            // print more informative information such as file name, modify location in the source code
-            // print source code location
-            printDebugLoc(st, CS);
-            // print modified data name if possible. Basically, keep on back tracking the shared data.
-            printModifiedData(st);
-            // here, try to get alloca site in the whole program
-            // sea_dsa::Graph *funcGraph = &m_dsa->getDsaAnalysis().getGraph(*st->getFunction());
-            // printAllocSites(st, funcGraph);
-            errs() << " ------------------------------------------------ \n";
+            // warningCount += 1;
+            // sharedLockWarn << "Warning: " << warningCount << "\n";
+            // Value* sourcePtr = aliasMap[storedToVal];
+            // assert(sourcePtr != nullptr);
+            // std::string str1;
+            // raw_string_ostream ss1(str1); 
+            // ss1 << (*sourcePtr);
+            // sharedLockWarn << "[source pointer]: " << str1 << "\n";
+            // if (Argument *arg = dyn_cast<Argument>(sourcePtr))
+            // {
+            //   sharedLockWarn << "[source pointer type]: argument" << "\n";
+            //   sharedLockWarn << "[Arg function]: " << arg->getParent()->getName().str() << "\n";
+            // }
+            // if (Instruction *i = dyn_cast<Instruction>(sourcePtr))
+            // {
+            //   sharedLockWarn << "[source pointer type]: variable " << "\n";
+            //   sharedLockWarn << "[Var function]: " << i->getFunction()->getName().str() << "\n";
+            // }
+
+            // sharedLockWarn << "[shared data modifed function]: " << st->getFunction()->getName().str() << "\n";
+
+            // std::string str2;
+            // raw_string_ostream ss2(str2);
+            // ss2 << (*st);
+            // sharedLockWarn << "[modify store inst]: " << str2 << "\n";
+            // if (CSFunction != modifyFunc)
+            //   sharedLockWarn << "[call graph]: " << CSFunction->getName().str() << " -> " << modifyFunc->getName().str() << "\n";
+            // // print more informative information such as file name, modify location in the source code
+            // // print source code location
+            // printDebugLoc(st, CS, sharedLockWarn);
+            // // print modified data name if possible. Basically, keep on back tracking the shared data.
+            // printModifiedData(st, sharedLockWarn);
+            // // here, try to get alloca site in the whole program
+            // // sea_dsa::Graph *funcGraph = &m_dsa->getDsaAnalysis().getGraph(*st->getFunction());
+            // // printAllocSites(st, funcGraph);
+            // sharedLockWarn << " ------------------------------------------------ \n";
           }
         }
       }
     }
+    // sharedLockWarn.close();
+    atomicRegionWarn << "warning critical sections: " << warningCSNum << "\n";
     // sharedDataTypeMap = getAnalysis<AccessInfoTracker>().getSharedDataTypeMap();
     // // start processing for atomic operation
     // auto &pdgUtils = PDGUtils::getInstance();
     // crossDomainFuncs = pdgUtils.computeCrossDomainFuncs(M);
     // sharedDataTypes = DIUtils::computeSharedDataType(M, pdgUtils.computeCrossDomainFuncs(M));
     // errs() << "number of shared type: " << sharedDataTypes.size() << "\n";
-    // printWarningsForAtomicOperation(M);
+    printWarningsForAtomicOperation(M, ptrToSharedData);
+    atomicRegionWarn.close();
     return false;
   }
 
@@ -156,7 +176,7 @@ public:
     return funcSet;
   }
 
-  void printWarningsForAtomicOperation(Module &M)
+  void printWarningsForAtomicOperation(Module &M, std::set<Value *> ptrToSharedData)
   {
     unsigned warningNum = 1;
     auto funcsNeedPDGConstruction = computeFunctionsNeedPDGConstruction(M);
@@ -170,11 +190,13 @@ public:
         if (isAtomicOperation(&*instI))
         {
           auto modifiedAddrVar = instI->getOperand(0);
-          printWarningForSharedVarInAtomicOperation(*modifiedAddrVar, *instI, *func, warningNum);
-          warningNum++;
+          if (ptrToSharedData.find(modifiedAddrVar) != ptrToSharedData.end())
+            warningNum++;
+          // printWarningForSharedVarInAtomicOperation(*modifiedAddrVar, *instI, *func, warningNum);
         }
       }
     }
+    atomicRegionWarn << "Warning Atomic Operation Num: " << warningNum << "\n";
   }
 
   void printWarningForSharedVarInAtomicOperation(Value& modifiedAddrVar, Instruction& atomicOp, Function& F, unsigned warningNum)
@@ -328,13 +350,11 @@ public:
   {
     CallInst* lockInst = dyn_cast<CallInst>(CS.first);
     assert((lockInst != nullptr) && "cannot find private lock for lockInst that with null call target.");
-    Function *lockInstFunc = lockInst->getFunction();
-
+    Function *lockInstParentFunc = lockInst->getFunction();
     // collects all lock call instructions in the other domain
-    bool inKernelDomain = (kernelFunctions.find(lockInstFunc) != kernelFunctions.end());
+    bool inKernelDomain = (kernelFunctions.find(lockInstParentFunc) != kernelFunctions.end());
     // Search the opposite domain when lock call is foudn in one domain
     std::set<Function* > searchDomain = !inKernelDomain ? kernelFunctions : driverFunctions;
-
     for (Function *F : searchDomain)
     {
       for (auto instI = inst_begin(F); instI != inst_end(F); ++instI)
@@ -379,9 +399,7 @@ public:
       return false;
     std::string calledFuncName = CI->getCalledFunction()->getName().str();
     if (lockUnlockMap.find(calledFuncName) != lockUnlockMap.end())
-    {
       return true;
-    }
     return false;
   }
 
@@ -409,11 +427,12 @@ public:
   {
     // a list of locking functions we are looking for
     std::set<std::pair<Instruction*, Instruction*>> csInModule;
-    for (Function &F : M)
+    auto reachableFuncs = computeFunctionsNeedPDGConstruction(M);
+    for (auto F : reachableFuncs)
     {
-      if (F.isDeclaration())
+      if (F->isDeclaration())
         continue;
-      auto csInFunc = collectCSInFunc(F); // find cs in each defined functions
+      auto csInFunc = collectCSInFunc(*F); // find cs in each defined functions
       csInModule.insert(csInFunc.begin(), csInFunc.end());
     }
     return csInModule;
@@ -716,21 +735,21 @@ public:
     errs() << "\n";
   }
 
-  void printDebugLoc(StoreInst* inst, std::pair<Instruction*, Instruction*> CS)
+  void printDebugLoc(StoreInst *inst, std::pair<Instruction *, Instruction *> CS, std::ofstream &sharedLockWarn)
   {
     auto DILoc = inst->getDebugLoc();
-    errs() << "[Source file name]: " << DILoc->getFilename().str() << "\n";
-    errs() << "[Line number]: " << DILoc->getLine() << "\n";
-    errs() << "[CS Range]: ";
-    errs() << CS.first->getDebugLoc()->getLine() << " -> ";
-    errs() << CS.second->getDebugLoc()->getLine() << "\n";
-    errs() << "CS location: " << CS.first->getFunction()->getName() << "\n";
+    sharedLockWarn << "[Source file name]: " << DILoc->getFilename().str() << "\n";
+    sharedLockWarn << "[Line number]: " << DILoc->getLine() << "\n";
+    sharedLockWarn << "[CS Range]: ";
+    sharedLockWarn << CS.first->getDebugLoc()->getLine() << " -> ";
+    sharedLockWarn << CS.second->getDebugLoc()->getLine() << "\n";
+    sharedLockWarn << "CS location: " << CS.first->getFunction()->getName().str() << "\n";
   }
 
-  void printModifiedData(Instruction* inst)
+  void printModifiedData(Instruction* inst, std::ofstream &sharedLockWarn)
   {
     std::string dataName = getModifiedDataName(inst);
-    errs() << "[Modified Data]: " << dataName << "\n";
+    sharedLockWarn << "[Modified Data]: " << dataName << "\n";
   }
 
   int getGepOffset(GetElementPtrInst *gep)
@@ -879,6 +898,7 @@ private:
   std::set<std::string> sharedDataTypes;
   std::map<std::string, std::set<std::string>> sharedDataTypeMap;
   std::set<Function*> crossDomainFuncs;
+  std::ofstream atomicRegionWarn;
 };
 char SeadsaWarningGenerator::ID = 0;
 static RegisterPass<SeadsaWarningGenerator> SeadsaWarningGenerator("sea-warn-gen", "Warning Generation using sea dsa", false, true);

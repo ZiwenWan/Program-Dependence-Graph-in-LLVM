@@ -21,6 +21,8 @@ public:
   void printRetValueAccessInfo(llvm::Function &Func);
   void getIntraFuncReadWriteInfoForRetVal(CallWrapper *callW);
   void computeFuncAccessInfo(llvm::Function &F);
+  void computeFuncAccessInfoBottomUp(llvm::Function &F);
+  std::vector<llvm::Function *> computeBottomUpCallChain(llvm::Function &F);
   void computeArgAccessInfo(ArgumentWrapper *argW, TreeType treeTy);
   void computeIntraprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F);
   void computeInterprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F);
@@ -64,6 +66,8 @@ public:
   int getCallOperandIdx(llvm::Value *operand, llvm::CallInst *callInst);
   std::string switchIndirectCalledPtrName(std::string funcptr);
   std::string inferFieldAnnotation(InstructionWrapper* instW);
+  void initializeNumStats();
+  void printNumStats();
 
 private:
   ProgramDependencyGraph *PDG;
@@ -86,6 +90,13 @@ private:
   bool crossBoundary; // indicate whether transitive closure cross two domains
   unsigned eliminatedFieldNum;
   unsigned savedSyncDataSize;
+  unsigned unionNum;
+  unsigned voidPointerNum;
+  unsigned pointerArithmeticNum;
+  unsigned sentialArrayNum;
+  unsigned arrayNum;
+  unsigned stringNum;
+
 };
 
 std::string getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI);
