@@ -136,6 +136,8 @@ bool pdg::AccessInfoTracker::voidPointerHasMultipleCasts(InstructionWrapper* voi
       for (auto depInstPair : depInsts)
       {
         auto instW = const_cast<InstructionWrapper *>(depInstPair.first->getData());
+        if (instW->getInstruction() == nullptr)
+          continue;
         if (CastInst *castI = dyn_cast<CastInst>(instW->getInstruction()))
         {
           if (castI->getOperand(0) == dataW->getInstruction())
