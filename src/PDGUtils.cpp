@@ -309,7 +309,6 @@ std::set<std::string> pdg::PDGUtils::getBlackListFuncs()
 
 std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
 {
-  std::ofstream interfaceFuncStats("numStats.txt");
   std::set<Function *> crossDomainFuncs;
   auto blackListFuncs = getBlackListFuncs();
   // cross-domain function from driver to kernel
@@ -326,7 +325,6 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
     importedFuncNum++;
   }
   importedFuncs.close();
-  interfaceFuncStats << "Driver - Kernel Calls: " << importedFuncNum << "\n";
   // driver side functions
   // cross-domain function from kernel to driver
   std::ifstream static_func("static_func.txt");
@@ -342,13 +340,11 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
     callBackFuncNum++;
   }
   static_func.close();
-  interfaceFuncStats << "Kernel - Driver Calls: " << callBackFuncNum << "\n";
 
   // init module function
   auto initFunc = M.getFunction("dummy_init_module");
   if (initFunc != nullptr)
     crossDomainFuncs.insert(initFunc);
-  interfaceFuncStats.close();
   return crossDomainFuncs;
 }
 

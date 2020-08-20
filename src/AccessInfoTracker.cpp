@@ -66,7 +66,9 @@ void pdg::AccessInfoTracker::initializeNumStats()
 
 void pdg::AccessInfoTracker::printNumStats()
 {
-  std::ofstream numStats("numStats.txt", std::ios::app);
+  auto &pdgUtils = PDGUtils::getInstance();
+  std::ofstream numStats;
+  numStats.open("numStats.txt", std::ios::app);
   numStats << "union/unhandled type number: " << unionNum << "[" << unNamedUnionNum << "]"<< "\n";
   numStats << "void pointer/unhandled number: " << voidPointerNum << "[" << unhandledVoidPointerNum << "]" << "\n";
   numStats << "wild pointer: " << pointerArithmeticNum << "\n";
@@ -74,7 +76,8 @@ void pdg::AccessInfoTracker::printNumStats()
   numStats << "array/unhandled number: " << (arrayNum + unHandledArrayNum) << "[" << unHandledArrayNum << "]" << "\n";
   numStats << "string number: " << stringNum << "\n";
   numStats << "global used in driver: " << computeUsedGlobalNumInDriver() << "\n";
-  numStats.close();
+  numStats << "Driver to Kernel Invocation: " << importedFuncs.size() << "\n";
+  numStats << "Kernel to Driver Invocation: " << driverExportFuncPtrNames.size() << "\n";
   // eliminated fields
   std::string sharedDataStatsStr = "sharedDataStats.txt";
   std::ofstream sharedDataStatsFile;

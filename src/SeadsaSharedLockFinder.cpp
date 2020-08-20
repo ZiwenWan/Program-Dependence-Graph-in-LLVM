@@ -48,7 +48,7 @@ public:
     ACT = &getAnalysis<AccessInfoTracker>();
     unsigned ptrInModule = countPtrInModule(M);
     errs() << "total pointer in module: " << ptrInModule << "\n";
-    atomicRegionWarn.open("numStats.txt", std::ios::app);
+    atomicRegionWarn.open("atomicRegionWarn.txt", std::ios::app);
     // seperate kernel and driver functions
     seperateKernelDriverFunctions(M);
     // collects boundary functions 
