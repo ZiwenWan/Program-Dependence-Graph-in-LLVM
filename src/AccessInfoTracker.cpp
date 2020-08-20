@@ -1,10 +1,12 @@
 #include "AccessInfoTracker.hpp"
+#include <math.h>
 
 using namespace llvm;
 
 char pdg::AccessInfoTracker::ID = 0;
 
-bool pdg::AccessInfoTracker::runOnModule(Module &M) {
+bool pdg::AccessInfoTracker::runOnModule(Module &M)
+{
   module = &M;
   PDG = &getAnalysis<ProgramDependencyGraph>();
   auto &pdgUtils = PDGUtils::getInstance();
@@ -26,6 +28,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
   privateDataSize = 0;
   savedSyncDataSize = 0;
   numProjectedFields = 0;
+  numEliminatedPrivateFields = 0;
   // start generating IDL
   std::string file_name = "kernel";
   file_name += ".idl";
@@ -49,23 +52,28 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M) {
 
 void pdg::AccessInfoTracker::initializeNumStats()
 {
+  totalNumOfFields = 0;
   unionNum = 0;
+  unNamedUnionNum = 0;
   voidPointerNum = 0;
+  unhandledVoidPointerNum = 0;
   pointerArithmeticNum = PDG->getUnsafeTypeCastNum();
   sentialArrayNum = 0;
   arrayNum = 0;
+  unHandledArrayNum = 0;
   stringNum = 0;
 }
 
 void pdg::AccessInfoTracker::printNumStats()
 {
-  std::ofstream numStats("numStats.txt");
-  numStats << "union type number: " << unionNum << "\n";
-  numStats << "void pointer number: " << voidPointerNum << "\n";
-  numStats << "pointer arithmetic number: " << pointerArithmeticNum << "\n";
+  std::ofstream numStats("numStats.txt", std::ios::app);
+  numStats << "union/unhandled type number: " << unionNum << "[" << unNamedUnionNum << "]"<< "\n";
+  numStats << "void pointer/unhandled number: " << voidPointerNum << "[" << unhandledVoidPointerNum << "]" << "\n";
+  numStats << "wild pointer: " << pointerArithmeticNum << "\n";
   numStats << "sential array number: " << sentialArrayNum << "\n";
-  numStats << "array number: " << arrayNum << "\n";
+  numStats << "array/unhandled number: " << (arrayNum + unHandledArrayNum) << "[" << unHandledArrayNum << "]" << "\n";
   numStats << "string number: " << stringNum << "\n";
+  numStats << "global used in driver: " << computeUsedGlobalNumInDriver() << "\n";
   numStats.close();
   // eliminated fields
   std::string sharedDataStatsStr = "sharedDataStats.txt";
@@ -74,26 +82,29 @@ void pdg::AccessInfoTracker::printNumStats()
   sharedDataStatsFile << "shared data stats: \n";
   sharedDataStatsFile << "number of shared data types: " << sharedDataTypeMap.size() << "\n";
   unsigned numOfSharedFields = 0;
-  unsigned totalNumOfFields = 0;
   for (auto pair : sharedDataTypeMap)
   {
     // sharedDataStatsFile << "shared data type: " << pair.first;
     // sharedDataStatsFile << "\tnumber of shared fields: " << pair.second.size() << "\n";
     numOfSharedFields += pair.second.size();
-    totalNumOfFields += DIUtils::computeTotalFieldNumberInStructType(diTypeNameMap[pair.first]);
+    // if (pair.first == "blk_mq_tag_set" || pair.first == "blk_mq_tag_set*")
+    // {
     // for (auto s : pair.second)
     // {
-    //   errs() << s << "\n";
+    //   errs() << pair.first << " - " << "shared field: " << s << "\n";
     // }
+    // }
+
     // sharedDataStatsFile << "-------------------------------- \n";
   }
   sharedDataStatsFile << "total number of fields: " << totalNumOfFields << "\n";
-  sharedDataStatsFile << "number of shared fields: " << numOfSharedFields << "\n";
-  sharedDataStatsFile << "number of private fields: " << (totalNumOfFields - numOfSharedFields) << "\n";
-  sharedDataStatsFile << "number of projected fields: " << numProjectedFields << "\n";
-  sharedDataStatsFile << "save data in bytes: " << savedSyncDataSize << "\n";
-  sharedDataStatsFile << "save data using shared data in bytes: " << privateDataSize << "\n";
-  sharedDataStatsFile << "total save data in bytes: " << (savedSyncDataSize + privateDataSize) << "\n";
+  // sharedDataStatsFile << "number of shared fields: " << numOfSharedFields << "\n";
+  // sharedDataStatsFile << "number of private fields: " << (totalNumOfFields - numOfSharedFields) << "\n";
+  sharedDataStatsFile << "number of projected fields found by basic algorithm: " << numProjectedFields << "\n";
+  sharedDataStatsFile << "number of projected fields with shared data optimziation: " << (numProjectedFields - numEliminatedPrivateFields ) << "\n";
+  // sharedDataStatsFile << "save data in bytes: " << savedSyncDataSize << "\n";
+  // sharedDataStatsFile << "save data using shared data in bytes: " << privateDataSize << "\n";
+  // sharedDataStatsFile << "total save data in bytes: " << (savedSyncDataSize + privateDataSize) << "\n";
   sharedDataStatsFile.close();
 }
 
@@ -109,6 +120,55 @@ std::string pdg::AccessInfoTracker::getRegisteredFuncPtrName(std::string funcNam
   if (driverExportFuncPtrNameMap.find(funcName) != driverExportFuncPtrNameMap.end())
     return driverExportFuncPtrNameMap[funcName];
   return funcName;
+}
+
+bool pdg::AccessInfoTracker::voidPointerHasMultipleCasts(InstructionWrapper* voidPtrW)
+{
+  // get dep list
+  unsigned castTimes = 0;
+  auto valDepList = PDG->getNodesWithDepType(voidPtrW, DependencyType::VAL_DEP);
+  for (auto depPair : valDepList)
+  {
+    auto dataW = const_cast<InstructionWrapper *>(depPair.first->getData());
+    if (dataW->getInstruction() != nullptr)
+    {
+      auto depInsts = PDG->getNodesWithDepType(dataW, DependencyType::VAL_DEP);
+      for (auto depInstPair : depInsts)
+      {
+        auto instW = const_cast<InstructionWrapper *>(depInstPair.first->getData());
+        if (CastInst *castI = dyn_cast<CastInst>(instW->getInstruction()))
+        {
+          if (castI->getOperand(0) == dataW->getInstruction())
+            castTimes++;
+          if (castTimes > 1)
+            return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+unsigned pdg::AccessInfoTracker::computeUsedGlobalNumInDriver()
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  unsigned globalUsedInDriver = 0;
+  for (auto globalIt = module->global_begin(); globalIt != module->global_end(); ++globalIt)
+  {
+    for (auto user : globalIt->users())
+    {
+      if (Instruction *inst = dyn_cast<Instruction>(user))
+      {
+        auto func = inst->getFunction();
+        if (driverDomainFuncs.find(func) != driverDomainFuncs.end())
+        {
+          globalUsedInDriver++;
+          break;
+        }
+      }
+    }
+  }
+  return globalUsedInDriver;
 }
 
 AccessType pdg::AccessInfoTracker::getAccessTypeForInstW(const InstructionWrapper *instW)
@@ -200,6 +260,7 @@ void pdg::AccessInfoTracker::computeSharedData()
         AccessType accType = getAccessTypeForInstW(dataW);
         if (accType != AccessType::NOACCESS)
         {
+          // check if a field is used in both domain
           if (inst != nullptr)
           {
             Function *f = inst->getFunction();
@@ -214,6 +275,7 @@ void pdg::AccessInfoTracker::computeSharedData()
 
           std::string fieldID = DIUtils::computeFieldID(sharedType, fieldDIType);
           accessedFields.insert(fieldID);
+            
           // compute field accessed in asynchronous called functions
           if (inst != nullptr)
           {
@@ -549,11 +611,6 @@ std::set<Value *> pdg::AccessInfoTracker::findAliasInDomain(Value &V, Function &
       continue;
     sea_dsa::Graph *transFuncGraph = &m_dsa->getDsaAnalysis().getGraph(*transFunc);
     assert(transFuncGraph && "cannot construct points to graph for transitive function.");
-    if (F.getName() == "dummy_dev_init")
-    {
-      errs() << "trans func: " << transFunc->getName() << "\n";
-      errs() << V << "\n";
-    }
     for (auto I = inst_begin(transFunc); I != inst_end(transFunc); ++I)
     {
       Instruction* curInst = &*I;
@@ -837,6 +894,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
         argName = argName + "[" + std::to_string(arrSize) + "]";
         arrayNum++;
       }
+      
       idl_file << "projection " << argTypeName << " " << argName;
     }
     else if (PDG->isFuncPointer(argType))
@@ -852,26 +910,25 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       uint64_t arrSize = getArrayArgSize(arg, F);
       if (arrSize > 0)
         argStr = argStr + "[" + std::to_string(arrSize) + "]";
+      else 
+        unHandledArrayNum++;
       idl_file << argStr;
       arrayNum++;
     }
-    else if (DIUtils::isVoidPointer(argDIType))
-    {
-      voidPointerNum++;
-      idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
-    }
-    else if (DIUtils::isSentinelType(argDIType))
-    {
-      sentialArrayNum++;
-      idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
-    }
-    else if (DIUtils::isUnionPointerTy(argDIType))
-    {
-      unionNum++;
-      idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
-    }
     else
       idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
+
+    // collecting stats 
+    if (DIUtils::isUnionPointerTy(argDIType) || DIUtils::isUnionType(argDIType))
+      unionNum++;
+    if (DIUtils::isSentinelType(argDIType))
+      sentialArrayNum++;
+    if (DIUtils::isVoidPointer(argDIType))
+    {
+      voidPointerNum++;
+      if (voidPointerHasMultipleCasts(*argW->tree_begin(TreeType::FORMAL_IN_TREE)))
+        unhandledVoidPointerNum++;
+    }
 
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !argName.empty())
       idl_file << ", ";
@@ -1032,6 +1089,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
   std::string argName = DIUtils::getArgName(*(argW->getArg()));
   auto treeBegin = argW->tree_begin(TreeType::FORMAL_IN_TREE);
   DIType* argDIType = (*treeBegin)->getDIType();
+  unsigned fieldNumsInTypes = DIUtils::computeTotalFieldNumberInStructType(argDIType);
+  totalNumOfFields += fieldNumsInTypes;
 
   std::queue<tree<InstructionWrapper*>::iterator> treeNodeQ;
   treeNodeQ.push(argW->tree_begin(treeTy));
@@ -1088,6 +1147,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
         if (isPrivateField)
         {
           numProjectedFields++;
+          numEliminatedPrivateFields++;
           privateDataSize += (childDIType->getSizeInBits() / 8);
           continue;
         }
@@ -1175,23 +1235,33 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       {
         // currently, anonymous union type is not handled.
         projection_str << "\t\t" << "// union type \n";
+        unionNum++;
+        unNamedUnionNum++;
         continue;
       }
       else
       {
         std::string fieldName = DIUtils::getDIFieldName(childDIType);
         if (!fieldName.empty())
+        {
+          if (fieldName.find("[") != std::string::npos)
+            arrayNum++;
           projection_str << "\t\t" + DIUtils::getDITypeName(childDIType) << " " << getAccessAttributeName(childT) << " " << DIUtils::getDIFieldName(childDIType) << ";\n";
+        }
       }
 
-      if (DIUtils::isVoidPointer(childDIType)) 
+      if (DIUtils::isVoidPointer(childDIType))
+      {
         voidPointerNum++;
+        if (voidPointerHasMultipleCasts(*childT))
+          unhandledVoidPointerNum++;
+      }
       if (DIUtils::isArrayType(childDIType))
         arrayNum++;
       if (DIUtils::isSentinelType(childDIType))
         sentialArrayNum++;
-      if (DIUtils::isUnionPointerTy(childDIType))
-        unionNum++;
+      // if (DIUtils::isUnionPointerTy(childDIType) || DIUtils::isUnionType(childDIType))
+      //   unionNum++;
     }
 
     // if any child field is accessed, we need to print out the projection for the current struct.
@@ -1203,6 +1273,9 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       auto pos = structName.find("const");
       if (pos != std::string::npos)
         structName = structName.substr(pos + 6);
+      pos = structName.find("struct");
+      if (pos != std::string::npos)
+        structName = structName.substr(pos + 7);
       // remove * in projection definition
       while (structName.back() == '*')
         structName.pop_back();
@@ -1211,7 +1284,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       if (structName.find("ops") == std::string::npos)
       {
         temp << "\tprojection "
-             << "< " << structName << " > " << structName << "_" << funcName << " "
+             << "< " << "struct " << structName << " > " << structName << "_" << funcName << " "
              << " {\n"
              << projection_str.str() << " \t}\n\n";
       }
@@ -1220,7 +1293,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
         if (seenFuncOps.find(structName) == seenFuncOps.end()) // only generate projection for struct ops at the first time we see it.
         {
           temp << "\tprojection "
-               << "< " << structName << " > " << structName << " "
+               << "< " << "struct " << structName << " > " << structName << " "
                << " {\n"
                << projection_str.str() << " \t}\n\n";
           seenFuncOps.insert(structName);
@@ -1241,16 +1314,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     }
     else
       projection_str.str(""); 
-    // process function pointers. Need to find all candidate called functions, and get all the access information from them.
-    // while (!funcPtrQ.empty())
-    // {
-    //   auto funcT = funcPtrQ.front();
-    //   funcPtrQ.pop();
-    //   // for each function pointer, we generate a 
-    //   std::string funcPtrName = DIUtils::getDIFieldName((*funcT)->getDIType());
-    //   if (processedFuncPtrNames.find(funcPtrName) == processedFuncPtrNames.end())
-    //     generateIDLforFuncPtrWithDI((*funcT)->getDIType(), F.getParent(), funcPtrName);
-    // }
+
     idl_file << projection_str.str();
   }
 }
@@ -1503,6 +1567,13 @@ bool pdg::AccessInfoTracker::isChildFieldShared(DIType* argDIType, DIType* field
   }
   std::string fieldID = DIUtils::computeFieldID(argDIType, fieldDIType);
   auto sharedFields = sharedDataTypeMap[argTypeName];
+  if (argTypeName.back() == '*')
+    argTypeName.pop_back();
+  if (sharedDataTypeMap.find(argTypeName) != sharedDataTypeMap.end())
+  {
+    auto extraSharedFields = sharedDataTypeMap[argTypeName];
+    sharedFields.insert(extraSharedFields.begin(), extraSharedFields.end());
+  }
   if (sharedFields.find(fieldID) == sharedFields.end())
     return false;
   return true;

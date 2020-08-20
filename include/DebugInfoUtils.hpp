@@ -16,6 +16,7 @@ class DIUtils
 {
   public:
     static llvm::DIType *getLowestDIType(llvm::DIType *dt);
+    static llvm::DIType *stripAttributes(llvm::DIType *Ty);
     static llvm::DIType *getBaseDIType(llvm::DIType *dt);
     static llvm::DIType *getArgDIType(llvm::Argument &arg);
     static llvm::DIType *getFuncRetDIType(llvm::Function &F);
@@ -47,6 +48,7 @@ class DIUtils
     static bool actualArgHasAllocator(llvm::Function& F, unsigned argIdx);
     static bool isSentinelType(llvm::DIType* dt);
     static unsigned computeTotalFieldNumberInStructType(llvm::DIType* dt);
+    static std::set<llvm::DIType*> computeContainedDerivedTypes(llvm::DIType* dt);
     static std::set<llvm::DIType*> collectSharedDITypes(llvm::Module &M, std::set<llvm::Function*> crossDomainFuncs);
 };
 }

@@ -26,6 +26,30 @@ std::string pdg::DIUtils::getArgName(Argument& arg)
   return "no_name";
 }
 
+DIType *pdg::DIUtils::stripAttributes(DIType *Ty)
+{
+  DIType* ret = Ty;
+  while (ret->getTag() == dwarf::DW_TAG_member ||
+      ret->getTag() == dwarf::DW_TAG_typedef ||
+      ret->getTag() == dwarf::DW_TAG_const_type||
+      ret->getTag() == dwarf::DW_TAG_volatile_type )
+  {
+    if (auto didt = dyn_cast<DIDerivedType>(ret))
+    {
+      if (!didt->getBaseType())
+        break;
+      DIType *baseTy = didt->getBaseType().resolve();
+      if (!baseTy)
+        break;
+      ret = baseTy;
+    }
+    else 
+      break;
+  }
+
+  return ret;
+}
+
 DIType *pdg::DIUtils::getLowestDIType(DIType *Ty) 
 {
   if (Ty->getTag() == dwarf::DW_TAG_pointer_type ||
@@ -40,12 +64,13 @@ DIType *pdg::DIUtils::getLowestDIType(DIType *Ty)
     //Skip all the DINodes with DW_TAG_typedef tag
     while ((baseTy->getTag() == dwarf::DW_TAG_typedef ||
             baseTy->getTag() == dwarf::DW_TAG_const_type ||
-            baseTy->getTag() == dwarf::DW_TAG_pointer_type))
+            baseTy->getTag() == dwarf::DW_TAG_pointer_type ||
+            baseTy->getTag() == dwarf::DW_TAG_member))
     {
-      if (DIType *temp = dyn_cast<DIDerivedType>(baseTy)->getBaseType().resolve())
-        return temp;
-      else
+      auto tempTy = dyn_cast<DIDerivedType>(baseTy)->getBaseType().resolve();
+      if (!tempTy)
         break;
+      baseTy = tempTy;
     }
     return baseTy;
   }
@@ -702,8 +727,8 @@ bool pdg::DIUtils::actualArgHasAllocator(Function& F, unsigned argIdx)
 
 unsigned pdg::DIUtils::computeTotalFieldNumberInStructType(DIType* dt)
 {
-  if (!isStructPointerTy(dt))
-    return -1;
+  if (!isStructPointerTy(dt) && !isStructTy(dt))
+    return 0;
   std::queue<DIType*> workQ;
   std::set<DIType*> seenTypes;
   workQ.push(dt);
@@ -754,11 +779,45 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
     for (Argument &arg : func->args())
     {
       auto argDIType = getArgDIType(arg);
-      if (isStructPointerTy(argDIType))
-        sharedDITypes.insert(argDIType);
+      auto containedSharedTypes = computeContainedDerivedTypes(argDIType);
+      for (auto dt : containedSharedTypes)
+      {
+        if (isStructPointerTy(dt) || isStructTy(dt))
+          sharedDITypes.insert(dt);
+      }
     }
   }
   return sharedDITypes;
+}
+
+std::set<DIType *> pdg::DIUtils::computeContainedDerivedTypes(DIType* dt)
+{
+  std::queue<DIType*> workQ;
+  std::set<DIType *> seenTypes;
+  if (!isStructPointerTy(dt) && !isStructTy(dt))
+    return seenTypes;
+  workQ.push(dt);
+  while (!workQ.empty())
+  {
+    DIType *curDIType = workQ.front();
+    workQ.pop();
+    if (seenTypes.find(curDIType) != seenTypes.end())
+      continue;
+    seenTypes.insert(curDIType);
+    DIType* lowestDIType = getLowestDIType(curDIType);
+    if (seenTypes.find(lowestDIType) != seenTypes.end())
+      continue;
+    seenTypes.insert(lowestDIType);
+    auto DINodeArr = dyn_cast<DICompositeType>(lowestDIType)->getElements();
+    for (unsigned i = 0; i < DINodeArr.size(); ++i)
+    {
+      DIType *fieldDIType = dyn_cast<DIType>(DINodeArr[i]);
+      fieldDIType = stripMemberTag(fieldDIType);
+      if (isStructTy(fieldDIType) || isStructPointerTy(fieldDIType))
+        workQ.push(fieldDIType);
+    }
+  }
+  return seenTypes;
 }
 
 bool pdg::DIUtils::isSentinelType(DIType* dt)
@@ -774,11 +833,7 @@ bool pdg::DIUtils::isSentinelType(DIType* dt)
     workQ.pop();
     DIType* lowestDIType = getLowestDIType(curDIType);
     if (seenTypes.find(curDIType) != seenTypes.end())
-    {
-      if (curDIType == dt)
         return true;
-      continue;
-    }
     seenTypes.insert(curDIType);
     auto DINodeArr = dyn_cast<DICompositeType>(lowestDIType)->getElements();
     for (unsigned i = 0; i < DINodeArr.size(); ++i)

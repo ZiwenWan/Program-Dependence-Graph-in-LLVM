@@ -154,7 +154,6 @@ namespace
 
     std::set<Value *> getReachableUsers(Value &V)
     {
-      errs() << "getting reachable user for " << V << "\n";
       std::set<Value *> ret;
       std::set<Value *> seenVals;
       std::queue<Value *> workQ;

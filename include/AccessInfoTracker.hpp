@@ -66,7 +66,9 @@ public:
   int getCallOperandIdx(llvm::Value *operand, llvm::CallInst *callInst);
   std::string switchIndirectCalledPtrName(std::string funcptr);
   std::string inferFieldAnnotation(InstructionWrapper* instW);
+  bool voidPointerHasMultipleCasts(InstructionWrapper *voidPtrW);
   void initializeNumStats();
+  unsigned computeUsedGlobalNumInDriver();
   void printNumStats();
 
 private:
@@ -88,16 +90,20 @@ private:
   std::set<std::string> seenFuncOps;
   std::set<std::string> stringOperations;
   bool crossBoundary; // indicate whether transitive closure cross two domains
+  unsigned numEliminatedPrivateFields;
+  unsigned totalNumOfFields;
   unsigned numProjectedFields;
   unsigned savedSyncDataSize;
   unsigned privateDataSize;
   unsigned unionNum;
+  unsigned unNamedUnionNum;
   unsigned voidPointerNum;
+  unsigned unhandledVoidPointerNum;
   unsigned pointerArithmeticNum;
   unsigned sentialArrayNum;
   unsigned arrayNum;
+  unsigned unHandledArrayNum;
   unsigned stringNum;
-
 };
 
 std::string getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI);

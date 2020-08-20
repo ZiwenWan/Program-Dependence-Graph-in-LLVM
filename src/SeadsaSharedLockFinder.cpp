@@ -45,9 +45,10 @@ public:
 
   bool runOnModule(Module &M)
   {
+    ACT = &getAnalysis<AccessInfoTracker>();
     unsigned ptrInModule = countPtrInModule(M);
     errs() << "total pointer in module: " << ptrInModule << "\n";
-    atomicRegionWarn.open("atomicRegionWarning.txt");
+    atomicRegionWarn.open("numStats.txt", std::ios::app);
     // seperate kernel and driver functions
     seperateKernelDriverFunctions(M);
     // collects boundary functions 
@@ -69,12 +70,16 @@ public:
     // 3. collects store instructions in CS and test if shared data can be modified 
     unsigned warningCount = 0;
     unsigned warningCSNum = 0;
+    unsigned privateLockCS = 0;
     std::set<Instruction*> seenLockInsts;
     for (auto CS : criticalSections)
     {
       // Eliminate critcal sections that use private lock
       if (usePrivateLock(CS))
+      {
+        privateLockCS++;
         continue;
+      }
 
       // TODO: Eliminate warnings that has following cross-domain calls that synchronize the modified states
       auto instInCS = collectInstructionsInCS(CS);
@@ -91,14 +96,13 @@ public:
             // here one possible case is that the modification happens in the other domain. But this modification should be 
             // captured by the IDL. So, we should identify whether a modifiaiton is cross-domain modification. If so, then
             // no warning need to be generated. Otherwise, if it is a modifcation in the same domain, we need to check if this 
-            // modifcation will be synchronized accross domain by following calls to the other domain. If so, no warning need to 
-            // be generated, other wise, generate warning.
+            // modifcation will be synchronized accross domain by following calls to the other domain. If so, no warning need to be generated, otherwise, generate warning.
             Function* CSFunction = CS.first->getFunction(); // get function that contain the critical section
-            bool inDriver = (driverFunctions.find(CSFunction) != driverFunctions.end());
-            std::set<Function*> searchDomain = inDriver ? kernelFunctions : driverFunctions;
-            Function* modifyFunc = st->getFunction();
-            if (searchDomain.find(modifyFunc) != searchDomain.end()) // this means a modification happens in a cross-domain function.
-              continue;
+            // bool inDriver = (driverFunctions.find(CSFunction) != driverFunctions.end());
+            // std::set<Function*> searchDomain = inDriver ? kernelFunctions : driverFunctions;
+            // Function* modifyFunc = st->getFunction();
+            // if (searchDomain.find(modifyFunc) != searchDomain.end()) // this means a modification happens in a cross-domain function.
+            //   continue;
 
             if (seenLockInsts.find(CS.first) != seenLockInsts.end())
               continue;
@@ -147,6 +151,7 @@ public:
     }
     // sharedLockWarn.close();
     atomicRegionWarn << "warning critical sections: " << warningCSNum << "\n";
+    atomicRegionWarn << "private critical sections: " << privateLockCS << "\n";
     // sharedDataTypeMap = getAnalysis<AccessInfoTracker>().getSharedDataTypeMap();
     // // start processing for atomic operation
     // auto &pdgUtils = PDGUtils::getInstance();
@@ -346,6 +351,44 @@ public:
     }
   }
 
+  // bool usePrivateLock(std::pair<Instruction *, Instruction *> CS)
+  // {
+  //   auto &pdgUtils = PDGUtils::getInstance();
+  //   auto instMap = pdgUtils.getInstMap();
+  //   CallInst *lockInst = dyn_cast<CallInst>(CS.first);
+  //   assert((lockInst != nullptr) && "cannot find private lock for lockInst that with null call target.");
+  //   Function *lockInstParentFunc = lockInst->getFunction();
+  //   Value *lock = getUsedLock(lockInst);
+  //   while (lock && !isa<LoadInst>(lock))
+  //   {
+  //     lock =  getDataFlowSourceVar(lock);
+  //     if (lock && isa<LoadInst>(lock))
+  //       break;
+  //   }
+
+  //   auto PDG = ACT->_getPDG();
+  //   if (lock != nullptr)
+  //   {
+  //     if (Instruction *i = dyn_cast<Instruction>(lock))
+  //     {
+  //       auto valDepList = PDG->getNodesWithDepType(instMap[i], DependencyType::VAL_DEP);
+  //       for (auto pair : valDepList)
+  //       {
+  //         auto depInstW = pair.first->getData();
+  //         DIType *nodeDIType = depInstW->getDIType();
+  //         if (nodeDIType != nullptr)
+  //         {
+  //           auto sharedDataTypeMap = ACT->getSharedDataTypeMap();
+  //           std::string DITypeName = DIUtils::getDITypeName(nodeDIType);
+  //           if (sharedDataTypeMap.find(DITypeName) != sharedDataTypeMap.end())
+  //             return true;
+  //         }
+  //       }
+  //     }
+  //   }
+  //   return false;
+  // }
+
   bool usePrivateLock(std::pair<Instruction*, Instruction*> CS)
   {
     CallInst* lockInst = dyn_cast<CallInst>(CS.first);
@@ -376,7 +419,7 @@ public:
 
           Value *lock1 = getUsedLock(lockInst);
           Value *lock2 = getUsedLock(CI);
-          if (mustAlias(*lock1, *lockInst->getFunction(), *lock2, *F)) // if aliases are found in the other domain, then this is not a private lock.
+          if (mayAlias(*lock1, *lockInst->getFunction(), *lock2, *F)) // if aliases are found in the other domain, then this is not a private lock.
             return false;
         }
       }
@@ -764,8 +807,8 @@ public:
 
   Value *getDataFlowSourceVar(Value *val)
   {
-    if (auto ai = dyn_cast<AllocaInst>(val))
-      return getDataFlowSourceForAllocaInst(ai);
+    // if (auto ai = dyn_cast<AllocaInst>(val))
+    //   return getDataFlowSourceForAllocaInst(ai);
     if (auto si = dyn_cast<StoreInst>(val))
       return si->getValueOperand();
     if (auto li = dyn_cast<LoadInst>(val))
@@ -884,7 +927,7 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const
   {
     AU.addRequired<sea_dsa::DsaAnalysis>();
-    // AU.addRequired<AccessInfoTracker>();
+    AU.addRequired<AccessInfoTracker>();
     AU.setPreservesAll();
   }
 
@@ -899,6 +942,7 @@ private:
   std::map<std::string, std::set<std::string>> sharedDataTypeMap;
   std::set<Function*> crossDomainFuncs;
   std::ofstream atomicRegionWarn;
+  AccessInfoTracker *ACT;
 };
 char SeadsaWarningGenerator::ID = 0;
 static RegisterPass<SeadsaWarningGenerator> SeadsaWarningGenerator("sea-warn-gen", "Warning Generation using sea dsa", false, true);

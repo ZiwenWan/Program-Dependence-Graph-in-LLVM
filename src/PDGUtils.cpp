@@ -17,7 +17,10 @@ void pdg::PDGUtils::constructInstMap(Function &F)
 
       InstructionWrapper *instW = new InstructionWrapper(&*I, nodeTy);
       G_instMap[&*I] = instW;
-      G_funcInstWMap[&F].insert(instW); 
+      G_funcInstWMap[&F].insert(instW);
+      DIType *dt = getInstDIType(&*I);
+      if (dt != nullptr)
+        G_InstDITypeMap[&*I] = dt;
     }
   }
   categorizeInstInFunc(F);
@@ -37,6 +40,172 @@ void pdg::PDGUtils::constructFuncMap(Module &M)
       constructInstMap(*FI);
     }
   }
+}
+
+DIType *pdg::PDGUtils::getInstDIType(Instruction* inst)
+{
+  Function* parentFunc = inst->getFunction();
+  auto dbgInsts = DIUtils::collectDbgInstInFunc(*parentFunc);
+  std::vector<DbgInfoIntrinsic *> dbgInstList(dbgInsts.begin(), dbgInsts.end());
+  if (AllocaInst *ai = dyn_cast<AllocaInst>(inst))
+  {
+    DIType* allocDIType = DIUtils::getInstDIType(ai, dbgInstList);
+    return allocDIType;
+  }
+  
+  if (LoadInst *li = dyn_cast<LoadInst>(inst))
+  {
+    if (Instruction *sourceInst = dyn_cast<Instruction>(li->getPointerOperand()))
+    {
+      if (G_InstDITypeMap.find(sourceInst) == G_InstDITypeMap.end())
+        return nullptr;
+      DIType* sourceInstDIType = G_InstDITypeMap[sourceInst];
+      DIType* retDIType = DIUtils::stripAttributes(sourceInstDIType);
+      return retDIType;
+    }
+    if (GlobalVariable *gv = dyn_cast<GlobalVariable>(li->getPointerOperand()))
+    {
+      DIType* sourceGlobalVarDIType = DIUtils::getGlobalVarDIType(*gv);
+      return sourceGlobalVarDIType;
+    }
+  }
+
+  if (GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(inst))
+  {
+    if (Instruction *sourceInst = dyn_cast<Instruction>(gep->getPointerOperand()))
+    {
+      if (G_InstDITypeMap.find(sourceInst) == G_InstDITypeMap.end())
+        return nullptr;
+      DIType *sourceInstDIType = G_InstDITypeMap[sourceInst];
+      sourceInstDIType = DIUtils::stripAttributes(sourceInstDIType);
+      if (DIUtils::isStructTy(sourceInstDIType) || DIUtils::isStructPointerTy(sourceInstDIType))
+      {
+        sourceInstDIType = DIUtils::getLowestDIType(sourceInstDIType);
+        auto DINodeArr = dyn_cast<DICompositeType>(sourceInstDIType)->getElements();
+        StructType *structTy = getStructTypeFromGEP(gep);
+        if (structTy == nullptr)
+          return nullptr;
+        for (unsigned i = 0; i < DINodeArr.size(); ++i)
+        {
+          DIType *fieldDIType = dyn_cast<DIType>(DINodeArr[i]);
+          if (isGEPOffsetMatchWithDI(structTy, fieldDIType, gep))
+            return fieldDIType;
+        }
+      }
+    }
+  }
+
+  if (CastInst *castInst = dyn_cast<CastInst>(inst))
+  {
+    if (Instruction *sourceInst = dyn_cast<Instruction>(castInst->getOperand(0)))
+    {
+      if (G_InstDITypeMap.find(sourceInst) == G_InstDITypeMap.end())
+        return nullptr;
+      return G_InstDITypeMap[sourceInst];
+    }
+  }
+
+  return nullptr;
+}
+
+unsigned pdg::PDGUtils::getGEPAccessFieldOffset(GetElementPtrInst *gep)
+{
+  int operand_num = gep->getNumOperands();
+  llvm::Value *last_idx = gep->getOperand(operand_num - 1);
+  // cast the last_idx to int type
+  if (llvm::ConstantInt *constInt = dyn_cast<ConstantInt>(last_idx))
+    return constInt->getSExtValue();
+  return -1;
+}
+
+bool pdg::PDGUtils::isGEPforBitField(GetElementPtrInst* gep)
+{
+  for (auto u : gep->users())
+  {
+    if (LoadInst *li = dyn_cast<LoadInst>(u))
+    {
+      for (auto user : li->users())
+      {
+        if (isa<LShrOperator>(user))
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
+Value *pdg::PDGUtils::getLShrOnGep(GetElementPtrInst* gep)
+{
+  for (auto u : gep->users())
+  {
+    if (LoadInst *li = dyn_cast<LoadInst>(u))
+    {
+      for (auto user : li->users())
+      {
+        if (isa<LShrOperator>(user))
+          return user;
+      }
+    }
+  }
+  return nullptr;
+}
+
+uint64_t pdg::PDGUtils::getGEPOffsetInBits(StructType *structTy, GetElementPtrInst *gep)
+{
+  // get the accessed struct member offset from the gep instruction
+  Module *module = gep->getFunction()->getParent();
+  unsigned gepFieldOffset = getGEPAccessFieldOffset(gep);
+  if (gepFieldOffset < 0 || gepFieldOffset >= structTy->getNumElements())
+    return -1;
+  // use the struct layout to figure out the offset in bits
+  auto const &dataLayout = module->getDataLayout();
+  auto const structLayout = dataLayout.getStructLayout(structTy);
+  uint64_t fieldOffsetInBits = structLayout->getElementOffsetInBits(gepFieldOffset);
+  // check if the gep may be used for accessing bit fields
+  if (isGEPforBitField(gep))
+  {
+    // compute the accessed bit offset here
+    if (auto LShrInst = dyn_cast<LShrOperator>(getLShrOnGep(gep)))
+    {
+      auto LShrOffsetOp = LShrInst->getOperand(1);
+      if (ConstantInt *constInst = dyn_cast<ConstantInt>(LShrOffsetOp))
+      {
+        fieldOffsetInBits += constInst->getSExtValue();
+      }
+    }
+  }
+  // other situations?
+  return fieldOffsetInBits;
+}
+
+bool pdg::PDGUtils::isGEPOffsetMatchWithDI(StructType *structTy, DIType *dt, Instruction *gep)
+{
+  if (structTy == nullptr)
+    return false;
+  if (auto gepInst = dyn_cast<GetElementPtrInst>(gep))
+  {
+    uint64_t gepAccessMemOffset = getGEPOffsetInBits(structTy, gepInst);
+    if (dt == nullptr || gepAccessMemOffset < 0)
+      return false;
+    uint64_t debuggingOffset = dt->getOffsetInBits();
+    if (gepAccessMemOffset == debuggingOffset)
+      return true;
+  }
+  return false;
+}
+
+StructType *pdg::PDGUtils::getStructTypeFromGEP(Instruction *inst)
+{
+  if (GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(inst))
+  {
+    Value *baseAddr = gep->getPointerOperand();
+    if (baseAddr->getType()->isPointerTy())
+    {
+      if (StructType *structTy = dyn_cast<StructType>(baseAddr->getType()->getPointerElementType()))
+        return structTy;
+    }
+  }
+  return nullptr;
 }
 
 void pdg::PDGUtils::collectGlobalInsts(Module &M)
@@ -73,7 +242,7 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
 
     if (CastInst *bci = dyn_cast<CastInst>(inst))
       G_funcMap[&F]->addCastInst(inst);
-    
+
     if (IntrinsicInst *ii = dyn_cast<IntrinsicInst>(inst))
       G_funcMap[&F]->addIntrinsicInst(inst);
   }
@@ -112,7 +281,7 @@ std::set<Function *> pdg::PDGUtils::computeKernelDomainFuncs(Module &M)
 
 std::set<Function *> pdg::PDGUtils::computeImportedFuncs(Module &M)
 {
-  std::set<Function*> ret;
+  std::set<Function *> ret;
   std::ifstream importedFuncs("imported_func.txt");
   for (std::string line; std::getline(importedFuncs, line);)
   {
@@ -140,9 +309,11 @@ std::set<std::string> pdg::PDGUtils::getBlackListFuncs()
 
 std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
 {
+  std::ofstream interfaceFuncStats("numStats.txt");
   std::set<Function *> crossDomainFuncs;
   auto blackListFuncs = getBlackListFuncs();
   // cross-domain function from driver to kernel
+  unsigned importedFuncNum = 0;
   std::ifstream importedFuncs("imported_func.txt");
   for (std::string line; std::getline(importedFuncs, line);)
   {
@@ -152,12 +323,14 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
     if (f->isDeclaration() || f->empty() || blackListFuncs.find(f->getName()) != blackListFuncs.end())
       continue;
     crossDomainFuncs.insert(f);
+    importedFuncNum++;
   }
   importedFuncs.close();
-
+  interfaceFuncStats << "Driver - Kernel Calls: " << importedFuncNum << "\n";
   // driver side functions
   // cross-domain function from kernel to driver
   std::ifstream static_func("static_func.txt");
+  unsigned callBackFuncNum = 0;
   for (std::string line; std::getline(static_func, line);)
   {
     Function *f = M.getFunction(StringRef(line));
@@ -166,15 +339,22 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
     if (f->isDeclaration() || f->empty() || blackListFuncs.find(f->getName()) != blackListFuncs.end())
       continue;
     crossDomainFuncs.insert(f);
+    callBackFuncNum++;
   }
   static_func.close();
+  interfaceFuncStats << "Kernel - Driver Calls: " << callBackFuncNum << "\n";
 
+  // init module function
+  auto initFunc = M.getFunction("dummy_init_module");
+  if (initFunc != nullptr)
+    crossDomainFuncs.insert(initFunc);
+  interfaceFuncStats.close();
   return crossDomainFuncs;
 }
 
 std::set<Function *> pdg::PDGUtils::computeTransitiveClosure(Function &F)
 {
-  std::set<Function*> transClosure;
+  std::set<Function *> transClosure;
   std::queue<Function *> funcQ;
   transClosure.insert(&F);
   funcQ.push(&F);
@@ -231,9 +411,9 @@ std::map<std::string, std::string> pdg::PDGUtils::computeDriverExportFuncPtrName
 }
 
 // compute trasitive closure
-std::set<Function *> pdg::PDGUtils::getTransitiveClosureInDomain(Function &F, std::set<Function*> searchDomain)
+std::set<Function *> pdg::PDGUtils::getTransitiveClosureInDomain(Function &F, std::set<Function *> searchDomain)
 {
-  std::set<Function*> transClosure;
+  std::set<Function *> transClosure;
   std::queue<Function *> funcQ;
   funcQ.push(&F);
 

@@ -59,7 +59,7 @@ public:
   bool connectCallerAndCallee(InstructionWrapper *instW, llvm::Function *callee);
   void connectGlobalObjectTreeWithAddressVars(std::set<llvm::Function *> &searchDomain);
   std::set<llvm::Function *> inferAsynchronousCalledFunction();
-  std::set<InstructionWrapper *> collectAllocaInstWsOnDIType(llvm::DIType *dt, std::set<llvm::Function *> &searchDomain);
+  std::set<InstructionWrapper *> collectInstWsOnDIType(llvm::DIType *dt, std::set<llvm::Function *> &searchDomain);
   // field sensitive related functions
   std::vector<llvm::Instruction *> getArgStoreInsts(llvm::Argument &arg);
   llvm::Instruction *getArgAllocaInst(llvm::Argument &arg);
