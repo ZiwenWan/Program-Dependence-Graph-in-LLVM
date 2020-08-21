@@ -1127,7 +1127,6 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     {
       auto childT = tree<InstructionWrapper *>::child(treeI, i);
       auto childDIType = (*childT)->getDIType();
-      if (childDITy )
       std::string fieldID = DIUtils::computeFieldID(argDIType, childDIType);
       // determien if a field is accessed in asynchrnous context. If so, add it to projection.
       if (accessedFieldsInAsyncCalls.find(fieldID) != accessedFieldsInAsyncCalls.end())
@@ -1154,14 +1153,18 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
         {
           numProjectedFields++;
           numEliminatedPrivateFields++;
-          privateDataSize += (childDIType->getSizeInBits() / 8);
+          if (childDIType) {
+            privateDataSize += (childDIType->getSizeInBits() / 8);
+          }
           continue;
         }
       }
 
       if (childNodeNoAccess)
       {
-        savedSyncDataSize += (childDIType->getSizeInBits() / 8);
+        if (childDIType) {
+          savedSyncDataSize += (childDIType->getSizeInBits() / 8);
+        }
         continue;
       }
       // check if an accessed field is in the set of shared data, also, assume if the function call from kernel to driver 
