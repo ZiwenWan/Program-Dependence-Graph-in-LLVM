@@ -299,10 +299,17 @@ std::set<Function *> pdg::PDGUtils::computeImportedFuncs(Module &M)
 std::set<std::string> pdg::PDGUtils::getBlackListFuncs()
 {
   std::set<std::string> ret;
-  std::ifstream blackListFuncs("liblcd_funcs.txt");
-  for (std::string line; std::getline(blackListFuncs, line);)
-  {
-    ret.insert(line);
+  std::string filename("liblcd_funcs.txt");
+  std::ifstream blackListFuncs(filename);
+
+  if (!blackListFuncs) {
+    std::cout << "Failed to open: " << filename << " errno: " << strerror(errno) << std::endl;
+    std::cout << "WARNING: List of interface functions would not be filtered!\n";
+  } else {
+    for (std::string line; std::getline(blackListFuncs, line);)
+    {
+      ret.insert(line);
+    }
   }
   return ret;
 }
