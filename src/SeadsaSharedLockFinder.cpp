@@ -419,7 +419,7 @@ public:
 
           Value *lock1 = getUsedLock(lockInst);
           Value *lock2 = getUsedLock(CI);
-          if (mayAlias(*lock1, *lockInst->getFunction(), *lock2, *F)) // if aliases are found in the other domain, then this is not a private lock.
+          if (mustAlias(*lock1, *lockInst->getFunction(), *lock2, *F)) // if aliases are found in the other domain, then this is not a private lock.
             return false;
         }
       }

@@ -931,8 +931,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     if (DIUtils::isVoidPointer(argDIType))
     {
       voidPointerNum++;
-      if (voidPointerHasMultipleCasts(*argW->tree_begin(TreeType::FORMAL_IN_TREE)))
-        unhandledVoidPointerNum++;
+      // if (voidPointerHasMultipleCasts(*argW->tree_begin(TreeType::FORMAL_IN_TREE)))
+      //   unhandledVoidPointerNum++;
     }
 
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !argName.empty())
@@ -1127,6 +1127,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
     {
       auto childT = tree<InstructionWrapper *>::child(treeI, i);
       auto childDIType = (*childT)->getDIType();
+      if (childDITy )
       std::string fieldID = DIUtils::computeFieldID(argDIType, childDIType);
       // determien if a field is accessed in asynchrnous context. If so, add it to projection.
       if (accessedFieldsInAsyncCalls.find(fieldID) != accessedFieldsInAsyncCalls.end())
@@ -1258,8 +1259,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW, TreeType t
       if (DIUtils::isVoidPointer(childDIType))
       {
         voidPointerNum++;
-        if (voidPointerHasMultipleCasts(*childT))
-          unhandledVoidPointerNum++;
+        // if (voidPointerHasMultipleCasts(*childT))
+        //   unhandledVoidPointerNum++;
       }
       if (DIUtils::isArrayType(childDIType))
         arrayNum++;

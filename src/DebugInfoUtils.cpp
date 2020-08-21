@@ -823,9 +823,10 @@ std::set<DIType *> pdg::DIUtils::computeContainedDerivedTypes(DIType* dt)
 bool pdg::DIUtils::isSentinelType(DIType* dt)
 {
   if (!isStructPointerTy(dt) || !isStructTy(dt))
-    return -1;
+    return false;
   std::queue<DIType*> workQ;
   std::set<DIType*> seenTypes;
+  std::set<DIType*> seenStructs;
   workQ.push(dt);
   while (!workQ.empty())
   {
@@ -833,7 +834,11 @@ bool pdg::DIUtils::isSentinelType(DIType* dt)
     workQ.pop();
     DIType* lowestDIType = getLowestDIType(curDIType);
     if (seenTypes.find(curDIType) != seenTypes.end())
+    {
+      if (dt == curDIType)
         return true;
+      continue;
+    }
     seenTypes.insert(curDIType);
     auto DINodeArr = dyn_cast<DICompositeType>(lowestDIType)->getElements();
     for (unsigned i = 0; i < DINodeArr.size(); ++i)
