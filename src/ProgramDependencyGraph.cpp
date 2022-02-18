@@ -83,7 +83,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 bool pdg::ProgramDependencyGraph::processIndirectCallInst(CallInst *CI, InstructionWrapper *instW)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  Type *t = CI->getCalledValue()->getType();
+  Type *t = CI->getCalledOperand()->getType();
   FunctionType *funcTy = cast<FunctionType>(cast<PointerType>(t)->getElementType());
   // collect all possible function with same function signature
   std::vector<Function *> indirect_call_candidates = collectIndirectCallCandidates(funcTy);

@@ -21,7 +21,10 @@ Our program dependence graph is field senstive, context-insensitive and flow-ins
 }
 
 
-We have upgraded the implementation to LLVM 9.0.0. Currently, we only support building PDGs for C programs.
+We have upgraded the implementation to LLVM 13.0.0. Currently, we only support building PDGs for C programs.
+
+> Note: The `f44b510` commit's implementation uses LLVM 9.0.0 API
+
 
 A PDG example looks like this (the blue part corresponds to the parameter tree):
 
@@ -34,8 +37,15 @@ mkdir build
 cd build
 cmake ..
 make
-opt -load libpdg.so -dot-pdg < test.bc
+opt -enable-new-pm=0 -load libpdg.so -dot-pdg < test.bc
 ```
+
+**Note**:
+- "find_package(LLVM REQUIRED CONFIG)" in CMakeLists.txt:
+  - In order to find `LLVMConfig.cmake`, cmake command should be add flags like `-DLLVM_DIR={prefix_to_src}/llvm-project-13.0.0/llvm/build/lib/cmake/llvm`
+  - Usually you can find it in the above llvm build dir
+- For LLVM 13.0.0, new pass manager is used for optimization pass, legacy pass manager is only for codegen, so `-enable-new-pm=0` must be added
+- The C++ standard is changed to C++14, the `f44b510` commit uses C++11 standard
 
 Once you finish these operations a dot file will be created. You can open it with [Graphviz](http://www.graphviz.org/).
 

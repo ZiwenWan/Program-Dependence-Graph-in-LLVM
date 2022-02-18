@@ -1,7 +1,7 @@
 #ifndef PROGRAMDEPENDENCYGRAPH_H_
 #define PROGRAMDEPENDENCYGRAPH_H_
 #include "llvm/IR/Module.h"
-#include "llvm/PassAnalysisSupport.h"
+#include "llvm/Pass.h"
 #include "ControlDependencyGraph.hpp"
 #include "DataDependencyGraph.hpp"
 #include "llvm/IR/DebugInfo.h"

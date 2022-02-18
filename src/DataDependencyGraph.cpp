@@ -57,7 +57,7 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
       MemoryLocation l_loc = MemoryLocation::get(li);
       AliasResult andersAAResult = andersAA->query(s_loc, l_loc);
       // AliasResult steensAAResult = steenAA->alias(s_loc, l_loc);
-      if (andersAAResult != NoAlias)
+      if (andersAAResult != llvm::AliasResult::NoAlias)
       {
         InstructionWrapper *loadInstW = instMap[li];
         InstructionWrapper *storeInstW = instMap[si];
@@ -71,7 +71,7 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
         continue;
       MemoryLocation s1_loc = MemoryLocation::get(si1);
       AliasResult andersAAResult = andersAA->query(s_loc, s1_loc);
-      if (andersAAResult != NoAlias) {
+      if (andersAAResult != llvm::AliasResult::NoAlias) {
         InstructionWrapper *store1InstW = PDGUtils::getInstance().getInstMap()[si];
         InstructionWrapper *store2InstW = PDGUtils::getInstance().getInstMap()[si1];
         DDG->addDependency(store1InstW, store2InstW, DependencyType::DATA_ALIAS);
@@ -100,7 +100,7 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
         continue;
       }
       AliasResult AA_result = andersAA->query(li1_loc, li2_loc);
-      if (AA_result != NoAlias)
+      if (AA_result != llvm::AliasResult::NoAlias)
       {
         InstructionWrapper *loadInstW1 = instMap[li1];
         InstructionWrapper *loadInstW2 = instMap[li2];
@@ -185,7 +185,7 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
     MemoryLocation SI_Loc = MemoryLocation::get(SI);
     AliasResult andersAAResult = andersAA->query(LI_Loc, SI_Loc);
     AliasResult steensAAResult = steenAA->query(LI_Loc, SI_Loc);
-    if (andersAAResult != NoAlias || steensAAResult != NoAlias)
+    if (andersAAResult != llvm::AliasResult::NoAlias || steensAAResult != llvm::AliasResult::NoAlias)
     {
       _flowdep_set.push_back(SI);
     }
