@@ -43,13 +43,13 @@ Once you finish these operations a dot file will be created. You can open it wit
 
 For simple C programs(e.g., test.c), do
 
-> **clang -emit-llvm -S test.c -o test.bc**
+> **clang -emit-llvm -c test.c -o test.bc**
 
 Now you have a binary format LLVM bitcode file which can be directly used as the input for PDG generation.
 
 You can also generate a human-readable bitcode file(.ll) if you would like to:
 
-> **llvm-dis test.bc**
+> **llvm-dis test.bc -o test.ll**
 
 This will generate a human-readable format bitcode file (test.ll) for your debugging and testing.
 
